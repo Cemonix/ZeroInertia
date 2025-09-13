@@ -28,7 +28,7 @@ class Task(Base):
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
 
     user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    template_id: Mapped[UUID | None] = mapped_column(ForeignKey("templates.id", ondelete="SET NULL"), default=None)
+    template_id: Mapped[UUID | None] = mapped_column(ForeignKey("task_templates.id", ondelete="SET NULL"), default=None)
 
     parent_id: Mapped[UUID | None] = mapped_column(ForeignKey("tasks.id", ondelete="CASCADE"), default=None)
     order_index: Mapped[int] = mapped_column(default=0)
