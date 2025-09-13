@@ -1,0 +1,58 @@
+[tool.poetry]
+name = "zero-inertia-backend"
+version = "0.1.0"
+description = "Zero Inertia todo app backend"
+authors = ["Cemonix <gittlermilan@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.13"
+fastapi = "*"
+uvicorn = {extras = ["standard"], version = "*"}
+sqlalchemy = "*"
+alembic = "*"
+asyncpg = "*"
+python-jose = {extras = ["cryptography"], version = "*"}
+passlib = {extras = ["bcrypt"], version = "*"}
+python-multipart = "*"
+pydantic = {extras = ["email"], version = "*"}
+pydantic-settings = "*"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "*"
+pytest-asyncio = "*"
+pytest-cov = "*"
+ruff = "*"
+httpx = "*"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+select = ["E", "W", "F", "I", "B", "C4", "ARG", "SIM"]
+ignore = ["E501", "E203"]
+
+[tool.basedpyright]
+include = ["app"]
+exclude = [
+    "**/node_modules",
+    "**/__pycache__",
+    "app/experimental"
+]
+pythonVersion = "3.13"
+typeCheckingMode = "recommended"
+reportMissingImports = "error"
+reportMissingTypeStubs = false
+reportUnusedImport = "warning"
+reportUnusedVariable = "warning"
+reportDuplicateImport = "error"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["app/tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
