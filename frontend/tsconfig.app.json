@@ -24,8 +24,8 @@
       "@/*": ["src/*"],
       "@vue/*": ["node_modules/vue/*"],
       "@vueuse/*": ["node_modules/@vueuse/core/*"],
-      "@pinia/*": ["node_modules/pinia/*"],
-    },
+      "@pinia/*": ["node_modules/pinia/*"]
+    }
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"]
 }
