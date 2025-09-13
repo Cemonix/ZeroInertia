@@ -1,9 +1,8 @@
 [tool.poetry]
-name = "zero-inertia-backend"
+name = "app"
 version = "0.1.0"
 description = "Zero Inertia todo app backend"
 authors = ["Cemonix <gittlermilan@gmail.com>"]
-readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.13"
@@ -12,9 +11,8 @@ uvicorn = {extras = ["standard"], version = "*"}
 sqlalchemy = "*"
 alembic = "*"
 asyncpg = "*"
-python-jose = {extras = ["cryptography"], version = "*"}
+pyjwt = "*"
 passlib = {extras = ["bcrypt"], version = "*"}
-python-multipart = "*"
 pydantic = {extras = ["email"], version = "*"}
 pydantic-settings = "*"
 
