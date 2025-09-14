@@ -25,7 +25,7 @@ class TaskStreak(Base):
     template: Mapped["TaskTemplate"] = relationship()  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
 
     __table_args__: tuple[Index | UniqueConstraint, ...] = (
-        Index("ix_user_id", "user_id"),
-        Index("ix_template_id", "template_id"),
+        Index("ix_task_streaks_user_id", "user_id"),
+        Index("ix_task_streaks_template_id", "template_id"),
         UniqueConstraint("user_id", "template_id", name="uq_user_template_streak"),
     )

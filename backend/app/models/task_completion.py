@@ -23,11 +23,11 @@ class TaskCompletion(Base):
     # Relationships
     user: Mapped["User"] = relationship()  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
     template: Mapped["TaskTemplate"] = relationship()  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
-    task: Mapped["Task"] | None = relationship()  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
+    task: Mapped["Task | None"] = relationship()  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
 
     __table_args__: tuple[Index, ...] = (
-        Index("ix_user_id", "user_id"),
-        Index("ix_template_id", "template_id"),
-        Index("ix_completed_at", "completed_at"),
-        Index("ix_user_template_date", "user_id", "template_id", "completed_at"),
+        Index("ix_task_completions_user_id", "user_id"),
+        Index("ix_task_completions_template_id", "template_id"),
+        Index("ix_task_completions_completed_at", "completed_at"),
+        Index("ix_task_completions_user_template_date", "user_id", "template_id", "completed_at"),
     )
