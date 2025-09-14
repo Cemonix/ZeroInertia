@@ -24,6 +24,6 @@ class Label(Base):
     )
 
     __table_args__: tuple[Index | UniqueConstraint, ...] = (
-        Index("ix_user_id", "user_id"),
+        Index("ix_labels_user_id", "user_id"),
         UniqueConstraint("user_id", "name", name="uq_user_label_name"),
     )

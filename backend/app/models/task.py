@@ -50,8 +50,8 @@ class Task(Base):
     subtasks: Mapped[list["Task"]] = relationship(
         back_populates="parent", cascade="all, delete-orphan"
     )
-    parent: Mapped["Task"] | None = relationship(back_populates="subtasks", remote_side=[id])
-    template: Mapped["TaskTemplate"] | None = relationship(back_populates="tasks")  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
+    parent: Mapped["Task | None"] = relationship(back_populates="subtasks", remote_side=[id])
+    template: Mapped["TaskTemplate | None"] = relationship(back_populates="tasks")  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
     labels: Mapped[list["Label"]] = relationship(  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
         secondary="task_labels",
         back_populates="tasks",

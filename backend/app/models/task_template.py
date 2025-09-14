@@ -28,6 +28,6 @@ class TaskTemplate(Base):
     tasks: Mapped[list["Task"]] = relationship(back_populates="template")  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
 
     __table_args__: tuple[Index, ...] = (
-        Index("ix_user_id", "user_id"),
-        Index("ix_recurrence_pattern", "recurrence_pattern"),
+        Index("ix_task_templates_user_id", "user_id"),
+        Index("ix_task_templates_recurrence_pattern", "recurrence_pattern"),
     )
