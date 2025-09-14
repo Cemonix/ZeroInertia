@@ -3,7 +3,9 @@ from contextlib import asynccontextmanager
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.sessions import SessionMiddleware
 
+from app.api.v1 import auth
 from app.core.database import engine
 from app.core.logging import logger, setup_logging
 from app.core.settings.app_settings import AppSettings
@@ -33,6 +35,9 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Session middleware (for OAuth state)
+app.add_middleware(SessionMiddleware, secret_key=app_settings.jwt_secret_key)
+
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
@@ -48,9 +53,8 @@ async def health_check():
     """Health check endpoint."""
     return {"status": "healthy", "message": "Zero Inertia API is running"}
 
-# API routes will be added here
-# app.include_router(auth_router, prefix="/api/v1/auth", tags=["auth"])
-# app.include_router(tasks_router, prefix="/api/v1/tasks", tags=["tasks"])
+# API routes
+app.include_router(auth.router, prefix="/auth", tags=["authentication"])
 
 
 if __name__ == "__main__":

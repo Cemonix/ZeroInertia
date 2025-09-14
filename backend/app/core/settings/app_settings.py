@@ -16,6 +16,16 @@ class AppSettings(BaseSettings):
     # AI Service Configuration
     ai_api_key: str = Field(alias="AI_API_KEY")
 
+    # OAuth Configuration
+    google_client_id: str = Field(alias="GOOGLE_CLIENT_ID")
+    google_client_secret: str = Field(alias="GOOGLE_CLIENT_SECRET")
+    oauth_redirect_uri: str = Field(default="http://localhost:8000/auth/google/callback", alias="OAUTH_REDIRECT_URI")
+
+    # JWT Configuration
+    jwt_secret_key: str = Field(alias="JWT_SECRET_KEY")
+    jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
+    jwt_expire_minutes: int = Field(default=1440, alias="JWT_EXPIRE_MINUTES")  # 24 hours
+
     # Server Configuration
     host: str = Field(default="0.0.0.0", alias="HOST")
     port: int = Field(default=8000, alias="PORT")

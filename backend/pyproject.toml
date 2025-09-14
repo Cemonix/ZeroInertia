@@ -15,7 +15,9 @@ pyjwt = "*"
 passlib = {extras = ["bcrypt"], version = "*"}
 pydantic = {extras = ["email"], version = "*"}
 pydantic-settings = "*"
-loguru = "^0.7.3"
+loguru = "*"
+authlib = "*"
+itsdangerous = "*"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "*"
