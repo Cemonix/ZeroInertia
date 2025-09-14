@@ -32,10 +32,10 @@ class JWTService:
         )
 
     @staticmethod
-    def verify_token(token: str) -> dict[str, str]:
+    def verify_token(token: str) -> dict[str, object]:
         """Verify and decode a JWT token."""
         try:
-            payload = cast(dict[str, str], jwt.decode(
+            payload = cast(dict[str, object], jwt.decode(
                 token,
                 settings.jwt_secret_key,
                 algorithms=[settings.jwt_algorithm]
