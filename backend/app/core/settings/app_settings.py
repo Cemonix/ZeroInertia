@@ -54,7 +54,7 @@ class AppSettings(BaseSettings):
         if self.environment == "production" and self.debug:
             raise ValueError("DEBUG must be False in production environment.")
 
-        if self.cors_origins == []:
+        if not self.cors_origins:
             raise ValueError("CORS_ORIGINS must be provided.")
 
         if self.jwt_secret_key == "" or len(self.jwt_secret_key) < 32:
