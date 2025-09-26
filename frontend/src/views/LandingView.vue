@@ -12,7 +12,10 @@
           AI categorization, smart timing, and streak tracking that actually motivates you to get things done.
         </p>
         <div class="hero-buttons">
-          <Button label="Start Free Today" @click="handleStartFree" class="btn-primary-large" />
+          <Button label="Start Free Today" @click="handleAuth" class="btn-primary-large" :disabled="authStore.isLoading"/>
+        </div>
+        <div v-if="errorMessage" class="error-message">
+          ⚠️ {{ errorMessage }}
         </div>
       </div>
     </section>
@@ -75,13 +78,27 @@
 </template>
 
 <script setup lang="ts">
+import { ref, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
+import Button from 'primevue/button'
 import PublicLayout from '@/components/layout/PublicLayout.vue'
+import { useAuthStore } from '@/stores/auth'
 
-const handleStartFree = () => {
-  // TODO: Navigate to OAuth login
-  console.log('Starting free trial')
+const authStore = useAuthStore()
+const route = useRoute()
+const errorMessage = ref<string | null>(null)
+
+// Check for OAuth error messages in URL params
+onMounted(() => {
+  const message = route.query.message as string
+  if (message) {
+    errorMessage.value = message.replace(/\+/g, ' ')
+  }
+})
+
+const handleAuth = () => {
+  authStore.redirectToLogin()
 }
-
 </script>
 
 <style scoped>
@@ -139,8 +156,21 @@ const handleStartFree = () => {
   display: flex;
   gap: 1rem;
   justify-content: center;
-  margin-bottom: 4rem;
+  margin-bottom: 2rem;
   flex-wrap: wrap;
+}
+
+.error-message {
+  background: #fef2f2;
+  color: #dc2626;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid #fecaca;
+  margin-bottom: 2rem;
+  text-align: center;
+  max-width: 500px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 
