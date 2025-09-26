@@ -11,7 +11,7 @@ from app.core.logging import logger, setup_logging
 from app.core.settings.app_settings import AppSettings
 
 # Load settings
-app_settings = AppSettings()  # pyright: ignore[reportCallIssue]
+app_settings = AppSettings()
 
 # Setup logging
 setup_logging(app_settings)
@@ -54,7 +54,7 @@ async def health_check():
     return {"status": "healthy", "message": "Zero Inertia API is running"}
 
 # API routes
-app.include_router(auth.router, prefix="/auth", tags=["authentication"])
+app.include_router(auth.router, prefix="/api/v1/auth", tags=["authentication"])
 
 
 if __name__ == "__main__":

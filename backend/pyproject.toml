@@ -18,6 +18,7 @@ pydantic-settings = "*"
 loguru = "*"
 authlib = "*"
 itsdangerous = "*"
+redis = "*"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "*"

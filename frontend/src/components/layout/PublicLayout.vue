@@ -12,13 +12,9 @@
         <div class="nav-actions">
           <Button
             label="Sign In"
-            @click="handleSignIn"
-            class="nav-button-ghost"
-          />
-          <Button
-            label="Get Started"
-            @click="handleGetStarted"
+            @click="handleAuth"
             class="nav-button"
+            :disabled="authStore.isLoading"
           />
         </div>
       </div>
@@ -36,14 +32,12 @@
 </template>
 
 <script setup lang="ts">
-const handleSignIn = () => {
-  // TODO: Navigate to OAuth login
-  console.log('Sign in clicked')
-}
+import { useAuthStore } from '@/stores/auth'
 
-const handleGetStarted = () => {
-  // TODO: Navigate to OAuth registration/login (same flow)
-  console.log('Get started clicked')
+const authStore = useAuthStore()
+
+const handleAuth = () => {
+  authStore.redirectToLogin()
 }
 </script>
 
@@ -131,20 +125,5 @@ const handleGetStarted = () => {
   display: flex;
   gap: 0.5rem;
   align-items: center;
-}
-
-:deep(.nav-button-ghost) {
-  background: transparent !important;
-  color: var(--grey-600) !important;
-  border: 1px solid transparent !important;
-  padding: 0.5rem 1rem !important;
-  border-radius: 0.5rem !important;
-  font-weight: 500 !important;
-  transition: all 0.2s !important;
-}
-
-:deep(.nav-button-ghost:hover) {
-  background: rgba(255, 255, 255, 0.5) !important;
-  color: var(--grey-800) !important;
 }
 </style>
