@@ -1,37 +1,17 @@
 import { createRouter, createWebHistory } from "vue-router";
-import LandingView from "@/views/LandingView.vue";
-import WorkspaceView from "@/views/WorkspaceView.vue";
 import { useAuthStore } from "@/stores/auth";
+import DashboardView from "@/views/DashboardView.vue";
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
     routes: [
         {
-            path: "/",
-            name: "landing",
-            component: LandingView,
+            path: "/home",
+            name: "dashboard",
+            component: DashboardView,
+            alias: "/",
             meta: {
-                layout: "public",
-                title: "Zero Inertia - AI-Powered Productivity",
-            },
-        },
-        {
-            path: "/workspace",
-            name: "workspace",
-            component: WorkspaceView,
-            meta: {
-                requiresAuth: true,
-                layout: "authenticated",
-                title: "Workspace - Zero Inertia",
-            },
-        },
-        {
-            path: "/auth/error",
-            name: "auth-error",
-            component: LandingView,
-            meta: {
-                layout: "public",
-                title: "Authentication Error - Zero Inertia",
+                title: "Zero Inertia",
             },
         },
     ],

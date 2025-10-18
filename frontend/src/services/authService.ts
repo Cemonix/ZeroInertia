@@ -3,7 +3,7 @@ import type {
     User,
     MeResponse,
     LogoutResponse
-} from "./authService.types";
+} from "@/models/auth";
 import { AuthError, handleApiError } from "./errorHandler";
 
 export class AuthService {
