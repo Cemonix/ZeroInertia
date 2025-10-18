@@ -7,12 +7,7 @@ from alembic import context
 from app.core.database import engine
 from app.core.settings.database_settings import DatabaseSettings
 from app.models import (
-    label,  # noqa: F401
     task,  # noqa: F401
-    task_completion,  # noqa: F401
-    task_label,  # noqa: F401
-    task_streak,  # noqa: F401
-    task_template,  # noqa: F401
     user,  # noqa: F401
 )
 from app.models.base import Base

@@ -7,7 +7,7 @@ from fastapi import HTTPException, status
 
 from app.core.settings.app_settings import AppSettings
 
-settings = AppSettings()  # pyright: ignore[reportCallIssue]
+settings = AppSettings()
 
 
 class JWTService:

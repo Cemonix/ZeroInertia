@@ -1,15 +1,15 @@
 from typing import cast
+from uuid import UUID
 
 import httpx
-from fastapi import HTTPException, status
-from fastapi.security.http import HTTPBearer
+from fastapi import HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.settings.app_settings import AppSettings
 from app.models.user import User
+from app.services.jwt_service import JWTService
 from app.services.user_service import UserService
 
-security = HTTPBearer()
 settings = AppSettings()
 
 
@@ -126,3 +126,30 @@ async def create_or_update_user(session: AsyncSession, user_data: dict[str, str 
         )
 
     return user
+
+
+async def get_current_user_id(request: Request) -> UUID:
+    """Extract user ID from JWT cookie."""
+    access_token = request.cookies.get("access_token")
+    if not access_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated"
+        )
+
+    payload = JWTService.verify_token(access_token)
+    user_id_str = payload.get("sub")
+
+    if not user_id_str:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token payload"
+        )
+
+    try:
+        return UUID(str(user_id_str))
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid user ID in token"
+        ) from None

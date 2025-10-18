@@ -35,7 +35,7 @@ build-backend = "poetry.core.masonry.api"
 target-version = "py313"
 line-length = 100
 select = ["E", "W", "F", "I", "B", "C4", "ARG", "SIM"]
-ignore = ["E501", "E203"]
+ignore = ["E501", "E203", "B008"]
 
 [tool.basedpyright]
 include = ["app"]
@@ -51,6 +51,7 @@ reportMissingTypeStubs = false
 reportUnusedImport = "warning"
 reportUnusedVariable = "warning"
 reportDuplicateImport = "error"
+reportCallInDefaultInitializer = false
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

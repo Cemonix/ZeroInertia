@@ -15,6 +15,7 @@ from app.api.v1.auth_deps import (
 )
 from app.core.database import get_db
 from app.core.settings.app_settings import AppSettings
+from app.schemas.user import UserResponse
 from app.services.jwt_service import JWTService
 from app.services.redis_service import OAuthStateService
 from app.services.user_service import UserService
@@ -60,7 +61,7 @@ async def google_login() -> RedirectResponse:
 async def google_callback(
     code: str,
     state: str,
-    session: AsyncSession = Depends(get_db),  # pyright: ignore[reportCallInDefaultInitializer]  # noqa: B008
+    session: AsyncSession = Depends(get_db),
 ) -> RedirectResponse:
     """Handle Google OAuth callback with redirect flow."""
     try:
@@ -80,7 +81,7 @@ async def google_callback(
 
         # Create secure response with JWT cookie and redirect to frontend
         response = RedirectResponse(
-            url=f"{settings.cors_origins[0]}/workspace",
+            url=f"{settings.cors_origins[0]}/home",
             status_code=302
         )
 
@@ -112,8 +113,8 @@ async def google_callback(
 @router.get("/me")
 async def get_current_user(
     request: Request,
-    session: AsyncSession = Depends(get_db)  # pyright: ignore[reportCallInDefaultInitializer]  # noqa: B008
-) -> dict[str, object]:
+    session: AsyncSession = Depends(get_db)
+) -> UserResponse:
     """Get the currently authenticated user from cookie."""
     # Get JWT from cookie
     access_token = request.cookies.get("access_token")
@@ -148,14 +149,7 @@ async def get_current_user(
             detail="User not found"
         )
 
-    return {
-        "user": {
-            "id": str(user.id),
-            "email": user.email,
-            "full_name": user.full_name,
-            "avatar_url": user.avatar_url
-        }
-    }
+    return UserResponse.model_validate(user)
 
 
 @router.post("/logout")
