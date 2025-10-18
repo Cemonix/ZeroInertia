@@ -27,10 +27,9 @@ class User(Base):
     last_login_at: Mapped[datetime | None] = mapped_column(server_default=None)
 
     # Relationships
+    projects: Mapped[list["Project"]] = relationship(back_populates="user", cascade="all, delete-orphan")  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
+    sections: Mapped[list["Section"]] = relationship(back_populates="user", cascade="all, delete-orphan")  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
     tasks: Mapped[list["Task"]] = relationship(back_populates="user", cascade="all, delete-orphan")  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
-    labels: Mapped[list["Label"]] = relationship(back_populates="user", cascade="all, delete-orphan")  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
-    task_templates: Mapped[list["TaskTemplate"]] = relationship(back_populates="user", cascade="all, delete-orphan")  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
-    task_streaks: Mapped[list["TaskStreak"]] = relationship(back_populates="user", cascade="all, delete-orphan")  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
 
     # Constraints and Indexes
     __table_args__: tuple[UniqueConstraint, UniqueConstraint, Index] = (

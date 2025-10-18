@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
-from app.api.v1 import auth
+from app.api.v1 import auth, project, section, task
 from app.core.database import engine
 from app.core.logging import logger, setup_logging
 from app.core.settings.app_settings import AppSettings
@@ -18,7 +18,7 @@ setup_logging(app_settings)
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_: FastAPI):
     """Application lifespan manager for startup/shutdown events."""
     logger.info("Starting up Zero Inertia API...")
     yield
@@ -55,6 +55,9 @@ async def health_check():
 
 # API routes
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["authentication"])
+app.include_router(project.router, prefix="/api/v1/projects", tags=["projects"])
+app.include_router(section.router, prefix="/api/v1/sections", tags=["sections"])
+app.include_router(task.router, prefix="/api/v1/tasks", tags=["tasks"])
 
 
 if __name__ == "__main__":

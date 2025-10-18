@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { ref, computed, readonly } from "vue";
-import type { User } from "@/services/authService.types";
+import type { User } from "@/models/auth";
 import { AuthService } from "@/services/authService";
 
 export const useAuthStore = defineStore("auth", () => {
@@ -14,7 +14,6 @@ export const useAuthStore = defineStore("auth", () => {
 
     /**
      * Initialize auth state by checking current user
-     * Call this once when the app starts
      */
     async function initialize() {
         if (isInitialized.value) return;
@@ -69,14 +68,6 @@ export const useAuthStore = defineStore("auth", () => {
         user.value = null;
     }
 
-    /**
-     * Check if auth state needs refresh
-     * Useful for preventing unnecessary API calls
-     */
-    function needsRefresh(): boolean {
-        return false;
-    }
-
     return {
         // State
         user: readonly(user),
@@ -94,6 +85,5 @@ export const useAuthStore = defineStore("auth", () => {
         logout,
         setUser,
         clearUser,
-        needsRefresh,
     };
 });

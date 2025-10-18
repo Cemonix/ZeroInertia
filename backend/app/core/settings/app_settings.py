@@ -1,13 +1,20 @@
+from enum import StrEnum
 from typing import ClassVar
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+_app_settings_instance: "AppSettings | None" = None
+
+class Environment(StrEnum):
+    DEVELOPMENT = "development"
+    PRODUCTION = "production"
+
 
 class AppSettings(BaseSettings):
     project_name: str = Field(default="Zero Inertia", alias="PROJECT_NAME")
     api_v1_str: str = Field(default="/api/v1", alias="API_V1_STR")
-    environment: str = Field(default="development", alias="ENVIRONMENT")
+    environment: Environment = Field(default=Environment.DEVELOPMENT, alias="ENVIRONMENT")
     debug: bool = Field(default=True, alias="DEBUG")
 
     # CORS Configuration
@@ -75,3 +82,11 @@ class AppSettings(BaseSettings):
     def cors_origins(self) -> list[str]:
         """Convert comma-separated CORS origins to list."""
         return [origin.strip() for origin in self.backend_cors_origins.split(",") if origin.strip()]
+
+
+def get_app_settings() -> AppSettings:
+    """Get the singleton instance of AppSettings."""
+    global _app_settings_instance
+    if _app_settings_instance is None:
+        _app_settings_instance = AppSettings()
+    return _app_settings_instance
