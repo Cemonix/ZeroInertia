@@ -36,7 +36,7 @@ import { ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import Toast from 'primevue/toast';
 import Avatar from 'primevue/avatar';
-import ProjectModal from '@/components/sidebar/ProjectModal.vue';
+import ProjectModal from '@/components/sidebar/ProjectCreateModal.vue';
 import ProjectTree from '@/components/sidebar/ProjectTree.vue';
 import Board from '@/components/board/Board.vue';
 

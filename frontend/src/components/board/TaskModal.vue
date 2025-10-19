@@ -1,14 +1,18 @@
 <template>
     <Dialog
-        :visible="isVisible"
-        @update:visible="isVisible = $event"
-        :header="task ? 'Edit Task' : 'New Task'"
+        :visible="taskStore.isTaskModalVisible"
+        @update:visible="taskStore.setTaskModalVisible($event)"
+        :header="taskStore.getCurrentTask ? 'Edit Task' : 'New Task'"
         modal
     >
         <div>
             <div class="form-field">
                 <label for="title">Title</label>
-                <InputText id="title" v-model="title" />
+                <InputText
+                    id="title"
+                    v-model="title"
+                    autofocus
+                />
             </div>
             <div class="form-field">
                 <label for="description">Description</label>
@@ -26,106 +30,75 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, watch, type Ref } from "vue";
-import { taskService } from "@/services/taskService";
-import type { Task } from "@/models/task";
-import Dialog from "primevue/dialog";
+import { ref, watch, type Ref } from "vue";
 import Textarea from "primevue/textarea";
+import { useTaskStore } from "@/stores/task";
 
 const props = defineProps<{
-    modelValue: boolean;
-    taskId: string | null;
+    projectId: string;
 }>();
 
-const emit = defineEmits<{
-    (e: "update:modelValue", value: boolean): void;
-    (e: "task-updated", task: Task): void;
-    (e: "task-created", task: Task): void;
-}>();
+const taskStore = useTaskStore();
 
-const task: Ref<Task | null> = ref(null);
 const isLoading = ref(false);
 const title = ref("");
 const description: Ref<string | null> = ref(null);
-const isDone = ref(false);
+const taskCompleted = ref(false);
 
-// Computed property for two-way binding with parent
-const isVisible = computed({
-    get: () => props.modelValue,
-    set: (value) => emit("update:modelValue", value)
-});
-
-// Watch for modal opening to load task or reset form
+// Watch for modal visibility changes and load task data
 watch(
-    () => props.modelValue,
+    () => taskStore.isTaskModalVisible,
     (newVal) => {
-        if (newVal && props.taskId) {
-            loadTask(props.taskId);
-        } else if (newVal) {
-            resetForm();
+        if (newVal) {
+            const currentTask = taskStore.getCurrentTask;
+            if (currentTask) {
+                // Editing existing task
+                title.value = currentTask.title;
+                description.value = currentTask.description;
+                taskCompleted.value = currentTask.completed;
+            } else {
+                // Creating new task
+                resetForm();
+            }
         }
     }
 );
 
-async function loadTask(id: string) {
+async function saveTask() {
+    if (title.value.trim() === "" || !taskStore.currentSectionId) return;
+
     isLoading.value = true;
+    const currentTask = taskStore.getCurrentTask;
 
     try {
-        task.value = await taskService.getTaskById(id);
-    } catch (error) {
-        console.error("Failed to load task:", error);
-        task.value = null;
-    }
-
-    if (task.value) {
-        title.value = task.value.title;
-        description.value = task.value.description;
-        isDone.value = task.value.is_done;
-    }
-    isLoading.value = false;
-}
-
-function resetForm() {
-    task.value = null;
-    title.value = "";
-    description.value = "";
-}
-
-async function saveTask() {
-    if (title.value.trim() === "") return;
-
-    isLoading.value = true;
-    if (task.value) {
-        // Update existing task
-        try{
-            const updatedTask = await taskService.updateTask(task.value.id, {
+        if (currentTask) {
+            // Update existing task
+            await taskStore.updateTask(currentTask.id, {
+                title: title.value,
+                description: description.value,
+                completed: taskCompleted.value,
+            });
+        } else {
+            // Create new task
+            await taskStore.createTask({
+                project_id: props.projectId,
+                section_id: taskStore.currentSectionId,
                 title: title.value,
                 description: description.value,
             });
-            emit("task-updated", updatedTask);
         }
-        catch(error){
-            console.error("Failed to update task:", error);
-            isLoading.value = false;
-            return;
-        }
-    } else {
-        // Create new task
-        try{
-            const newTask = await taskService.createTask({
-                title: title.value,
-                description: description.value,
-            } as Task);
-            emit("task-created", newTask);
-        }
-        catch(error){
-            console.error("Failed to create task:", error);
-            isLoading.value = false;
-            return;
-        }
+        taskStore.setTaskModalVisible(false);
+    } catch (error) {
+        console.error("Failed to save task:", error);
+    } finally {
+        isLoading.value = false;
     }
-    isLoading.value = false;
-    isVisible.value = false;
+}
+
+function resetForm() {
+    title.value = "";
+    description.value = "";
+    taskCompleted.value = false;
 }
 </script>
 

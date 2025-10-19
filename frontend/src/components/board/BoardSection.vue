@@ -7,7 +7,7 @@
                     :icon="isCollapsed ? 'chevron-right' : 'chevron-down'"
                     class="collapse-icon"
                 />
-                <h3 class="section-title">{{ section.title }}</h3>
+                <h3 class="section-title">{{ title }}</h3>
             </div>
 
             <div class="section-actions">
@@ -27,49 +27,18 @@
 
         <!-- Task List -->
         <div v-if="!isCollapsed" class="task-list">
-            <!-- Existing Tasks -->
             <TaskCard
                 v-for="task in tasks"
                 :key="task.id"
                 :task="task"
-                @click="handleTaskClick(task.id)"
-                @toggle-complete="
-                    handleToggleTaskComplete(task.id, task.is_done)
-                "
-                @delete="handleDeleteTask(task.id)"
             />
 
-            <!-- Inline Task Creation -->
-            <div v-if="isAddingTask" class="new-task-container">
-                <InputText
-                    v-model="newTaskTitle"
-                    class="new-task-input"
-                    placeholder="Task title..."
-                    @keydown="handleKeydown"
-                    @blur="cancelAddingTask"
-                />
-                <div class="new-task-actions">
-                    <Button
-                        label="Add"
-                        size="small"
-                        @mousedown.prevent="handleCreateTask"
-                    />
-                    <Button
-                        label="Cancel"
-                        size="small"
-                        text
-                        @mousedown.prevent="cancelAddingTask"
-                    />
-                </div>
-            </div>
-
-            <!-- Add Task Button (when not adding) -->
+            <!-- Add Task -->
             <Button
-                v-else
                 label="Add task"
                 text
                 class="add-task-button"
-                @click="startAddingTask"
+                @click="openTaskModal"
             >
                 <template #icon>
                     <FontAwesomeIcon icon="plus" />
@@ -80,84 +49,38 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
-import type { Section } from "@/models/section";
-import type { Task } from "@/models/task";
+import { ref, computed } from "vue";
+import { useTaskStore } from "@/stores/task";
 import TaskCard from "./TaskCard.vue";
+import type { Section } from "@/models/section";
 
 interface Props {
+    projectId: string;
     section: Section;
-    tasks: Task[];
 }
+
+const taskStore = useTaskStore();
 
 const props = defineProps<Props>();
 
-const emit = defineEmits<{
-    createTask: [title: string, projectId: string, sectionId: string];
-    updateTask: [taskId: string, updates: Partial<Task>];
-    deleteTask: [taskId: string];
-}>();
-
 // State
 const isCollapsed = ref(false);
-const isAddingTask = ref(false);
-const newTaskTitle = ref("");
+const title = ref(props.section.title);
 
-// Methods
+const tasks = computed(() => taskStore.getTasksBySection(props.section.id));
+
 const toggleCollapse = () => {
     isCollapsed.value = !isCollapsed.value;
 };
 
-const startAddingTask = () => {
-    isAddingTask.value = true;
-    // Focus input on next tick
-    setTimeout(() => {
-        const input = document.querySelector(
-            ".new-task-input"
-        ) as HTMLInputElement;
-        input?.focus();
-    }, 0);
-};
-
-const handleCreateTask = () => {
-    const title = newTaskTitle.value.trim();
-    if (title) {
-        emit("createTask", title, props.section.project_id, props.section.id);
-        newTaskTitle.value = "";
-        isAddingTask.value = false;
-    }
-};
-
-const cancelAddingTask = () => {
-    newTaskTitle.value = "";
-    isAddingTask.value = false;
-};
-
-const handleKeydown = (event: KeyboardEvent) => {
-    if (event.key === "Enter") {
-        handleCreateTask();
-    } else if (event.key === "Escape") {
-        cancelAddingTask();
-    }
-};
-
-const handleTaskClick = (taskId: string) => {
-    // TODO: Open TaskModal for full task details/editing
-    console.log("Task clicked:", taskId);
-};
-
-const handleToggleTaskComplete = (taskId: string, isDone: boolean) => {
-    emit("updateTask", taskId, { is_done: !isDone });
-};
-
-const handleDeleteTask = (taskId: string) => {
-    emit("deleteTask", taskId);
-};
-
-const handleSectionMenu = () => {
-    // TODO: Open section menu (rename, delete, etc.)
+function handleSectionMenu() {
+    // Placeholder for section menu actions (edit, delete, etc.)
     console.log("Section menu clicked");
-};
+}
+
+function openTaskModal() {
+    taskStore.openTaskModal(props.section.id);
+}
 </script>
 
 <style scoped>
