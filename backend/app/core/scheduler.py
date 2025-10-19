@@ -35,7 +35,7 @@ def setup_scheduler() -> AsyncIOScheduler:
     """
     scheduler = AsyncIOScheduler()
 
-    # Run streak reset every day at midnight (02:00)
+    # Run streak reset every day at 02:00
     _ = scheduler.add_job(  # pyright: ignore[reportUnknownMemberType]
         reset_streaks_job,
         trigger=CronTrigger(hour=2, minute=0),
