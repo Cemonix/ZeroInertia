@@ -19,6 +19,7 @@ loguru = "*"
 authlib = "*"
 itsdangerous = "*"
 redis = "*"
+apscheduler = "^3.11.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "*"

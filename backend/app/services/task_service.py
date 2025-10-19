@@ -1,10 +1,12 @@
 from collections.abc import Sequence
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import select
 
 from app.models.task import Task
+from app.services import streak_service
 
 
 async def create_task(
@@ -76,16 +78,28 @@ async def update_task(
     if task is None:
         raise ValueError("Task not found")
 
+    # Track if task is being marked complete for the first time
+    was_incomplete = not task.completed
+    is_now_complete = completed is True
+
     if title is not None:
         task.title = title
     if description is not None:
         task.description = description
     if completed is not None:
         task.completed = completed
+        # Set completed_at timestamp when marking as complete
+        if completed and was_incomplete:
+            task.completed_at = datetime.now()
 
     db.add(task)
     await db.commit()
     await db.refresh(task)
+
+    # Update streak if task was just completed
+    if was_incomplete and is_now_complete:
+        _ = await streak_service.update_streak_on_completion(db, user_id)
+
     return task
 
 

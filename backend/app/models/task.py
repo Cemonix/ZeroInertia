@@ -25,6 +25,7 @@ class Task(Base):
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now(), nullable=False)
+    completed_at: Mapped[datetime | None] = mapped_column(onupdate=func.now(), nullable=True)
 
     # Relationships
     user: Mapped["User"] = relationship(back_populates="tasks")  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
