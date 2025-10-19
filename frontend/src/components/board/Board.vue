@@ -6,17 +6,14 @@
         <div v-else>
             <div class="board-sections">
                 <BoardSection
-                    v-for="section in sectionStore.sections"
+                    v-for="section in sectionStore.sortedSections"
                     :key="section.id"
+                    :project-id="projectId"
                     :section="section"
-                    :tasks="getTasksForSection(section.id)"
-                    @create-task="handleCreateTask"
-                    @update-task="handleUpdateTask"
-                    @delete-task="handleDeleteTask"
                 />
             </div>
             <Button
-                @click="isSectionDialogVisible = true"
+                @click="isSectionCreateVisible = true"
                 class="add-section-btn"
                 icon="pi pi-plus"
                 label="Add Section"
@@ -26,102 +23,56 @@
     </div>
 
     <SectionCreateModal
-        v-model:visible="isSectionDialogVisible"
-        @create="handleCreateSection"
+        v-if="projectId"
+        v-model:visible="isSectionCreateVisible"
+        :projectId="projectId"
     />
+
+    <TaskModal v-if="projectId" :projectId="projectId" />
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue";
-import type { Task } from "@/models/task";
+import { ref, watch, withDefaults } from "vue";
 import BoardSection from "./BoardSection.vue";
 import SectionCreateModal from "./SectionCreateModal.vue";
-import Button from "primevue/button";
+import TaskModal from "./TaskModal.vue";
 import { useSectionStore } from "@/stores/section";
 import { useTaskStore } from "@/stores/task";
 
-const props = defineProps<{
-    projectId: string | null;
-}>();
+interface Props {
+    projectId?: string | null;
+}
+
+const props = withDefaults(defineProps<Props>(), {
+    projectId: null,
+});
 
 const sectionStore = useSectionStore();
 const taskStore = useTaskStore();
 
-const isSectionDialogVisible = ref(false);
+const isSectionCreateVisible = ref(false);
 
-const getTasksForSection = (sectionId: string) => {
-    return taskStore.getTasksBySection(sectionId);
-};
-
-const handleCreateSection = async (title: string) => {
-    if (!props.projectId) return;
-
-    try {
-        const nextOrderIndex = sectionStore.sections.length;
-        await sectionStore.createSection({
-            title,
-            project_id: props.projectId,
-            order_index: nextOrderIndex,
-        });
-    } catch (error) {
-        console.error("Failed to create section:", error);
-    }
-};
-
-const loadProjectData = async () => {
+const loadSections = async () => {
     if (!props.projectId) {
-        sectionStore.sections = [];
-        taskStore.tasks = [];
+        sectionStore.clearSections();
         return;
     }
 
     try {
-        // Load sections and tasks for the project in parallel
         await Promise.all([
-            sectionStore.fetchSectionsByProject(props.projectId),
-            taskStore.fetchTasksByProject(props.projectId)
+            sectionStore.loadsSectionsForProject(props.projectId),
+            taskStore.loadTasksForProject(props.projectId),
         ]);
     } catch (error) {
-        console.error("Failed to load project data:", error);
+        console.error("Failed to load sections and tasks:", error);
     }
 };
 
-// Create a new task
-const handleCreateTask = async (title: string, projectId: string, sectionId: string) => {
-    try {
-        await taskStore.createTask({
-            title,
-            section_id: sectionId,
-            project_id: projectId,
-            description: null,
-        });
-    } catch (error) {
-        console.error("Failed to create task:", error);
-    }
-};
-
-// Update a task
-const handleUpdateTask = async (taskId: string, updates: Partial<Task>) => {
-    try {
-        await taskStore.updateTask(taskId, updates);
-    } catch (error) {
-        console.error("Failed to update task:", error);
-    }
-};
-
-// Delete a task
-const handleDeleteTask = async (taskId: string) => {
-    try {
-        await taskStore.deleteTask(taskId);
-    } catch (error) {
-        console.error("Failed to delete task:", error);
-    }
-};
-
-// Watch for project selection changes
-watch(() => props.projectId, () => {
-    loadProjectData();
-}, { immediate: true });
+watch(
+    () => props.projectId,
+    () => { loadSections(); },
+    { immediate: true }
+);
 </script>
 
 <style scoped>

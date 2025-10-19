@@ -5,9 +5,9 @@ from uuid import UUID
 import jwt
 from fastapi import HTTPException, status
 
-from app.core.settings.app_settings import AppSettings
+from app.core.settings.app_settings import get_app_settings
 
-settings = AppSettings()
+settings = get_app_settings()
 
 
 class JWTService:

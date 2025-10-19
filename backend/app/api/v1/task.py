@@ -79,7 +79,7 @@ async def update_task(
             user_id=current_user.id,
             title=task_data.title,
             description=task_data.description,
-            is_done=task_data.is_done
+            completed=task_data.completed
         )
         return TaskResponse.model_validate(updated_task)
     except ValueError:

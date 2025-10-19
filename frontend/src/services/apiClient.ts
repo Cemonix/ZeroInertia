@@ -15,11 +15,14 @@ apiClient.interceptors.request.use(function (config) {
     return Promise.reject(error);
 });
 
-apiClient.interceptors.response.use(function onFulfilled(response) {
-    return response;
-}, function onRejected(error) {
-    handleApiError(error, 'API request failed');
-});
+apiClient.interceptors.response.use(
+    function onFulfilled(response) {
+        return response;
+    },
+    function onRejected(error) {
+        return handleApiError(error, 'API request failed');
+    }
+);
 
 
 export default apiClient;

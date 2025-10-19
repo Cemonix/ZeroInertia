@@ -5,30 +5,82 @@ import { taskService, type TaskCreateInput } from '@/services/taskService';
 
 export const useTaskStore = defineStore('task', () => {
     const tasks = ref<Task[]>([]);
+    const currentTask = ref<Task | null>(null);
+    const currentSectionId = ref<string | null>(null);
     const loading = ref(false);
     const error = ref<string | null>(null);
+    const taskModalVisible = ref(false);
 
-    // Computed: Get tasks by section
     const getTasksBySection = computed(() => {
         return (sectionId: string) =>
             tasks.value.filter(task => task.section_id === sectionId);
     });
 
-    // Computed: Get tasks by project
     const getTasksByProject = computed(() => {
         return (projectId: string) =>
             tasks.value.filter(task => task.project_id === projectId);
     });
 
-    async function fetchTasksByProject(projectId: string) {
+    const getTaskById = computed(() => {
+        return (taskId: string) => tasks.value.find(task => task.id === taskId) || null;
+    });
+
+    const getCurrentTask = computed(() => currentTask.value);
+
+    const setCurrentTask = (task: Task | null) => {
+        currentTask.value = task;
+        // If setting a task, also set its section
+        if (task) {
+            currentSectionId.value = task.section_id;
+        }
+    };
+
+    const setCurrentSectionId = (sectionId: string | null) => {
+        currentSectionId.value = sectionId;
+    };
+
+    const setTaskModalVisible = (visible: boolean) => {
+        taskModalVisible.value = visible;
+        // Clear current task and section when closing
+        if (!visible) {
+            currentTask.value = null;
+            currentSectionId.value = null;
+        }
+    };
+
+    const openTaskModal = (sectionId: string, task: Task | null = null) => {
+        currentSectionId.value = sectionId;
+        currentTask.value = task;
+        taskModalVisible.value = true;
+    };
+
+    const isTaskModalVisible = computed(() => taskModalVisible.value);
+
+    const toggleTaskComplete = async (taskId: string) => {
+        const task = getTaskById.value(taskId);
+        if (!task) return;
+
+        try {
+            const updatedTask = await taskService.updateTask(taskId, {
+                completed: !task.completed,
+            });
+            const index = tasks.value.findIndex(t => t.id === taskId);
+            if (index !== -1) {
+                tasks.value[index] = updatedTask;
+            }
+        } catch (err) {
+            console.error('Error toggling task completion:', err);
+        }
+    }
+
+    async function loadTasksForProject(projectId: string) {
         loading.value = true;
         error.value = null;
         try {
-            const allTasks = await taskService.getTasks(projectId);
-            tasks.value = allTasks.filter(task => task.project_id === projectId);
+            tasks.value = await taskService.getTasks(projectId);
         } catch (err) {
-            error.value = err instanceof Error ? err.message : 'Failed to fetch tasks';
-            console.error('Error fetching tasks:', err);
+            error.value = err instanceof Error ? err.message : 'Failed to load tasks';
+            console.error('Error loading tasks:', err);
             tasks.value = [];
         } finally {
             loading.value = false;
@@ -89,9 +141,18 @@ export const useTaskStore = defineStore('task', () => {
         tasks,
         loading,
         error,
+        currentSectionId,
         getTasksBySection,
         getTasksByProject,
-        fetchTasksByProject,
+        getTaskById,
+        getCurrentTask,
+        isTaskModalVisible,
+        setCurrentTask,
+        setCurrentSectionId,
+        setTaskModalVisible,
+        openTaskModal,
+        toggleTaskComplete,
+        loadTasksForProject,
         createTask,
         updateTask,
         deleteTask,

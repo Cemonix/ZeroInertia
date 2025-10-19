@@ -24,47 +24,37 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
-import Dialog from 'primevue/dialog';
-import Button from 'primevue/button';
-import InputText from 'primevue/inputtext';
+import { ref, defineModel } from 'vue';
+import { useSectionStore } from '@/stores/section';
+
+const sectionStore = useSectionStore();
 
 const props = defineProps<{
-    visible: boolean;
+    projectId: string;
 }>();
 
-const emit = defineEmits<{
-    'update:visible': [value: boolean];
-    'create': [title: string];
-}>();
-
-const isVisible = ref(props.visible);
+const isVisible = defineModel<boolean>('visible');
 const sectionTitle = ref('');
 
-// Sync with parent's visible prop
-watch(() => props.visible, (newValue) => {
-    isVisible.value = newValue;
-    if (newValue) {
-        // Reset title when dialog opens
-        sectionTitle.value = '';
-    }
-});
+const handleCreate = async () => {
+    if (!sectionTitle.value.trim()) return;
 
-// Sync back to parent when changed internally
-watch(isVisible, (newValue) => {
-    emit('update:visible', newValue);
-});
+    try {
+        const nextOrderIndex = sectionStore.sections.length;
+        await sectionStore.createSection({
+            title: sectionTitle.value.trim(),
+            project_id: props.projectId,
+            order_index: nextOrderIndex,
+        });
+    } catch (error) {
+        console.error("Failed to create section:", error);
+    }
+    handleClose();
+};
 
 const handleClose = () => {
     isVisible.value = false;
     sectionTitle.value = '';
-};
-
-const handleCreate = () => {
-    if (!sectionTitle.value.trim()) return;
-
-    emit('create', sectionTitle.value.trim());
-    handleClose();
 };
 </script>
 

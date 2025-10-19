@@ -1,14 +1,14 @@
 <template>
     <div
         class="task-card"
-        :class="{ 'task-completed': task.is_done }"
+        :class="{ 'task-completed': task.completed }"
         @click="handleCardClick"
     >
         <div class="task-content">
             <!-- Checkbox for completion status -->
             <div class="task-checkbox" @click.stop>
                 <Checkbox
-                    :model-value="task.is_done"
+                    :model-value="task.completed"
                     binary
                     @update:model-value="handleToggleComplete"
                 />
@@ -18,7 +18,7 @@
             <div class="task-details">
                 <div
                     class="task-title"
-                    :class="{ 'completed-text': task.is_done }"
+                    :class="{ 'completed-text': task.completed }"
                 >
                     {{ task.title }}
                 </div>
@@ -37,7 +37,6 @@
                 severity="danger"
                 class="task-delete-btn"
                 @click.stop="handleDelete"
-                v-tooltip.top="'Delete task'"
             >
                 <template #icon>
                     <FontAwesomeIcon icon="trash" />
@@ -49,18 +48,15 @@
 
 <script setup lang="ts">
 import type { Task } from "@/models/task";
+import { useTaskStore } from "@/stores/task";
+
+const taskStore = useTaskStore();
 
 interface Props {
     task: Task;
 }
 
-defineProps<Props>();
-
-const emit = defineEmits<{
-    click: [];
-    toggleComplete: [];
-    delete: [];
-}>();
+const props = defineProps<Props>();
 
 const handleCardClick = (event: MouseEvent) => {
     // Don't trigger card click if clicking on checkbox or delete button
@@ -71,15 +67,17 @@ const handleCardClick = (event: MouseEvent) => {
     ) {
         return;
     }
-    emit("click");
+
+    // Open task modal for editing
+    taskStore.openTaskModal(props.task.section_id, props.task);
 };
 
 const handleToggleComplete = () => {
-    emit("toggleComplete");
+    taskStore.toggleTaskComplete(props.task.id);
 };
 
 const handleDelete = () => {
-    emit("delete");
+    taskStore.deleteTask(props.task.id);
 };
 </script>
 
