@@ -5,9 +5,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
-from app.api.v1 import auth, project, section, task
+from app.api.v1 import auth, project, section, streak, task
 from app.core.database import engine
 from app.core.logging import logger, setup_logging
+from app.core.scheduler import setup_scheduler
 from app.core.settings.app_settings import AppSettings
 
 # Load settings
@@ -21,7 +22,18 @@ setup_logging(app_settings)
 async def lifespan(_: FastAPI):
     """Application lifespan manager for startup/shutdown events."""
     logger.info("Starting up Zero Inertia API...")
+
+    # Start background scheduler
+    scheduler = setup_scheduler()
+    scheduler.start()
+    logger.info("Background scheduler started")
+
     yield
+
+    # Shutdown scheduler
+    scheduler.shutdown()
+    logger.info("Background scheduler stopped")
+
     logger.info("Shutting down Zero Inertia API...")
     await engine.dispose()
 
@@ -58,6 +70,7 @@ app.include_router(auth.router, prefix="/api/v1/auth", tags=["authentication"])
 app.include_router(project.router, prefix="/api/v1/projects", tags=["projects"])
 app.include_router(section.router, prefix="/api/v1/sections", tags=["sections"])
 app.include_router(task.router, prefix="/api/v1/tasks", tags=["tasks"])
+app.include_router(streak.router, prefix="/api/v1/streaks", tags=["streaks"])
 
 
 if __name__ == "__main__":
