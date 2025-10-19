@@ -17,7 +17,7 @@ class TaskUpdate(BaseModel):
     """Schema for updating a task"""
     title: str | None = Field(None, min_length=1, max_length=255)
     description: str | None = None
-    is_done: bool | None = None
+    completed: bool | None = None
 
 
 class TaskResponse(BaseModel):
@@ -25,7 +25,7 @@ class TaskResponse(BaseModel):
     id: UUID
     title: str
     description: str | None
-    is_done: bool
+    completed: bool
     project_id: UUID
     section_id: UUID
     created_at: datetime

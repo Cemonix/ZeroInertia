@@ -22,7 +22,7 @@ async def create_task(
         description=description,
         project_id=project_id,
         section_id=section_id,
-        is_done=False
+        completed=False
     )
     db.add(new_task)
     await db.commit()
@@ -69,7 +69,7 @@ async def update_task(
     user_id: UUID,
     title: str | None = None,
     description: str | None = None,
-    is_done: bool | None = None
+    completed: bool | None = None
 ) -> Task:
     """Update an existing task."""
     task = await get_task_by_id(db, task_id, user_id)
@@ -80,8 +80,8 @@ async def update_task(
         task.title = title
     if description is not None:
         task.description = description
-    if is_done is not None:
-        task.is_done = is_done
+    if completed is not None:
+        task.completed = completed
 
     db.add(task)
     await db.commit()
