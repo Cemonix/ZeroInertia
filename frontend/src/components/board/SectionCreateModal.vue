@@ -24,7 +24,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, defineModel } from 'vue';
+import { ref } from 'vue';
 import { useSectionStore } from '@/stores/section';
 
 const sectionStore = useSectionStore();

@@ -32,7 +32,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, withDefaults } from "vue";
+import { ref, watch } from "vue";
 import BoardSection from "./BoardSection.vue";
 import SectionCreateModal from "./SectionCreateModal.vue";
 import TaskModal from "./TaskModal.vue";

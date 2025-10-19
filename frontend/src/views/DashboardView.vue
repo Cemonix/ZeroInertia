@@ -21,7 +21,13 @@
         <div class="content">
             <nav class="navbar">
                 <Button v-if="!authStore.isAuthenticated" @click="login" class="login-btn">Log in</Button>
-                <Avatar v-else label="C" size="medium" shape="circle"/>
+                <div v-else class="user-section">
+                    <div class="streak-widget" v-if="streakStore.currentStreak > 0">
+                        <span class="streak-flame">🔥</span>
+                        <span class="streak-count">{{ streakStore.currentStreak }}</span>
+                    </div>
+                    <Avatar label="C" size="medium" shape="circle"/>
+                </div>
             </nav>
             <Board :project-id="selectedProjectId" />
         </div>
@@ -39,9 +45,11 @@ import Avatar from 'primevue/avatar';
 import ProjectModal from '@/components/sidebar/ProjectCreateModal.vue';
 import ProjectTree from '@/components/sidebar/ProjectTree.vue';
 import Board from '@/components/board/Board.vue';
+import { useStreakStore } from '@/stores/streak';
 
 const authStore = useAuthStore();
 const projectStore = useProjectStore();
+const streakStore = useStreakStore();
 
 const isProjectModalVisible = ref(false);
 const { selectedProjectId } = storeToRefs(projectStore);
@@ -133,4 +141,37 @@ const openProjectModal = () => {
     background-color: var(--p-blue-600);
 }
 
+.user-section {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.streak-widget {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: var(--p-orange-50);
+    border: 1px solid var(--p-orange-200);
+    border-radius: 20px;
+    padding: 0.375rem 0.75rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.streak-widget:hover {
+    background: var(--p-orange-100);
+    border-color: var(--p-orange-300);
+    transform: scale(1.05);
+}
+
+.streak-flame {
+    font-size: 1.25rem;
+    line-height: 1;
+}
+
+.streak-count {
+    font-size: 0.9375rem;
+    color: var(--p-orange-700);
+}
 </style>
