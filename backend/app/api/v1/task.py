@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio.session import AsyncSession
 from app.api.v1.auth import get_current_user
 from app.core.database import get_db
 from app.models.user import User
-from app.schemas.task import TaskCreate, TaskResponse, TaskUpdate
+from app.schemas.task import TaskCreate, TaskReorder, TaskResponse, TaskUpdate
 from app.services import task_service
 
 router = APIRouter()
@@ -44,6 +44,16 @@ async def get_tasks(
         )
     else:
         tasks = await task_service.get_tasks(db=db, user_id=current_user.id)
+    return [TaskResponse.model_validate(task) for task in tasks]
+
+
+@router.get("/archived", response_model=list[TaskResponse])
+async def get_archived_tasks(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[TaskResponse]:
+    """Get all archived tasks for the authenticated user."""
+    tasks = await task_service.get_archived_tasks(db=db, user_id=current_user.id)
     return [TaskResponse.model_validate(task) for task in tasks]
 
 
@@ -95,5 +105,35 @@ async def delete_task(
     """Delete a specific task by ID for the authenticated user."""
     try:
         await task_service.delete_task(db=db, task_id=task_id, user_id=current_user.id)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found") from None
+
+
+@router.post("/reorder", status_code=status.HTTP_204_NO_CONTENT)
+async def reorder_tasks(
+    tasks_reorder: list[TaskReorder],
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Reorder tasks for the authenticated user."""
+    try:
+        await task_service.reorder_tasks(
+            db=db,
+            user_id=current_user.id,
+            tasks_reorder=tasks_reorder
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from None
+
+
+@router.post("/{task_id}/archive", status_code=status.HTTP_204_NO_CONTENT)
+async def archive_task(
+    task_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Archive a specific task by ID for the authenticated user."""
+    try:
+        await task_service.archive_task(db=db, task_id=task_id, user_id=current_user.id)
     except ValueError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found") from None
