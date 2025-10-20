@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import type { Task } from '@/models/task';
-import { taskService, type TaskCreateInput } from '@/services/taskService';
+import { taskService, type TaskCreateInput, type TaskReorderItem } from '@/services/taskService';
 
 export const useTaskStore = defineStore('task', () => {
     const tasks = ref<Task[]>([]);
@@ -13,7 +13,9 @@ export const useTaskStore = defineStore('task', () => {
 
     const getTasksBySection = computed(() => {
         return (sectionId: string) =>
-            tasks.value.filter(task => task.section_id === sectionId);
+            tasks.value
+                .filter(task => task.section_id === sectionId)
+                .sort((a, b) => a.order_index - b.order_index);
     });
 
     const getTasksByProject = computed(() => {
@@ -137,6 +139,41 @@ export const useTaskStore = defineStore('task', () => {
         }
     }
 
+    async function reorderTasks(sectionId: string, reorderedTaskIds: string[]) {
+        // Optimistically update the local state
+        const tasksInSection = reorderedTaskIds.map(id =>
+            tasks.value.find(t => t.id === id)
+        ).filter(Boolean) as Task[];
+
+        // Update order_index for each task
+        tasksInSection.forEach((task, index) => {
+            const taskIndex = tasks.value.findIndex(t => t.id === task.id);
+            if (taskIndex !== -1) {
+                tasks.value[taskIndex] = { ...task, order_index: index };
+            }
+        });
+
+        // Prepare the reorder payload
+        const reorderPayload: TaskReorderItem[] = reorderedTaskIds.map((id, index) => ({
+            id,
+            section_id: sectionId,
+            order_index: index,
+        }));
+
+        try {
+            await taskService.reorderTasks(reorderPayload);
+        } catch (err) {
+            error.value = err instanceof Error ? err.message : 'Failed to reorder tasks';
+            console.error('Error reordering tasks:', err);
+            // Reload tasks to restore correct order on failure
+            const projectId = tasksInSection[0]?.project_id;
+            if (projectId) {
+                await loadTasksForProject(projectId);
+            }
+            throw err;
+        }
+    }
+
     return {
         tasks,
         loading,
@@ -156,5 +193,6 @@ export const useTaskStore = defineStore('task', () => {
         createTask,
         updateTask,
         deleteTask,
+        reorderTasks,
     };
 });

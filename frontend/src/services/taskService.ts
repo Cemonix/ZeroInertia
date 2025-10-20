@@ -10,6 +10,12 @@ export interface TaskCreateInput {
     section_id: string;
 }
 
+export interface TaskReorderItem {
+    id: string;
+    section_id: string;
+    order_index: number;
+}
+
 export const taskService = {
     async getTasks(project_id?: string): Promise<Task[]> {
         const response = await apiClient.get(API_URL, {
@@ -35,5 +41,13 @@ export const taskService = {
 
     async deleteTask(taskId: string): Promise<void> {
         await apiClient.delete(`${API_URL}/${taskId}`);
+    },
+
+    async reorderTasks(reorderedTasks: TaskReorderItem[]): Promise<void> {
+        await apiClient.post(`${API_URL}/reorder`, reorderedTasks);
+    },
+
+    async archiveTask(taskId: string): Promise<void> {
+        await apiClient.post(`${API_URL}/${taskId}/archive`);
     }
 }

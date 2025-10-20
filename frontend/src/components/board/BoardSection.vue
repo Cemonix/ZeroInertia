@@ -15,23 +15,39 @@
                     text
                     rounded
                     size="small"
-                    @click.stop="handleSectionMenu"
+                    aria-haspopup="true"
+                    aria-controls="section_menu"
+                    @click.stop="toggleSectionMenu"
                 >
                     <template #icon>
                         <FontAwesomeIcon icon="ellipsis-vertical" />
                     </template>
                 </Button>
+                <Menu ref="menu" id="section_menu" :model="items" :popup="true" />
             </div>
         </div>
         <div class="section-divider"></div>
 
+        <!-- Show Completed Toggle -->
+        <div v-if="!isCollapsed && tasks.some(t => t.completed)" class="section-controls">
+            <label for="show-completed" class="control-label">Show completed</label>
+            <ToggleSwitch v-model="showCompleted" inputId="show-completed" />
+        </div>
+
         <!-- Task List -->
         <div v-if="!isCollapsed" class="task-list">
-            <TaskCard
-                v-for="task in tasks"
-                :key="task.id"
-                :task="task"
-            />
+            <draggable
+                v-model="draggableTasks"
+                item-key="id"
+                @end="handleDragEnd"
+                handle=".task-card"
+                animation="200"
+                ghost-class="task-ghost"
+            >
+                <template #item="{element}">
+                    <TaskCard :task="element" />
+                </template>
+            </draggable>
 
             <!-- Add Task -->
             <Button
@@ -49,10 +65,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { useTaskStore } from "@/stores/task";
+import { useSectionStore } from "@/stores/section";
+import { useConfirm } from "primevue/useconfirm";
+import draggable from "vuedraggable";
 import TaskCard from "./TaskCard.vue";
 import type { Section } from "@/models/section";
+import type { Task } from "@/models/task";
+import Menu from "primevue/menu";
+import ToggleSwitch from "primevue/toggleswitch";
 
 interface Props {
     projectId: string;
@@ -60,26 +82,77 @@ interface Props {
 }
 
 const taskStore = useTaskStore();
+const sectionStore = useSectionStore();
+const confirm = useConfirm();
 
 const props = defineProps<Props>();
 
 // State
+const menu = ref<InstanceType<typeof Menu>>();
+const items = ref([
+    {
+        label: 'Options',
+        items: [
+            {
+                label: 'Delete Section',
+                command: () => handleDeleteSection(),
+            }
+        ]
+    }
+]);
 const isCollapsed = ref(false);
 const title = ref(props.section.title);
+const showCompleted = ref(false);
+const draggableTasks = ref<Task[]>([]);
 
 const tasks = computed(() => taskStore.getTasksBySection(props.section.id));
+
+// Filter tasks based on showCompleted toggle
+const visibleTasks = computed(() => {
+    if (showCompleted.value) {
+        return tasks.value;
+    }
+    return tasks.value.filter(task => !task.completed);
+});
+
+watch(visibleTasks, (newTasks) => {
+    draggableTasks.value = [...newTasks];
+}, { immediate: true });
 
 const toggleCollapse = () => {
     isCollapsed.value = !isCollapsed.value;
 };
 
-function handleSectionMenu() {
-    // Placeholder for section menu actions (edit, delete, etc.)
-    console.log("Section menu clicked");
+async function handleDragEnd() {
+    const taskIds = draggableTasks.value.map((task: Task) => task.id);
+    try {
+        await taskStore.reorderTasks(props.section.id, taskIds);
+    } catch (error) {
+        console.error("Failed to reorder tasks:", error);
+    }
+}
+
+function toggleSectionMenu(event: MouseEvent) {
+    menu.value?.toggle(event);
 }
 
 function openTaskModal() {
     taskStore.openTaskModal(props.section.id);
+}
+
+function handleDeleteSection() {
+    confirm.require({
+        message: "This will permanently delete this section and all its tasks. This action cannot be undone.",
+        header: "Confirm Deletion",
+        acceptClass: "p-button-danger",
+        accept: async () => {
+            try {
+                await sectionStore.deleteSection(props.section.id);
+            } catch (error) {
+                console.error("Failed to delete section:", error);
+            }
+        },
+    });
 }
 </script>
 
@@ -172,5 +245,30 @@ function openTaskModal() {
 .add-task-button:hover {
     background: var(--p-surface-50);
     opacity: 1;
+}
+
+/* Show Completed Toggle */
+.section-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+    padding: 0.5rem;
+    background: var(--p-surface-50);
+    border-radius: 6px;
+}
+
+.control-label {
+    font-size: 0.875rem;
+    color: var(--p-text-color);
+    cursor: pointer;
+    user-select: none;
+}
+
+/* Draggable ghost styles */
+.task-ghost {
+    opacity: 0.5;
+    background: var(--p-primary-50);
+    border: 2px dashed var(--p-primary-color);
 }
 </style>

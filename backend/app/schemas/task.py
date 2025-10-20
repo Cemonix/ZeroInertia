@@ -18,6 +18,7 @@ class TaskUpdate(BaseModel):
     title: str | None = Field(None, min_length=1, max_length=255)
     description: str | None = None
     completed: bool | None = None
+    order_index: int | None = None
 
 
 class TaskResponse(BaseModel):
@@ -26,9 +27,17 @@ class TaskResponse(BaseModel):
     title: str
     description: str | None
     completed: bool
+    order_index: int
     project_id: UUID
     section_id: UUID
     created_at: datetime
     updated_at: datetime
 
     model_config: ClassVar[ConfigDict] = ConfigDict(from_attributes=True)
+
+
+class TaskReorder(BaseModel):
+    """Schema for reordering tasks"""
+    id: UUID
+    section_id: UUID
+    order_index: int

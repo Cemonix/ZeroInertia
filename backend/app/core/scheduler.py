@@ -10,8 +10,9 @@ from apscheduler.triggers.cron import CronTrigger
 
 from app.core.database import get_db
 from app.core.logging import logger
-from app.services import streak_service
+from app.services import streak_service, task_service
 
+DAYS_ARCHIVE_THRESHOLD = 7  # Days after which completed tasks are archived
 
 async def reset_streaks_job() -> None:
     """
@@ -29,6 +30,22 @@ async def reset_streaks_job() -> None:
             await db.close()
 
 
+async def archive_old_completed_tasks_job() -> None:
+    """
+    Background job that archives completed tasks older than a specified number of days.
+    """
+    logger.info("Running archive old completed tasks job...")
+
+    async for db in get_db():
+        try:
+            count = await task_service.archive_completed_tasks(db, days=DAYS_ARCHIVE_THRESHOLD)
+            logger.info(f"Archived {count} completed tasks older than {DAYS_ARCHIVE_THRESHOLD} days")
+        except Exception as e:
+            logger.error(f"Error archiving completed tasks: {e}")
+        finally:
+            await db.close()
+
+
 def setup_scheduler() -> AsyncIOScheduler:
     """
     Initialize and configure the background job scheduler.
@@ -41,6 +58,15 @@ def setup_scheduler() -> AsyncIOScheduler:
         trigger=CronTrigger(hour=2, minute=0),
         id="reset_streaks",
         name="Reset inactive user streaks",
+        replace_existing=True
+    )
+
+    # Run task archiving every day at 03:00
+    _ = scheduler.add_job(  # pyright: ignore[reportUnknownMemberType]
+        archive_old_completed_tasks_job,
+        trigger=CronTrigger(hour=3, minute=0),
+        id="archive_completed_tasks",
+        name="Archive old completed tasks",
         replace_existing=True
     )
 
