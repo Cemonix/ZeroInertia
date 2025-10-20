@@ -1,7 +1,6 @@
 <template>
-    <Dialog
+    <Dialog modal
         v-model:visible="isVisible"
-        modal
         header="Create New Section"
         :style="{ width: '400px' }"
         @hide="handleClose"

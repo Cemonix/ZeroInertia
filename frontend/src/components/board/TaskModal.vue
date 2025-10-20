@@ -1,9 +1,9 @@
 <template>
-    <Dialog
+    <Dialog modal
         :visible="taskStore.isTaskModalVisible"
         @update:visible="taskStore.setTaskModalVisible($event)"
         :header="taskStore.getCurrentTask ? 'Edit Task' : 'New Task'"
-        modal
+        @hide="handleClose"
     >
         <div>
             <div class="form-field">
@@ -11,6 +11,7 @@
                 <InputText
                     id="title"
                     v-model="title"
+                    @keyup.enter="saveTask"
                     autofocus
                 />
             </div>
@@ -19,6 +20,7 @@
                 <Textarea id="description" v-model="description" rows="4" />
             </div>
             <div class="button-group">
+                <Button label="Cancel" text @click="handleClose" />
                 <Button
                     label="Save"
                     @click="saveTask"
@@ -93,6 +95,11 @@ async function saveTask() {
     } finally {
         isLoading.value = false;
     }
+}
+
+function handleClose() {
+    taskStore.setTaskModalVisible(false);
+    resetForm();
 }
 
 function resetForm() {

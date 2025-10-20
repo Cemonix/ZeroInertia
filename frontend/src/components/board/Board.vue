@@ -5,12 +5,21 @@
         </div>
         <div v-else>
             <div class="board-sections">
-                <BoardSection
-                    v-for="section in sectionStore.sortedSections"
-                    :key="section.id"
-                    :project-id="projectId"
-                    :section="section"
-                />
+                <draggable
+                    v-model="draggableSections"
+                    item-key="id"
+                    @end="handleDragEnd"
+                    handle=".section-header"
+                    animation="200"
+                    ghost-class="section-ghost"
+                >
+                    <template #item="{element}">
+                        <BoardSection
+                            :project-id="projectId"
+                            :section="element"
+                        />
+                    </template>
+                </draggable>
             </div>
             <Button
                 @click="isSectionCreateVisible = true"
@@ -33,11 +42,13 @@
 
 <script setup lang="ts">
 import { ref, watch } from "vue";
+import draggable from "vuedraggable";
 import BoardSection from "./BoardSection.vue";
 import SectionCreateModal from "./SectionCreateModal.vue";
 import TaskModal from "./TaskModal.vue";
 import { useSectionStore } from "@/stores/section";
 import { useTaskStore } from "@/stores/task";
+import type { Section } from "@/models/section";
 
 interface Props {
     projectId?: string | null;
@@ -51,6 +62,24 @@ const sectionStore = useSectionStore();
 const taskStore = useTaskStore();
 
 const isSectionCreateVisible = ref(false);
+
+// Create a local ref that draggable can mutate
+const draggableSections = ref<Section[]>([]);
+
+// Watch sections from store and sync to local draggable array
+watch(() => sectionStore.sortedSections, (newSections) => {
+    draggableSections.value = [...newSections];
+}, { immediate: true });
+
+async function handleDragEnd() {
+    // Use the mutated draggableSections array (which has the new order)
+    const sectionIds = draggableSections.value.map((section: Section) => section.id);
+    try {
+        await sectionStore.reorderSections(sectionIds);
+    } catch (error) {
+        console.error("Failed to reorder sections:", error);
+    }
+}
 
 const loadSections = async () => {
     if (!props.projectId) {
@@ -123,5 +152,12 @@ watch(
 .add-section-btn {
     margin-top: 1rem;
     width: 100%;
+}
+
+/* Draggable ghost styles for sections */
+.section-ghost {
+    opacity: 0.5;
+    background: var(--p-primary-50);
+    border: 2px dashed var(--p-primary-color);
 }
 </style>

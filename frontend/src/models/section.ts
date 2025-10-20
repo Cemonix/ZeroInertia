@@ -9,5 +9,6 @@ export interface Section {
 
 export interface SectionReorderItem {
     id: string;
+    project_id: string;
     order_index: number;
 }

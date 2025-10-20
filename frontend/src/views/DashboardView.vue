@@ -22,8 +22,8 @@
             <nav class="navbar">
                 <Button v-if="!authStore.isAuthenticated" @click="login" class="login-btn">Log in</Button>
                 <div v-else class="user-section">
-                    <div class="streak-widget" v-if="streakStore.currentStreak > 0">
-                        <span class="streak-flame">🔥</span>
+                    <div class="streak-widget">
+                        <span v-if="streakStore.currentStreak > 0" class="streak-flame">🔥</span>
                         <span class="streak-count">{{ streakStore.currentStreak }}</span>
                     </div>
                     <Avatar label="C" size="medium" shape="circle"/>
@@ -38,7 +38,7 @@
 <script lang="ts" setup>
 import { useAuthStore } from '@/stores/auth';
 import { useProjectStore } from '@/stores/project';
-import { ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import Toast from 'primevue/toast';
 import Avatar from 'primevue/avatar';
@@ -61,6 +61,10 @@ const login = () => {
 const openProjectModal = () => {
     isProjectModalVisible.value = true;
 };
+
+onMounted(() => {
+    streakStore.loadStreak();
+});
 </script>
 
 <style scoped>
