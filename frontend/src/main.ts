@@ -10,7 +10,7 @@ import router from './router'
 import { useAuthStore } from '@/stores/auth'
 import { library } from '@fortawesome/fontawesome-svg-core'
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
-import { 
+import {
   faTrash,
   faPlus,
   faCheck,
@@ -18,7 +18,12 @@ import {
   faEdit,
   faChevronDown,
   faChevronRight,
-  faEllipsisVertical
+  faEllipsisVertical,
+  faCheckSquare,
+  faTimes,
+  faTag,
+  faCalendar,
+  faPen
 } from '@fortawesome/free-solid-svg-icons'
 
 // PrimeVue components
@@ -29,14 +34,19 @@ import Dialog from 'primevue/dialog'
 import ConfirmDialog from 'primevue/confirmdialog'
 
 library.add(
-  faTrash, 
-  faPlus, 
-  faCheck, 
-  faSpinner, 
-  faEdit, 
-  faChevronDown, 
-  faChevronRight, 
+  faTrash,
+  faPlus,
+  faCheck,
+  faSpinner,
+  faEdit,
+  faChevronDown,
+  faChevronRight,
   faEllipsisVertical,
+  faCheckSquare,
+  faTimes,
+  faTag,
+  faCalendar,
+  faPen
 )
 
 const app = createApp(App)
