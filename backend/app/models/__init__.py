@@ -1,4 +1,5 @@
 from app.models.base import Base
+from app.models.checklist import CheckList, CheckListItem
 from app.models.project import Project
 from app.models.section import Section
 from app.models.streak import Streak
@@ -12,4 +13,6 @@ __all__ = [
     "Section",
     "Task",
     "Streak",
+    "CheckList",
+    "CheckListItem",
 ]

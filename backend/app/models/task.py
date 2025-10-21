@@ -34,6 +34,9 @@ class Task(Base):
     user: Mapped["User"] = relationship(back_populates="tasks")  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
     project: Mapped["Project"] = relationship(back_populates="tasks")  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
     section: Mapped["Section"] = relationship(back_populates="tasks")  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
+    checklists: Mapped[list["CheckList"]] = relationship(  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
+        back_populates="task", cascade="all, delete-orphan", order_by="CheckList.order_index"
+    )
 
     # Constraints and Indexes
     __table_args__: tuple[Index] = (
