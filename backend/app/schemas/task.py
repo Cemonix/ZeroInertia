@@ -11,6 +11,8 @@ class TaskCreate(BaseModel):
     description: str | None = None
     project_id: UUID
     section_id: UUID
+    priority_id: UUID | None = None
+    due_datetime: datetime | None = None
 
 
 class TaskUpdate(BaseModel):
@@ -19,6 +21,8 @@ class TaskUpdate(BaseModel):
     description: str | None = None
     completed: bool | None = None
     order_index: int | None = None
+    priority_id: UUID | None = None
+    due_datetime: datetime | None = None
 
 
 class TaskResponse(BaseModel):
@@ -30,6 +34,8 @@ class TaskResponse(BaseModel):
     order_index: int
     project_id: UUID
     section_id: UUID
+    priority_id: UUID | None
+    due_datetime: datetime | None
     created_at: datetime
     updated_at: datetime
 

@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,7 +16,9 @@ async def create_task(
     title: str,
     description: str | None,
     project_id: UUID,
-    section_id: UUID
+    section_id: UUID,
+    priority_id: UUID | None = None,
+    due_datetime: datetime | None = None
 ) -> Task:
     """Create a new task for a user."""
     # Get the max order_index for this section to append new task at the end
@@ -37,7 +39,9 @@ async def create_task(
         section_id=section_id,
         completed=False,
         archived=False,
-        order_index=next_order_index
+        order_index=next_order_index,
+        priority_id=priority_id,
+        due_datetime=due_datetime
     )
     db.add(new_task)
     await db.commit()
@@ -102,7 +106,9 @@ async def update_task(
     user_id: UUID,
     title: str | None = None,
     description: str | None = None,
-    completed: bool | None = None
+    completed: bool | None = None,
+    priority_id: UUID | None = None,
+    due_datetime: datetime | None = None
 ) -> Task:
     """Update an existing task."""
     task = await get_task_by_id(db, task_id, user_id)
@@ -121,7 +127,11 @@ async def update_task(
         task.completed = completed
         # Set completed_at timestamp when marking as complete
         if completed and was_incomplete:
-            task.completed_at = datetime.now()
+            task.completed_at = datetime.now(timezone.utc)
+    if priority_id is not None:
+        task.priority_id = priority_id
+    if due_datetime is not None:
+        task.due_datetime = due_datetime
 
     db.add(task)
     await db.commit()
@@ -178,7 +188,7 @@ async def archive_task(
         raise ValueError("Task not found")
 
     task.archived = True
-    task.archived_at = datetime.now()
+    task.archived_at = datetime.now(timezone.utc)
     db.add(task)
     await db.commit()
 
@@ -189,7 +199,7 @@ async def archive_completed_tasks(
     days: int = 7
 ) -> int:
     """Archive all completed tasks older than N days."""
-    cutoff = datetime.now() - timedelta(days=days)
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
 
     result = await db.execute(
         update(Task)
@@ -198,7 +208,7 @@ async def archive_completed_tasks(
             Task.completed_at < cutoff,
             Task.archived == False  # noqa: E712
         )
-        .values(archived=True, archived_at=datetime.now())
+        .values(archived=True, archived_at=datetime.now(timezone.utc))
     )
     await db.commit()
     return result.rowcount  # Number of tasks archived

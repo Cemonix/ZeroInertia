@@ -108,10 +108,10 @@ async def reorder_checklists(db: AsyncSession, reorder_data: list[dict[str, UUID
         new_order_index = item["order_index"]
 
         if isinstance(checklist_id, int):
-            checklist_id = UUID(str(checklist_id))
+            continue  # Skip invalid IDs
 
         if isinstance(new_order_index, UUID):
-            new_order_index = int(new_order_index)
+            continue  # Skip invalid order_index
 
         checklist = await get_checklist_by_id(db, checklist_id)  # type: ignore
         if checklist:
@@ -202,10 +202,10 @@ async def reorder_checklist_items(
         new_order_index = item_data["order_index"]
 
         if isinstance(item_id, int):
-            item_id = UUID(str(item_id))
+            continue  # Skip invalid IDs
 
         if isinstance(new_order_index, UUID):
-            new_order_index = int(new_order_index)
+            continue  # Skip invalid order_index
 
         item = await get_checklist_item_by_id(db, item_id)  # type: ignore
         if item:
