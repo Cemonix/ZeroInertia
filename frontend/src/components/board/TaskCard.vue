@@ -20,10 +20,15 @@
                     class="task-title"
                     :class="{ 'completed-text': task.completed }"
                 >
+                    <FontAwesomeIcon v-if="taskPriority" icon="flag" :style="{ color: taskPriority.color }" class="priority-flag" />
                     {{ task.title }}
                 </div>
                 <div v-if="task.description" class="task-description">
                     {{ task.description }}
+                </div>
+                <div v-if="task.due_datetime" class="task-due-date" :class="{ 'overdue': isOverdue, 'future': isFuture }">
+                    <FontAwesomeIcon icon="calendar" />
+                    <span>{{ formattedDueDate }}</span>
                 </div>
             </div>
         </div>
@@ -47,16 +52,77 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
 import type { Task } from "@/models/task";
 import { useTaskStore } from "@/stores/task";
+import { usePriorityStore } from "@/stores/priority";
 
 const taskStore = useTaskStore();
+const priorityStore = usePriorityStore();
 
 interface Props {
     task: Task;
 }
 
 const props = defineProps<Props>();
+
+// Get the full priority object for this task
+const taskPriority = computed(() => {
+    if (!props.task.priority_id) return null;
+    return priorityStore.getPriorityById(props.task.priority_id);
+});
+
+// Format due date for display
+const formattedDueDate = computed(() => {
+    if (!props.task.due_datetime) return null;
+
+    const dueDate = new Date(props.task.due_datetime);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const taskDate = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
+
+    const diffDays = Math.floor((taskDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+    const timeStr = dueDate.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: false
+    });
+
+    if (diffDays === 0) {
+        return `Today at ${timeStr}`;
+    } else if (diffDays === 1) {
+        return `Tomorrow at ${timeStr}`;
+    } else if (diffDays === -1) {
+        return `Yesterday at ${timeStr}`;
+    } else if (diffDays > 1 && diffDays < 7) {
+        const dayName = dueDate.toLocaleDateString('en-US', { weekday: 'long' });
+        return `${dayName} at ${timeStr}`;
+    } else {
+        return dueDate.toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: false
+        });
+    }
+});
+
+const isOverdue = computed(() => {
+    if (!props.task.due_datetime || props.task.completed) return false;
+    return new Date(props.task.due_datetime) < new Date();
+});
+
+const isFuture = computed(() => {
+    if (!props.task.due_datetime || props.task.completed) return false;
+
+    const dueDate = new Date(props.task.due_datetime);
+    const now = new Date();
+    const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+
+    return dueDate >= tomorrow;
+});
 
 const handleCardClick = (event: MouseEvent) => {
     // Don't trigger card click if clicking on checkbox or delete button
@@ -123,6 +189,9 @@ const handleDelete = () => {
 }
 
 .task-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     font-size: 0.9375rem;
     font-weight: 500;
     color: var(--p-text-color);
@@ -155,6 +224,26 @@ const handleDelete = () => {
 
 .task-card:hover .task-actions {
     opacity: 1;
+}
+
+.task-due-date {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8125rem;
+    color: var(--p-green-600);
+    opacity: 0.7;
+    margin-top: 0.25rem;
+}
+
+.task-due-date.overdue {
+    color: var(--p-red-500);
+    opacity: 1;
+}
+
+.task-due-date.future {
+    color: var(--p-surface-500);
+    opacity: 0.6;
 }
 
 /* Ensure actions are visible on touch devices */

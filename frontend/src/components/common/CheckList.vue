@@ -3,8 +3,23 @@
         <!-- Checklist Header -->
         <div class="checklist-header">
             <div class="checklist-title">
-                <FontAwesomeIcon icon="check-square" />
-                <span>{{ title }}</span>
+                <div class="title">
+                    <FontAwesomeIcon icon="check-square" />
+                    <span>{{ title }}</span>
+                </div>
+                <div class="spacer"></div>
+                <div class="actions">
+                    <Button
+                        text
+                        aria-label="Delete Checklist"
+                        severity="danger"
+                        size="small"
+                        @click="deleteChecklist()"
+                    >
+                        <span>Delete Checklist</span>
+                        <FontAwesomeIcon icon="trash" />
+                    </Button>
+                </div>
             </div>
             <div class="checklist-progress">
                 <span>{{ completedCount }}/{{ items.length }}</span>
@@ -110,9 +125,6 @@
 
 <script lang="ts" setup>
 import { ref, computed } from 'vue';
-import Checkbox from 'primevue/checkbox';
-import InputText from 'primevue/inputtext';
-import Button from 'primevue/button';
 import { useChecklistStore } from '@/stores/checklist';
 
 interface Props {
@@ -136,6 +148,14 @@ const title = computed(() => checklist.value?.title || 'Checklist');
 const progress = computed(() => checklistStore.getChecklistProgress(props.checklistId));
 const completedCount = computed(() => progress.value.completed);
 const progressPercentage = computed(() => progress.value.percentage);
+
+async function deleteChecklist() {
+    try {
+        await checklistStore.deleteChecklist(props.checklistId);
+    } catch (err) {
+        console.error('Failed to delete checklist:', err);
+    }
+}
 
 // Item actions using store
 async function toggleItem(itemId: string) {
@@ -245,10 +265,26 @@ async function deleteItem(itemId: string) {
 
 .checklist-title {
     display: flex;
+    flex-direction: row;
     align-items: center;
     gap: 0.5rem;
     font-weight: 600;
     font-size: 1rem;
+}
+
+.checklist-title .title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.checklist-header .spacer {
+    flex: 1;
+}
+
+.checklist-header .actions {
+    display: flex;
+    gap: 0.5rem;
 }
 
 .checklist-progress {
@@ -256,20 +292,20 @@ async function deleteItem(itemId: string) {
     align-items: center;
     gap: 0.75rem;
     font-size: 0.875rem;
-    color: var(--text-color-secondary);
+    color: var(--p-gray-500);
 }
 
 .progress-bar {
     flex: 1;
     height: 8px;
-    background: var(--surface-200);
+    background: var(--p-surface-200);
     border-radius: 4px;
     overflow: hidden;
 }
 
 .progress-fill {
     height: 100%;
-    background: var(--primary-color);
+    background: var(--p-primary-color);
     transition: width 0.3s ease;
     border-radius: 4px;
 }

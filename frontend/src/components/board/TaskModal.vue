@@ -13,8 +13,9 @@
     >
         <div class="task-modal-content">
             <!-- Action Buttons Row -->
-            <div v-if="currentTaskId" class="action-buttons-row">
+            <div class="action-buttons-row">
                 <Button
+                    v-if="currentTaskId"
                     @click="showAddChecklist = true"
                     outlined
                     size="small"
@@ -22,10 +23,45 @@
                     <FontAwesomeIcon icon="check-square" class="button-icon" />
                     <span>Checklist</span>
                 </Button>
-                <Button outlined size="small">
-                    <FontAwesomeIcon icon="calendar" class="button-icon" />
-                    <span>Date</span>
-                </Button>
+                <Select
+                    v-model="priorityId"
+                    :options="priorityStore.priorities"
+                    optionLabel="name"
+                    optionValue="id"
+                    placeholder="Priority"
+                    size="small"
+                    showClear
+                    variant="outlined"
+                >
+                    <template #option="slotProps">
+                        <div class="priority-option">
+                            <FontAwesomeIcon
+                                icon="flag"
+                                :style="{ color: slotProps.option.color }"
+                            />
+                            <span>{{ slotProps.option.name }}</span>
+                        </div>
+                    </template>
+                    <template #value="slotProps">
+                        <div class="priority-option">
+                            <FontAwesomeIcon
+                                icon="flag"
+                                :style="{ color: selectedPriority?.color }"
+                            />
+                            <span>{{ slotProps.value ? selectedPriority?.name : 'Priority' }}</span>
+                        </div>
+                    </template>
+                </Select>
+                <DatePicker
+                    v-model="dueDateTime"
+                    placeholder="Due Date"
+                    size="small"
+                    showIcon
+                    showClear
+                    iconDisplay="input"
+                    :showTime="true"
+                    hourFormat="24"
+                />
                 <Button outlined size="small">
                     <FontAwesomeIcon icon="tag" class="button-icon" />
                     <span>Label</span>
@@ -53,20 +89,8 @@
                     <!-- Display existing checklists -->
                     <div v-for="checklist in taskChecklists" :key="checklist.id" class="checklist-wrapper">
                         <CheckList :checklist-id="checklist.id" />
-                        <Button
-                            label="Delete checklist"
-                            text
-                            severity="danger"
-                            size="small"
-                            @click="deleteChecklist(checklist.id)"
-                            class="delete-checklist-btn"
-                        > 
-                            Delete checklist 
-                            <FontAwesomeIcon icon="trash" class="button-icon" />
-                        </Button>
                     </div>
                 </div>
-
             </div>
 
             <!-- Add Checklist Popover -->
@@ -107,10 +131,13 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, watch, computed, type Ref } from "vue";
+import { ref, watch, computed, type Ref, onMounted } from "vue";
 import Textarea from "primevue/textarea";
+import Select from "primevue/select";
+import DatePicker from "primevue/datepicker";
 import { useTaskStore } from "@/stores/task";
 import { useChecklistStore } from "@/stores/checklist";
+import { usePriorityStore } from "@/stores/priority";
 import CheckList from "@/components/common/CheckList.vue";
 import Popover from "@/components/common/Popover.vue";
 
@@ -120,15 +147,35 @@ const props = defineProps<{
 
 const taskStore = useTaskStore();
 const checklistStore = useChecklistStore();
+const priorityStore = usePriorityStore();
 
 const isLoading = ref(false);
 const title = ref("");
 const description: Ref<string | null> = ref(null);
 const taskCompleted = ref(false);
+const priorityId: Ref<string | null> = ref(null);
+const dueDateTimeString: Ref<string | null> = ref(null);
 
-// Checklist UI state
+// UI state for popovers
 const showAddChecklist = ref(false);
 const newChecklistTitle = ref("");
+
+// Computed properties for display
+const selectedPriority = computed(() => {
+    if (!priorityId.value) return null;
+    return priorityStore.getPriorityById(priorityId.value);
+});
+
+// Convert between Date object (for DatePicker) and ISO string (for backend)
+const dueDateTime = computed({
+    get: () => {
+        if (!dueDateTimeString.value) return null;
+        return new Date(dueDateTimeString.value);
+    },
+    set: (value: Date | null) => {
+        dueDateTimeString.value = value ? value.toISOString() : null;
+    }
+});
 
 // Computed properties
 const currentTaskId = computed(() => taskStore.getCurrentTask?.id || null);
@@ -148,6 +195,8 @@ watch(
                 title.value = currentTask.title;
                 description.value = currentTask.description;
                 taskCompleted.value = currentTask.completed;
+                priorityId.value = currentTask.priority_id;
+                dueDateTimeString.value = currentTask.due_datetime;
 
                 // Load checklists for this task
                 await loadChecklists(currentTask.id);
@@ -192,14 +241,6 @@ async function addChecklist() {
     }
 }
 
-async function deleteChecklist(checklistId: string) {
-    try {
-        await checklistStore.deleteChecklist(checklistId);
-    } catch (error) {
-        console.error("Failed to delete checklist:", error);
-    }
-}
-
 async function saveTask() {
     if (title.value.trim() === "" || !taskStore.currentSectionId) return;
 
@@ -213,6 +254,8 @@ async function saveTask() {
                 title: title.value,
                 description: description.value,
                 completed: taskCompleted.value,
+                priority_id: priorityId.value,
+                due_datetime: dueDateTimeString.value,
             });
         } else {
             // Create new task
@@ -221,6 +264,8 @@ async function saveTask() {
                 section_id: taskStore.currentSectionId,
                 title: title.value,
                 description: description.value,
+                priority_id: priorityId.value,
+                due_datetime: dueDateTimeString.value,
             });
         }
         taskStore.setTaskModalVisible(false);
@@ -240,9 +285,17 @@ function resetForm() {
     title.value = "";
     description.value = "";
     taskCompleted.value = false;
+    priorityId.value = null;
+    dueDateTimeString.value = null;
     showAddChecklist.value = false;
     newChecklistTitle.value = "";
 }
+
+onMounted(async () => {
+    if (priorityStore.priorities.length === 0) {
+        await priorityStore.loadPriorities();
+    }
+});
 </script>
 
 <style scoped>
@@ -255,14 +308,13 @@ function resetForm() {
 .action-buttons-row {
     display: flex;
     gap: 0.5rem;
-    padding-left: 1.2rem;
-    border-bottom: 1px solid var(--surface-border);
-    background: var(--surface-0);
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--p-gray-200);
 }
 
 .task-main {
     flex: 1;
-    padding: 1.5rem;
+    padding: 1rem 1.5rem;
 }
 
 .form-field {
@@ -284,15 +336,11 @@ function resetForm() {
 }
 
 .checklist-wrapper {
-    background: var(--surface-50);
+    background: var(--p-surface-50);
     border-radius: 8px;
     padding: 1rem;
-    margin-bottom: 1rem;
+    margin-bottom: 0.5rem;
     position: relative;
-}
-
-.delete-checklist-btn {
-    margin-top: 0.5rem;
 }
 
 /* Checklist Form (inside Popover) */
@@ -305,7 +353,7 @@ function resetForm() {
 .checklist-form label {
     font-size: 0.875rem;
     font-weight: 500;
-    color: var(--text-color-secondary);
+    color: var(--p-gray-100);
 }
 
 .checklist-form .add-button {
@@ -322,7 +370,57 @@ function resetForm() {
     justify-content: flex-end;
     gap: 0.5rem;
     padding: 1rem 1.5rem;
-    border-top: 1px solid var(--surface-border);
-    background: var(--surface-0);
+    border-top: 1px solid var(--p-gray-200);
+}
+
+/* Priority picker styles */
+.priority-option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* Match Select styling with outlined buttons */
+.action-buttons-row :deep(.p-select) {
+    border-color: var(--p-button-outlined-primary-border-color);
+    background: transparent;
+}
+
+.action-buttons-row :deep(.p-select .p-select-label),
+.action-buttons-row :deep(.p-select .p-placeholder) {
+    color: var(--p-button-outlined-primary-color);
+}
+
+.action-buttons-row :deep(.p-select:hover) {
+    border-color: var(--p-button-outlined-primary-border-color);
+    background: var(--p-button-outlined-primary-hover-background);
+}
+
+.action-buttons-row :deep(.p-select:hover .p-select-label),
+.action-buttons-row :deep(.p-select:hover .p-placeholder) {
+    color: var(--p-button-outlined-primary-color);
+}
+
+/* Match DatePicker styling with outlined buttons */
+.action-buttons-row :deep(.p-datepicker) {
+    border-color: var(--p-button-outlined-primary-border-color);
+    background: transparent;
+}
+
+.action-buttons-row :deep(.p-datepicker .p-inputtext),
+.action-buttons-row :deep(.p-datepicker input) {
+    color: var(--p-button-outlined-primary-color);
+    border-color: var(--p-button-outlined-primary-border-color);
+    background: transparent;
+}
+
+.action-buttons-row :deep(.p-datepicker input::placeholder) {
+    color: var(--p-button-outlined-primary-color);
+    opacity: 1;
+}
+
+.action-buttons-row :deep(.p-datepicker:hover) {
+    border-color: var(--p-button-outlined-primary-border-color);
+    background: var(--p-button-outlined-primary-hover-background);
 }
 </style>
