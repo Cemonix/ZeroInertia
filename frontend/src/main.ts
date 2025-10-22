@@ -23,7 +23,8 @@ import {
   faTimes,
   faTag,
   faCalendar,
-  faPen
+  faPen,
+  faFlag
 } from '@fortawesome/free-solid-svg-icons'
 
 // PrimeVue components
@@ -46,7 +47,8 @@ library.add(
   faTimes,
   faTag,
   faCalendar,
-  faPen
+  faPen,
+  faFlag
 )
 
 const app = createApp(App)

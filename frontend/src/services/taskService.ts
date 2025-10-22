@@ -8,6 +8,8 @@ export interface TaskCreateInput {
     description: string | null;
     project_id: string;
     section_id: string;
+    priority_id?: string | null;
+    due_datetime?: string | null;
 }
 
 export interface TaskReorderItem {

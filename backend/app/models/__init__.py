@@ -5,6 +5,7 @@ from app.models.section import Section
 from app.models.streak import Streak
 from app.models.task import Task
 from app.models.user import User
+from app.models.priority import Priority
 
 __all__ = [
     "Base",
@@ -15,4 +16,5 @@ __all__ = [
     "Streak",
     "CheckList",
     "CheckListItem",
+    "Priority",
 ]

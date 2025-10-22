@@ -13,7 +13,7 @@ export const useSectionStore = defineStore('section', () => {
         return [...sections.value].sort((a, b) => a.order_index - b.order_index);
     });
 
-    async function loadsSectionsForProject(projectId: string) {
+    async function loadSectionsForProject(projectId: string) {
         loading.value = true;
         error.value = null;
         try {
@@ -90,7 +90,7 @@ export const useSectionStore = defineStore('section', () => {
             // Reload sections to restore correct order on failure
             const projectId = reorderedSections[0]?.project_id;
             if (projectId) {
-                await loadsSectionsForProject(projectId);
+                await loadSectionsForProject(projectId);
             }
             throw err;
         }
@@ -105,7 +105,7 @@ export const useSectionStore = defineStore('section', () => {
         sortedSections,
         loading,
         error,
-        loadsSectionsForProject,
+        loadSectionsForProject,
         createSection,
         deleteSection,
         reorderSections,

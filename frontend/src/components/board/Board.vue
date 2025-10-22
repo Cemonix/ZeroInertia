@@ -89,7 +89,7 @@ const loadSections = async () => {
 
     try {
         await Promise.all([
-            sectionStore.loadsSectionsForProject(props.projectId),
+            sectionStore.loadSectionsForProject(props.projectId),
             taskStore.loadTasksForProject(props.projectId),
         ]);
     } catch (error) {

@@ -7,6 +7,8 @@ export interface Task {
     archived: boolean;
     project_id: string;
     section_id: string;
+    priority_id: string | null;
+    due_datetime: string | null;
     created_at: string;
     updated_at: string;
     archived_at: string | null;

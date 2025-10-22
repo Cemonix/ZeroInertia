@@ -26,7 +26,9 @@ async def create_task(
         title=task_data.title,
         description=task_data.description,
         project_id=task_data.project_id,
-        section_id=task_data.section_id
+        section_id=task_data.section_id,
+        priority_id=task_data.priority_id,
+        due_datetime=task_data.due_datetime
     )
     return TaskResponse.model_validate(new_task)
 
@@ -89,7 +91,9 @@ async def update_task(
             user_id=current_user.id,
             title=task_data.title,
             description=task_data.description,
-            completed=task_data.completed
+            completed=task_data.completed,
+            priority_id=task_data.priority_id,
+            due_datetime=task_data.due_datetime
         )
         return TaskResponse.model_validate(updated_task)
     except ValueError:
