@@ -7,11 +7,11 @@ services:
     env_file:
       - backend/.env
     environment:
+      POSTGRES_HOST: ${DB_HOST:-postgres}
+      POSTGRES_PORT: ${DB_PORT:-5432}
       POSTGRES_DB: ${DB_NAME:-zeroinertia}
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_HOST: ${DB_HOST:-postgres}
-      POSTGRES_PORT: ${DB_PORT:-5432}
       REDIS_HOST: ${REDIS_HOST:-redis}
       REDIS_PORT: ${REDIS_PORT:-6379}
       REDIS_DB: ${REDIS_DB:-0}
