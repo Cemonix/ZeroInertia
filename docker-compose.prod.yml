@@ -7,8 +7,15 @@ services:
     env_file:
       - backend/.env
     environment:
-      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@postgres:${DB_PORT:-5432}/${DB_NAME:-zeroinertia}
-      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:${REDIS_PORT:-6379}/0
+      POSTGRES_DB: ${DB_NAME:-zeroinertia}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_HOST: ${DB_HOST:-postgres}
+      POSTGRES_PORT: ${DB_PORT:-5432}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_DB: ${REDIS_DB:-0}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
     networks:
       - app-network
     depends_on:

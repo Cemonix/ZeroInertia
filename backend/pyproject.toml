@@ -19,14 +19,14 @@ loguru = "*"
 authlib = "*"
 itsdangerous = "*"
 redis = "*"
-apscheduler = "^3.11.0"
+apscheduler = "*"
+httpx = "*"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "*"
 pytest-asyncio = "*"
 pytest-cov = "*"
 ruff = "*"
-httpx = "*"
 
 [build-system]
 requires = ["poetry-core"]
