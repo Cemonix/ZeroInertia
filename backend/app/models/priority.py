@@ -25,6 +25,7 @@ class Priority(Base):
     )
 
     # Constraints and Indexes
+    # TODO: Redundant with unique=True on name, can be removed
     __table_args__: tuple[Index] = (
         Index("ix_priorities_name", "name"),
     )
