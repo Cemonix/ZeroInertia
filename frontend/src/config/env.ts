@@ -11,7 +11,7 @@ function createEnv(): Environment {
     const nodeEnv = import.meta.env.NODE_ENV || "development";
 
     const environment = {
-        API_BASE_URL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8000",
+        API_BASE_URL: import.meta.env.VITE_API_BASE_URL || "",
         NODE_ENV: nodeEnv,
         IS_DEVELOPMENT: nodeEnv === "development",
         IS_PRODUCTION: nodeEnv === "production",

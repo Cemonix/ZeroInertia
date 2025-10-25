@@ -18,13 +18,15 @@ import {
   faEdit,
   faChevronDown,
   faChevronRight,
+  faChevronLeft,
   faEllipsisVertical,
   faCheckSquare,
   faTimes,
   faTag,
   faCalendar,
   faPen,
-  faFlag
+  faFlag,
+  faSignOutAlt
 } from '@fortawesome/free-solid-svg-icons'
 
 // PrimeVue components
@@ -42,13 +44,15 @@ library.add(
   faEdit,
   faChevronDown,
   faChevronRight,
+  faChevronLeft,
   faEllipsisVertical,
   faCheckSquare,
   faTimes,
   faTag,
   faCalendar,
   faPen,
-  faFlag
+  faFlag,
+  faSignOutAlt
 )
 
 const app = createApp(App)

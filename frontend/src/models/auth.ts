@@ -14,10 +14,6 @@ export interface GoogleAuthInitResponse {
     auth_url: string;
 }
 
-export interface MeResponse {
-    user: User;
-}
-
 export interface LogoutResponse {
     message: string;
 }
