@@ -43,6 +43,8 @@
                 handle=".task-card"
                 animation="200"
                 ghost-class="task-ghost"
+                :delay="200"
+                :delay-on-touch-only="true"
             >
                 <template #item="{element}">
                     <TaskCard :task="element" />
