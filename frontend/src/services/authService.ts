@@ -1,7 +1,6 @@
 import apiClient from "./apiClient";
 import type {
     User,
-    MeResponse,
     LogoutResponse
 } from "@/models/auth";
 import { AuthError, handleApiError } from "./errorHandler";
@@ -19,8 +18,8 @@ export class AuthService {
      */
     static async getCurrentUser(): Promise<User> {
         try {
-            const response = await apiClient.get<MeResponse>("/api/v1/auth/me");
-            return response.data.user;
+            const response = await apiClient.get<User>("/api/v1/auth/me");
+            return response.data;
         } catch (error) {
             throw handleApiError(error, 'Failed to get current user', AuthError);
         }

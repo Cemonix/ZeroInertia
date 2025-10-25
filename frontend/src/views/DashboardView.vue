@@ -1,15 +1,16 @@
 <template>
     <Toast />
     <main class="main-grid">
-        <aside class="sidebar">
+        <aside class="sidebar" :class="{ 'collapsed': isSidebarCollapsed }">
             <div class="sidebar-header">
-                <h2 class="sidebar-title">My Projects</h2>
+                <h2 class="sidebar-title" v-show="!isSidebarCollapsed">My Projects</h2>
                 <Button
                 class="sidebar-add-btn"
                 @click="openProjectModal"
                 text
                 rounded
                 aria-label="Add new project"
+                v-show="!isSidebarCollapsed"
                 >
                 <font-awesome-icon icon="plus" />
             </Button>
@@ -20,13 +21,33 @@
         </aside>
         <div class="content">
             <nav class="navbar">
+                <Button
+                    class="sidebar-toggle-btn"
+                    @click="toggleSidebar"
+                    text
+                    rounded
+                    aria-label="Toggle sidebar"
+                >
+                    <font-awesome-icon :icon="isSidebarCollapsed ? 'chevron-right' : 'chevron-left'" />
+                </Button>
                 <Button v-if="!authStore.isAuthenticated" @click="login" class="login-btn">Log in</Button>
                 <div v-else class="user-section">
                     <div class="streak-widget">
                         <span v-if="streakStore.currentStreak > 0" class="streak-flame">🔥</span>
                         <span class="streak-count">{{ streakStore.currentStreak }}</span>
                     </div>
-                    <Avatar label="C" size="medium" shape="circle"/>
+                    <Avatar
+                        :label="userInitials"
+                        size="medium"
+                        shape="circle"
+                        class="user-avatar"
+                        @click="toggleUserMenu"
+                    />
+                    <Menu
+                        ref="userMenu"
+                        :model="userMenuItems"
+                        :popup="true"
+                    />
                 </div>
             </nav>
             <Board :project-id="selectedProjectId" />
@@ -36,12 +57,14 @@
 </template>
 
 <script lang="ts" setup>
+import { onMounted, onUnmounted, ref, computed } from 'vue';
+import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useProjectStore } from '@/stores/project';
-import { onMounted, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import Toast from 'primevue/toast';
 import Avatar from 'primevue/avatar';
+import Menu from 'primevue/menu';
 import ProjectModal from '@/components/sidebar/ProjectCreateModal.vue';
 import ProjectTree from '@/components/sidebar/ProjectTree.vue';
 import Board from '@/components/board/Board.vue';
@@ -50,9 +73,55 @@ import { useStreakStore } from '@/stores/streak';
 const authStore = useAuthStore();
 const projectStore = useProjectStore();
 const streakStore = useStreakStore();
+const router = useRouter();
 
-const isProjectModalVisible = ref(false);
 const { selectedProjectId } = storeToRefs(projectStore);
+const isProjectModalVisible = ref(false);
+const userMenu = ref();
+const isSidebarCollapsed = ref(false);
+
+const getUserInitials = (fullName: string | null, email: string): string => {
+    if (fullName && fullName.trim()) {
+        const nameParts = fullName.trim().split(/\s+/);
+        if (nameParts.length >= 2) {
+            return (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase();
+        }
+        return nameParts[0][0].toUpperCase();
+    }
+    return email[0].toUpperCase();
+};
+
+const userInitials = computed(() => {
+    if (!authStore.user) return 'U';
+    return getUserInitials(authStore.userName, authStore.userEmail || '');
+});
+
+const userMenuItems = computed(() => [
+    {
+        label: authStore.userName || authStore.userEmail || 'User',
+        disabled: true,
+        class: 'user-info'
+    },
+    {
+        separator: true
+    },
+    {
+        label: 'Logout',
+        icon: 'fa fa-sign-out-alt',
+        command: async () => {
+            await authStore.logout();
+            router.push('/home');
+        }
+    }
+]);
+
+const toggleSidebar = () => {
+    isSidebarCollapsed.value = !isSidebarCollapsed.value;
+};
+
+const toggleUserMenu = (event: Event) => {
+    userMenu.value.toggle(event);
+};
 
 const login = () => {
     authStore.redirectToLogin();
@@ -62,8 +131,21 @@ const openProjectModal = () => {
     isProjectModalVisible.value = true;
 };
 
+// Auto-collapse sidebar on mobile
+const checkMobileView = () => {
+    if (window.innerWidth < 768) {
+        isSidebarCollapsed.value = true;
+    }
+};
+
 onMounted(() => {
     streakStore.loadStreak();
+    checkMobileView();
+    window.addEventListener('resize', checkMobileView);
+});
+
+onUnmounted(() => {
+    window.removeEventListener('resize', checkMobileView);
 });
 </script>
 
@@ -81,6 +163,14 @@ onMounted(() => {
     border-right: 1px solid var(--p-surface-200);
     min-width: 280px;
     max-width: 320px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+}
+
+.sidebar.collapsed {
+    min-width: 0;
+    max-width: 0;
+    border-right: none;
 }
 
 .sidebar-header {
@@ -121,11 +211,21 @@ onMounted(() => {
 
 .navbar {
     display: flex;
-    justify-content: flex-end;
+    justify-content: space-between;
     align-items: center;
     background: var(--p-blue-50);
     padding: 0.5rem;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.sidebar-toggle-btn {
+    color: var(--p-text-color);
+    transition: all 0.2s ease;
+}
+
+.sidebar-toggle-btn:hover {
+    background-color: var(--p-surface-100);
+    color: var(--p-primary-color);
 }
  
 .login-btn {
@@ -177,5 +277,21 @@ onMounted(() => {
 .streak-count {
     font-size: 0.9375rem;
     color: var(--p-orange-700);
+}
+
+.user-avatar {
+    cursor: pointer;
+    transition: transform 0.2s ease;
+    background-color: var(--p-primary-500);
+}
+
+.user-avatar:hover {
+    transform: scale(1.1);
+}
+
+:deep(.user-info) {
+    font-weight: 600;
+    color: var(--p-text-color);
+    padding: 0.5rem 1rem;
 }
 </style>
