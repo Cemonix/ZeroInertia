@@ -14,7 +14,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 COMPOSE_FILE="docker-compose.prod.yml"
-ENV_FILE="../backend/.env"
+ENV_FILE="./backend/.env"
 BACKUP_DIR="./backups"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 
