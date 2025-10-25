@@ -14,6 +14,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 COMPOSE_FILE="docker-compose.prod.yml"
+ENV_FILE="../backend/.env"
 BACKUP_DIR="./backups"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 
@@ -64,8 +65,8 @@ if [ "$SKIP_BACKUP" = false ]; then
     mkdir -p "$BACKUP_DIR"
 
     # Backup PostgreSQL
-    if docker compose -f "$COMPOSE_FILE" ps postgres | grep -q "Up"; then
-        docker compose -f "$COMPOSE_FILE" exec -T postgres pg_dump \
+    if docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" ps postgres | grep -q "Up"; then
+        docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec -T postgres pg_dump \
             -U "$DB_USER" "$DB_NAME" > "$BACKUP_DIR/db_backup_$TIMESTAMP.sql" 2>/dev/null || {
             log_warning "Database backup failed, but continuing deployment..."
         }
@@ -79,17 +80,17 @@ fi
 
 # Build new images
 log_info "Building Docker images..."
-docker compose -f "$COMPOSE_FILE" build --no-cache
+docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" build --no-cache
 log_success "Images built successfully"
 
 # Stop old containers
 log_info "Stopping old containers..."
-docker compose -f "$COMPOSE_FILE" down
+docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" down
 log_success "Old containers stopped"
 
 # Start new containers
 log_info "Starting new containers..."
-docker compose -f "$COMPOSE_FILE" up -d
+docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d
 log_success "New containers started"
 
 # Wait for services to be healthy
@@ -97,20 +98,20 @@ log_info "Waiting for services to be healthy..."
 sleep 10
 
 # Check backend health
-if docker compose -f "$COMPOSE_FILE" ps backend | grep -q "Up"; then
+if docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" ps backend | grep -q "Up"; then
     log_success "Backend is running"
 else
     log_error "Backend failed to start"
-    docker compose -f "$COMPOSE_FILE" logs backend
+    docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" logs backend
     exit 1
 fi
 
 # Check frontend health
-if docker compose -f "$COMPOSE_FILE" ps frontend | grep -q "Up"; then
+if docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" ps frontend | grep -q "Up"; then
     log_success "Frontend is running"
 else
     log_error "Frontend failed to start"
-    docker compose -f "$COMPOSE_FILE" logs frontend
+    docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" logs frontend
     exit 1
 fi
 
@@ -121,7 +122,7 @@ log_success "Cleanup complete"
 
 # Show running containers
 log_info "Current running containers:"
-docker compose -f "$COMPOSE_FILE" ps
+docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" ps
 
 # Final message
 echo ""
@@ -129,7 +130,7 @@ log_success "🚀 Deployment completed successfully!"
 log_info "Application is running at: https://zeroinertia.cemonix.dev"
 echo ""
 log_info "Useful commands:"
-echo "  - View logs: docker compose -f $COMPOSE_FILE logs -f [service]"
-echo "  - Restart service: docker compose -f $COMPOSE_FILE restart [service]"
-echo "  - Stop all: docker compose -f $COMPOSE_FILE down"
+echo "  - View logs: docker compose --env-file $ENV_FILE -f $COMPOSE_FILE logs -f [service]"
+echo "  - Restart service: docker compose --env-file $ENV_FILE -f $COMPOSE_FILE restart [service]"
+echo "  - Stop all: docker compose --env-file $ENV_FILE -f $COMPOSE_FILE down"
 echo ""
