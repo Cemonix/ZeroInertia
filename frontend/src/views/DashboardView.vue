@@ -131,9 +131,9 @@ const openProjectModal = () => {
     isProjectModalVisible.value = true;
 };
 
-// Auto-collapse sidebar on mobile
 const checkMobileView = () => {
-    if (window.innerWidth < 768) {
+    const mobileBreakpoint = 768; // TODO: Extract the hardcoded width into a constant or config
+    if (window.innerWidth < mobileBreakpoint) {
         isSidebarCollapsed.value = true;
     }
 };
