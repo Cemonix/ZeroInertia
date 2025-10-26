@@ -152,6 +152,26 @@ async def get_current_user(
     return UserResponse.model_validate(user)
 
 
+@router.get("/is_authenticated")
+async def is_authenticated(
+    request: Request
+) -> JSONResponse:
+    """Check if the user is authenticated."""
+    access_token = request.cookies.get("access_token")
+    if not access_token:
+        return JSONResponse({"is_authenticated": False})
+
+    try:
+        payload = JWTService.verify_token(access_token)
+        user_id = payload.get("sub")
+        if not user_id:
+            return JSONResponse({"is_authenticated": False})
+
+        return JSONResponse({"is_authenticated": True})
+    except Exception:
+        return JSONResponse({"is_authenticated": False})
+
+
 @router.post("/logout")
 async def logout():
     """Logout user by clearing the JWT cookie."""
