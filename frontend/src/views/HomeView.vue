@@ -139,7 +139,9 @@ const checkMobileView = () => {
 };
 
 onMounted(() => {
-    streakStore.loadStreak();
+    if (authStore.isAuthenticated) {
+        streakStore.loadStreak();
+    }
     checkMobileView();
     window.addEventListener('resize', checkMobileView);
 });
