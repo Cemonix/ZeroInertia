@@ -25,8 +25,10 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useSectionStore } from '@/stores/section';
+import { useToast } from "primevue";
 
 const sectionStore = useSectionStore();
+const toast = useToast();
 
 const props = defineProps<{
     projectId: string;
@@ -46,7 +48,7 @@ const handleCreate = async () => {
             order_index: nextOrderIndex,
         });
     } catch (error) {
-        console.error("Failed to create section:", error);
+        toast.add({ severity: "error", summary: "Error", detail: "Failed to create section" });
     }
     handleClose();
 };

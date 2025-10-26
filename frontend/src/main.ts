@@ -31,6 +31,7 @@ import {
 
 // PrimeVue components
 import Button from 'primevue/button'
+import Toast from 'primevue/toast'
 import InputText from 'primevue/inputtext'
 import Checkbox from 'primevue/checkbox'
 import Dialog from 'primevue/dialog'
@@ -59,6 +60,7 @@ const app = createApp(App)
 
 app.use(createPinia())
 app.use(router)
+
 app.use(PrimeVue, {
   theme: {
     preset: Aura,
@@ -77,6 +79,7 @@ app.use(ConfirmationService)
 
 app.component('FontAwesomeIcon', FontAwesomeIcon)
 app.component('Button', Button)
+app.component('Toast', Toast)
 app.component('InputText', InputText)
 app.component('Checkbox', Checkbox)
 app.component('Dialog', Dialog)

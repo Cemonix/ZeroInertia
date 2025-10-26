@@ -1,9 +1,9 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
-import { useToast } from "primevue/usetoast";
 import { projectService } from "@/services/projectService";
 import type { ProjectReorderItem } from "@/models/project";
 import type { Project } from "@/models/project";
+import { useToast } from "primevue/usetoast";
 
 export interface ProjectTreeNode {
     key: string;
@@ -13,11 +13,12 @@ export interface ProjectTreeNode {
 }
 
 export const useProjectStore = defineStore("project", () => {
+    const toast = useToast();
+
     const projects = ref<Project[]>([]);
     const selectedProjectId = ref<string | null>(null);
     const loading = ref(false);
     const error = ref<string | null>(null);
-    const toast = useToast();
 
     const getProjectById = computed(() => {
         return (id: string) => projects.value.find((p) => p.id === id);
@@ -27,15 +28,15 @@ export const useProjectStore = defineStore("project", () => {
         return selectedProjectId.value ? getProjectById.value(selectedProjectId.value) : null;
     });
 
-    async function fetchProjects() {
+    async function loadProjects() {
         loading.value = true;
         error.value = null;
         try {
             projects.value = await projectService.getProjects();
         } catch (err) {
             error.value =
-                err instanceof Error ? err.message : "Failed to fetch projects";
-            console.error("Error fetching projects:", err);
+                err instanceof Error ? err.message : "Failed to load projects";
+            toast.add({ severity: "error", summary: "Error", detail: "Failed to load projects" });
         } finally {
             loading.value = false;
         }
@@ -82,7 +83,7 @@ export const useProjectStore = defineStore("project", () => {
         } catch (err) {
             error.value =
                 err instanceof Error ? err.message : "Failed to create project";
-            console.error("Error creating project:", err);
+            toast.add({ severity: "error", summary: "Error", detail: "Failed to create project" });
             throw err;
         } finally {
             loading.value = false;
@@ -105,7 +106,7 @@ export const useProjectStore = defineStore("project", () => {
         } catch (err) {
             error.value =
                 err instanceof Error ? err.message : "Failed to update project";
-            console.error("Error updating project:", err);
+            toast.add({ severity: "error", summary: "Error", detail: "Failed to update project" });
             throw err;
         } finally {
             loading.value = false;
@@ -121,7 +122,7 @@ export const useProjectStore = defineStore("project", () => {
         } catch (err) {
             error.value =
                 err instanceof Error ? err.message : "Failed to delete project";
-            console.error("Error deleting project:", err);
+            toast.add({ severity: "error", summary: "Error", detail: "Failed to delete project" });
             throw err;
         } finally {
             loading.value = false;
@@ -159,7 +160,7 @@ export const useProjectStore = defineStore("project", () => {
                 await projectService.reorderProjects(reordersToSend);
             } catch (err) {
                 error.value = err instanceof Error ? err.message : "Failed to reorder projects";
-                console.error("Error reordering projects:", err);
+                toast.add({ severity: "error", summary: "Error", detail: "Failed to reorder projects" });
 
                 // Show error toast
                 toast.add({
@@ -170,7 +171,7 @@ export const useProjectStore = defineStore("project", () => {
                 });
 
                 // Refetch to revert optimistic update
-                await fetchProjects();
+                await loadProjects();
             }
         }, 1500);
     }
@@ -189,7 +190,7 @@ export const useProjectStore = defineStore("project", () => {
         getProjectById,
         selectedProject,
         // Actions
-        fetchProjects,
+        loadProjects,
         createProject,
         updateProject,
         deleteProject,

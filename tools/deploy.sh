@@ -67,7 +67,7 @@ if [ "$SKIP_BACKUP" = false ]; then
     # Backup PostgreSQL
     if docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" ps postgres | grep -q "Up"; then
         docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec -T postgres pg_dump \
-            -U "$DB_USER" "$DB_NAME" > "$BACKUP_DIR/db_backup_$TIMESTAMP.sql" 2>/dev/null || {
+            -U "$POSTGRES_USER" "$POSTGRES_DB" > "$BACKUP_DIR/db_backup_$TIMESTAMP.sql" 2>/dev/null || {
             log_warning "Database backup failed, but continuing deployment..."
         }
         log_success "Database backed up to $BACKUP_DIR/db_backup_$TIMESTAMP.sql"

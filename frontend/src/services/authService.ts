@@ -3,7 +3,7 @@ import type {
     User,
     LogoutResponse
 } from "@/models/auth";
-import { AuthError, handleApiError } from "./errorHandler";
+import { AuthError, handleApiError } from "../core/errorHandler";
 
 export class AuthService {
     /**
@@ -19,8 +19,10 @@ export class AuthService {
     static async getCurrentUser(): Promise<User> {
         try {
             const response = await apiClient.get<User>("/api/v1/auth/me");
+
             return response.data;
-        } catch (error) {
+        } 
+        catch (error) {
             throw handleApiError(error, 'Failed to get current user', AuthError);
         }
     }
@@ -41,8 +43,8 @@ export class AuthService {
      */
     static async isAuthenticated(): Promise<boolean> {
         try {
-            await this.getCurrentUser();
-            return true;
+            const response = await apiClient.get("/api/v1/auth/is_authenticated");
+            return response.data.is_authenticated;
         } catch {
             return false;
         }

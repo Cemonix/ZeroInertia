@@ -2,8 +2,11 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { streakService } from '@/services/streakService';
 import type { StreakStats } from '@/models/streak';
+import { useToast } from 'primevue/usetoast';
 
 export const useStreakStore = defineStore('streak', () => {
+    const toast = useToast();
+
     const currentStreak = ref(0);
     const longestStreak = ref(0);
     const lastActivityDate = ref<string | null>(null);
@@ -20,7 +23,7 @@ export const useStreakStore = defineStore('streak', () => {
             lastActivityDate.value = stats.last_activity_date;
         } catch (err) {
             error.value = err instanceof Error ? err.message : 'Failed to load streak';
-            console.error('Error loading streak:', err);
+            toast.add({ severity: "error", summary: "Error", detail: "Failed to load streak" });
         } finally {
             loading.value = false;
         }
