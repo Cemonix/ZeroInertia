@@ -77,6 +77,9 @@ import type { Section } from "@/models/section";
 import type { Task } from "@/models/task";
 import Menu from "primevue/menu";
 import ToggleSwitch from "primevue/toggleswitch";
+import { useToast } from "primevue";
+
+const toast = useToast();
 
 interface Props {
     projectId: string;
@@ -130,7 +133,7 @@ async function handleDragEnd() {
     try {
         await taskStore.reorderTasks(props.section.id, taskIds);
     } catch (error) {
-        console.error("Failed to reorder tasks:", error);
+        toast.add({ severity: "error", summary: "Error", detail: "Failed to reorder tasks" });
     }
 }
 
@@ -151,7 +154,7 @@ function handleDeleteSection() {
             try {
                 await sectionStore.deleteSection(props.section.id);
             } catch (error) {
-                console.error("Failed to delete section:", error);
+                toast.add({ severity: "error", summary: "Error", detail: "Failed to delete section" });
             }
         },
     });

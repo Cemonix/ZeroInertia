@@ -7,8 +7,11 @@ import {
     type CheckListItemCreateInput,
     type CheckListReorderItem
 } from '@/services/checklistService';
+import { useToast } from "primevue";
 
 export const useChecklistStore = defineStore('checklist', () => {
+    const toast = useToast();
+
     const checklists = ref<CheckList[]>([]);
     const loading = ref(false);
     const error = ref<string | null>(null);
@@ -50,7 +53,7 @@ export const useChecklistStore = defineStore('checklist', () => {
             checklists.value = await checklistService.getChecklistsByTask(taskId);
         } catch (err) {
             error.value = err instanceof Error ? err.message : 'Failed to load checklists';
-            console.error('Error loading checklists:', err);
+            toast.add({ severity: "error", summary: "Error", detail: "Failed to load checklists" });
             checklists.value = [];
         } finally {
             loading.value = false;
@@ -71,7 +74,7 @@ export const useChecklistStore = defineStore('checklist', () => {
             return checklist;
         } catch (err) {
             error.value = err instanceof Error ? err.message : 'Failed to load checklist';
-            console.error('Error loading checklist:', err);
+            toast.add({ severity: "error", summary: "Error", detail: "Failed to load checklist" });
             throw err;
         } finally {
             loading.value = false;
@@ -87,7 +90,7 @@ export const useChecklistStore = defineStore('checklist', () => {
             return newChecklist;
         } catch (err) {
             error.value = err instanceof Error ? err.message : 'Failed to create checklist';
-            console.error('Error creating checklist:', err);
+            toast.add({ severity: "error", summary: "Error", detail: "Failed to create checklist" });
             throw err;
         } finally {
             loading.value = false;
@@ -106,7 +109,7 @@ export const useChecklistStore = defineStore('checklist', () => {
             return updatedChecklist;
         } catch (err) {
             error.value = err instanceof Error ? err.message : 'Failed to update checklist';
-            console.error('Error updating checklist:', err);
+            toast.add({ severity: "error", summary: "Error", detail: "Failed to update checklist" });
             throw err;
         } finally {
             loading.value = false;
@@ -121,7 +124,7 @@ export const useChecklistStore = defineStore('checklist', () => {
             checklists.value = checklists.value.filter(c => c.id !== checklistId);
         } catch (err) {
             error.value = err instanceof Error ? err.message : 'Failed to delete checklist';
-            console.error('Error deleting checklist:', err);
+            toast.add({ severity: "error", summary: "Error", detail: "Failed to delete checklist" });
             throw err;
         } finally {
             loading.value = false;
@@ -151,7 +154,7 @@ export const useChecklistStore = defineStore('checklist', () => {
             await checklistService.reorderChecklists(reorderPayload);
         } catch (err) {
             error.value = err instanceof Error ? err.message : 'Failed to reorder checklists';
-            console.error('Error reordering checklists:', err);
+            toast.add({ severity: "error", summary: "Error", detail: "Failed to reorder checklists" });
             // Reload checklists to restore correct order on failure
             await loadChecklistsForTask(taskId);
             throw err;
@@ -177,7 +180,7 @@ export const useChecklistStore = defineStore('checklist', () => {
             return newItem;
         } catch (err) {
             error.value = err instanceof Error ? err.message : 'Failed to create checklist item';
-            console.error('Error creating checklist item:', err);
+            toast.add({ severity: "error", summary: "Error", detail: "Failed to create checklist item" });
             throw err;
         } finally {
             loading.value = false;
@@ -209,7 +212,7 @@ export const useChecklistStore = defineStore('checklist', () => {
             return updatedItem;
         } catch (err) {
             error.value = err instanceof Error ? err.message : 'Failed to update checklist item';
-            console.error('Error updating checklist item:', err);
+            toast.add({ severity: "error", summary: "Error", detail: "Failed to update checklist item" });
             throw err;
         } finally {
             loading.value = false;
@@ -243,7 +246,7 @@ export const useChecklistStore = defineStore('checklist', () => {
             }
         } catch (err) {
             error.value = err instanceof Error ? err.message : 'Failed to delete checklist item';
-            console.error('Error deleting checklist item:', err);
+            toast.add({ severity: "error", summary: "Error", detail: "Failed to delete checklist item" });
             throw err;
         } finally {
             loading.value = false;
@@ -276,7 +279,7 @@ export const useChecklistStore = defineStore('checklist', () => {
             await checklistService.reorderChecklistItems(checklistId, reorderPayload);
         } catch (err) {
             error.value = err instanceof Error ? err.message : 'Failed to reorder checklist items';
-            console.error('Error reordering checklist items:', err);
+            toast.add({ severity: "error", summary: "Error", detail: "Failed to reorder checklist items" });
             // Reload checklist to restore correct order on failure
             await loadChecklistDetails(checklistId);
             throw err;

@@ -140,6 +140,9 @@ import { useChecklistStore } from "@/stores/checklist";
 import { usePriorityStore } from "@/stores/priority";
 import CheckList from "@/components/common/CheckList.vue";
 import Popover from "@/components/common/Popover.vue";
+import { useToast } from "primevue";
+
+const toast = useToast();
 
 const props = defineProps<{
     projectId: string;
@@ -220,7 +223,7 @@ async function loadChecklists(taskId: string) {
             checklists.map(checklist => checklistStore.loadChecklistDetails(checklist.id))
         );
     } catch (error) {
-        console.error("Failed to load checklists:", error);
+        toast.add({ severity: "error", summary: "Error", detail: "Failed to load checklists" });
     }
 }
 
@@ -237,7 +240,7 @@ async function addChecklist() {
         newChecklistTitle.value = "";
         showAddChecklist.value = false;
     } catch (error) {
-        console.error("Failed to create checklist:", error);
+        toast.add({ severity: "error", summary: "Error", detail: "Failed to create checklist" });
     }
 }
 
@@ -270,7 +273,7 @@ async function saveTask() {
         }
         taskStore.setTaskModalVisible(false);
     } catch (error) {
-        console.error("Failed to save task:", error);
+        toast.add({ severity: "error", summary: "Error", detail: "Failed to save task" });
     } finally {
         isLoading.value = false;
     }

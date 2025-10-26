@@ -20,10 +20,15 @@ import { onMounted, ref, watch, watchEffect, type Ref } from 'vue';
 import Tree, { type TreeSelectionKeys, type TreeNodeDropEvent, type TreeExpandedKeys } from 'primevue/tree';
 import { useProjectStore, type ProjectTreeNode } from '@/stores/project';
 import type { Project, ProjectReorderItem } from '@/models/project';
+import { useAuthStore } from '@/stores/auth';
+import { useToast } from "primevue";
+
+const toast = useToast();
 
 const EXPANDED_KEYS_STORAGE_KEY = 'projectTree.expandedKeys';
 
 const projectStore = useProjectStore();
+const authStore = useAuthStore();
 const selectedKey: Ref<TreeSelectionKeys | undefined> = ref();
 const treeNodes: Ref<ProjectTreeNode[]> = ref([]);
 const expandedKeys: Ref<TreeExpandedKeys> = ref({});
@@ -93,11 +98,13 @@ onMounted(async () => {
         try {
             expandedKeys.value = JSON.parse(savedExpandedKeys);
         } catch (e) {
-            console.error('Failed to parse saved expanded keys:', e);
+            toast.add({ severity: "error", summary: "Error", detail: "Failed to parse saved expanded keys" });
         }
     }
 
-    await projectStore.fetchProjects();
+    if (authStore.isAuthenticated) {
+        await projectStore.loadProjects();
+    }
 });
 </script>
 

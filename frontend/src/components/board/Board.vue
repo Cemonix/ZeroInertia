@@ -49,6 +49,9 @@ import TaskModal from "./TaskModal.vue";
 import { useSectionStore } from "@/stores/section";
 import { useTaskStore } from "@/stores/task";
 import type { Section } from "@/models/section";
+import { useToast } from "primevue";
+
+const toast = useToast();
 
 interface Props {
     projectId?: string | null;
@@ -77,7 +80,7 @@ async function handleDragEnd() {
     try {
         await sectionStore.reorderSections(sectionIds);
     } catch (error) {
-        console.error("Failed to reorder sections:", error);
+        toast.add({ severity: "error", summary: "Error", detail: "Failed to reorder sections" });
     }
 }
 
@@ -93,7 +96,7 @@ const loadSections = async () => {
             taskStore.loadTasksForProject(props.projectId),
         ]);
     } catch (error) {
-        console.error("Failed to load sections and tasks:", error);
+        toast.add({ severity: "error", summary: "Error", detail: "Failed to load sections and tasks" });
     }
 };
 

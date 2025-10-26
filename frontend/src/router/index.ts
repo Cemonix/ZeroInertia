@@ -1,14 +1,14 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
-import DashboardView from "@/views/DashboardView.vue";
+import HomeView from "@/views/HomeView.vue";
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
     routes: [
         {
             path: "/home",
-            name: "dashboard",
-            component: DashboardView,
+            name: "home",
+            component: HomeView,
             alias: "/",
             meta: {
                 title: "Zero Inertia",
@@ -31,13 +31,7 @@ router.beforeEach(async (to, _, next) => {
         await authStore.initialize();
     }
 
-    if (requiresAuth && !authStore.isAuthenticated) {
-        next({ name: "landing" });
-    } else if (requiresGuest && authStore.isAuthenticated) {
-        next({ name: "workspace" });
-    } else {
-        next();
-    }
+    next();
 });
 
 export default router;

@@ -25,6 +25,9 @@ import { ref } from 'vue';
 import InputText from 'primevue/inputtext';
 import Dialog from 'primevue/dialog';
 import { useProjectStore } from '@/stores/project';
+import { useToast } from "primevue";
+
+const toast = useToast();
 
 const projectStore = useProjectStore();
 const projectTitle = ref('');
@@ -37,7 +40,7 @@ async function createProject() {
         projectTitle.value = '';
         visible.value = false;
     } catch (error) {
-        console.error('Error creating project:', error);
+        toast.add({ severity: "error", summary: "Error", detail: "Failed to create project" });
     }
 }
 </script>

@@ -2,8 +2,11 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import type { Task } from '@/models/task';
 import { taskService, type TaskCreateInput, type TaskReorderItem } from '@/services/taskService';
+import { useToast } from 'primevue/usetoast';
 
 export const useTaskStore = defineStore('task', () => {
+    const toast = useToast();
+
     const tasks = ref<Task[]>([]);
     const currentTask = ref<Task | null>(null);
     const currentSectionId = ref<string | null>(null);
@@ -71,7 +74,7 @@ export const useTaskStore = defineStore('task', () => {
                 tasks.value[index] = updatedTask;
             }
         } catch (err) {
-            console.error('Error toggling task completion:', err);
+            toast.add({ severity: "error", summary: "Error", detail: "Failed to toggle task completion" });
         }
     }
 
@@ -82,7 +85,7 @@ export const useTaskStore = defineStore('task', () => {
             tasks.value = await taskService.getTasks(projectId);
         } catch (err) {
             error.value = err instanceof Error ? err.message : 'Failed to load tasks';
-            console.error('Error loading tasks:', err);
+            toast.add({ severity: "error", summary: "Error", detail: "Failed to load tasks" });
             tasks.value = [];
         } finally {
             loading.value = false;
@@ -98,7 +101,7 @@ export const useTaskStore = defineStore('task', () => {
             return newTask;
         } catch (err) {
             error.value = err instanceof Error ? err.message : 'Failed to create task';
-            console.error('Error creating task:', err);
+            toast.add({ severity: "error", summary: "Error", detail: "Failed to create task" });
             throw err;
         } finally {
             loading.value = false;
@@ -117,7 +120,7 @@ export const useTaskStore = defineStore('task', () => {
             return updatedTask;
         } catch (err) {
             error.value = err instanceof Error ? err.message : 'Failed to update task';
-            console.error('Error updating task:', err);
+            toast.add({ severity: "error", summary: "Error", detail: "Failed to update task" });
             throw err;
         } finally {
             loading.value = false;
@@ -132,7 +135,7 @@ export const useTaskStore = defineStore('task', () => {
             tasks.value = tasks.value.filter(t => t.id !== taskId);
         } catch (err) {
             error.value = err instanceof Error ? err.message : 'Failed to delete task';
-            console.error('Error deleting task:', err);
+            toast.add({ severity: "error", summary: "Error", detail: "Failed to delete task" });
             throw err;
         } finally {
             loading.value = false;
@@ -164,7 +167,7 @@ export const useTaskStore = defineStore('task', () => {
             await taskService.reorderTasks(reorderPayload);
         } catch (err) {
             error.value = err instanceof Error ? err.message : 'Failed to reorder tasks';
-            console.error('Error reordering tasks:', err);
+            toast.add({ severity: "error", summary: "Error", detail: "Failed to reorder tasks" });
             // Reload tasks to restore correct order on failure
             const projectId = tasksInSection[0]?.project_id;
             if (projectId) {

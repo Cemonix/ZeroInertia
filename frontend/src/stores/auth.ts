@@ -2,8 +2,11 @@ import { defineStore } from "pinia";
 import { ref, computed, readonly } from "vue";
 import type { User } from "@/models/auth";
 import { AuthService } from "@/services/authService";
+import { useToast } from 'primevue/usetoast';
 
 export const useAuthStore = defineStore("auth", () => {
+    const toast = useToast();
+
     const user = ref<User | null>(null);
     const isLoading = ref(false);
     const isInitialized = ref(false);
@@ -21,8 +24,12 @@ export const useAuthStore = defineStore("auth", () => {
         isLoading.value = true;
 
         try {
-            const userData = await AuthService.getCurrentUser();
-            setUser(userData);
+            if (await AuthService.isAuthenticated()) {
+                const userData = await AuthService.getCurrentUser();
+                setUser(userData);
+            } else {
+                clearUser();
+            }
         } catch (error) {
             clearUser();
         } finally {
@@ -47,7 +54,7 @@ export const useAuthStore = defineStore("auth", () => {
         try {
             await AuthService.logout();
         } catch (error) {
-            console.warn("Logout API call failed:", error);
+            toast.add({ severity: "error", summary: "Error", detail: "Failed to logout" });
         } finally {
             clearUser();
             isLoading.value = false;

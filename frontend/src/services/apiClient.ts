@@ -1,6 +1,6 @@
 import axios from "axios";
 import { env } from "@/config/env";
-import { handleApiError } from "./errorHandler";
+import { handleApiError } from "../core/errorHandler";
 
 const apiClient = axios.create({
     baseURL: env.API_BASE_URL,
@@ -16,12 +16,8 @@ apiClient.interceptors.request.use(function (config) {
 });
 
 apiClient.interceptors.response.use(
-    function onFulfilled(response) {
-        return response;
-    },
-    function onRejected(error) {
-        return handleApiError(error, 'API request failed');
-    }
+    res => res,
+    err => handleApiError(err, 'API request failed')
 );
 
 

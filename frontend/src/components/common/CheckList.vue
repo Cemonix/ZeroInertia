@@ -126,6 +126,9 @@
 <script lang="ts" setup>
 import { ref, computed } from 'vue';
 import { useChecklistStore } from '@/stores/checklist';
+import { useToast } from "primevue";
+
+const toast = useToast();
 
 interface Props {
     checklistId: string;
@@ -153,7 +156,7 @@ async function deleteChecklist() {
     try {
         await checklistStore.deleteChecklist(props.checklistId);
     } catch (err) {
-        console.error('Failed to delete checklist:', err);
+        toast.add({ severity: "error", summary: "Error", detail: "Failed to delete checklist" });
     }
 }
 
@@ -162,7 +165,7 @@ async function toggleItem(itemId: string) {
     try {
         await checklistStore.toggleChecklistItem(props.checklistId, itemId);
     } catch (err) {
-        console.error('Failed to toggle item:', err);
+        toast.add({ severity: "error", summary: "Error", detail: "Failed to toggle item" });
     }
 }
 
@@ -201,7 +204,7 @@ async function saveEdit(itemId: string) {
         });
         delete editingItems.value[itemId];
     } catch (err) {
-        console.error('Failed to save edit:', err);
+        toast.add({ severity: "error", summary: "Error", detail: "Failed to save edit" });
     }
 }
 
@@ -223,7 +226,7 @@ async function addItem() {
         newItemText.value = '';
         showAddInput.value = false;
     } catch (err) {
-        console.error('Failed to add item:', err);
+        toast.add({ severity: "error", summary: "Error", detail: "Failed to add item" });
     }
 }
 
@@ -245,7 +248,7 @@ async function deleteItem(itemId: string) {
     try {
         await checklistStore.deleteChecklistItem(props.checklistId, itemId);
     } catch (err) {
-        console.error('Failed to delete item:', err);
+        toast.add({ severity: "error", summary: "Error", detail: "Failed to delete item" });
     }
 }
 </script>
