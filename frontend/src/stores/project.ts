@@ -1,15 +1,17 @@
 import { defineStore } from "pinia";
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { projectService } from "@/services/projectService";
 import type { ProjectReorderItem } from "@/models/project";
 import type { Project } from "@/models/project";
 import { useToast } from "primevue/usetoast";
+import type { TreeSelectionKeys } from "primevue/tree";
 
 export const useProjectStore = defineStore("project", () => {
     const toast = useToast();
 
     const projects = ref<Project[]>([]);
     const selectedProjectId = ref<string | null>(null);
+    const selectedProject = ref<TreeSelectionKeys | undefined>(undefined);
     const loading = ref(false);
     const error = ref<string | null>(null);
 
@@ -17,8 +19,29 @@ export const useProjectStore = defineStore("project", () => {
         return (id: string) => projects.value.find((p) => p.id === id);
     });
 
-    const selectedProject = computed(() => {
+    const selectedProjectDetails = computed(() => {
         return selectedProjectId.value ? getProjectById.value(selectedProjectId.value) : null;
+    });
+
+    watch(selectedProject, (newSelection) => {
+        const nextId = newSelection && Object.keys(newSelection).length > 0
+            ? Object.keys(newSelection)[0]
+            : null;
+        if (selectedProjectId.value !== nextId) {
+            selectedProjectId.value = nextId;
+        }
+    });
+
+    watch(selectedProjectId, (newId) => {
+        const currentSelectedId = selectedProject.value && Object.keys(selectedProject.value).length > 0
+            ? Object.keys(selectedProject.value)[0]
+            : null;
+
+        if (newId && currentSelectedId !== newId) {
+            selectedProject.value = { [newId]: true };
+        } else if (!newId && selectedProject.value) {
+            selectedProject.value = undefined;
+        }
     });
 
     async function loadProjects() {
@@ -122,6 +145,12 @@ export const useProjectStore = defineStore("project", () => {
             if (selectedProjectId.value && idsToRemove.has(selectedProjectId.value)) {
                 selectedProjectId.value = null;
             }
+            if (selectedProject.value) {
+                const currentId = Object.keys(selectedProject.value)[0];
+                if (currentId && idsToRemove.has(currentId)) {
+                    selectedProject.value = undefined;
+                }
+            }
         } catch (err) {
             error.value = err instanceof Error ? err.message : "Failed to delete project";
             throw err;
@@ -184,11 +213,12 @@ export const useProjectStore = defineStore("project", () => {
         // State
         projects,
         selectedProjectId,
+        selectedProject,
         loading,
         error,
         // Getters
         getProjectById,
-        selectedProject,
+        selectedProjectDetails,
         // Actions
         loadProjects,
         createProject,
