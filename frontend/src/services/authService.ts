@@ -5,12 +5,14 @@ import type {
 } from "@/models/auth";
 import { AuthError, handleApiError } from "../core/errorHandler";
 
+const API_URL = "/api/v1/auth";
+
 export class AuthService {
     /**
      * Gets the login URL for redirect-based OAuth
      */
     static getGoogleLoginUrl(): string {
-        return "/api/v1/auth/google/login";
+        return `${API_URL}/google/login`;
     }
 
     /**
@@ -18,7 +20,7 @@ export class AuthService {
      */
     static async getCurrentUser(): Promise<User> {
         try {
-            const response = await apiClient.get<User>("/api/v1/auth/me");
+            const response = await apiClient.get<User>(`${API_URL}/me`);
 
             return response.data;
         } 
@@ -32,7 +34,7 @@ export class AuthService {
      */
     static async logout(): Promise<void> {
         try {
-            await apiClient.post<LogoutResponse>("/api/v1/auth/logout");
+            await apiClient.post<LogoutResponse>(`${API_URL}/logout`);
         } catch (error) {
             throw handleApiError(error, 'Failed to logout', AuthError);
         }
@@ -43,7 +45,7 @@ export class AuthService {
      */
     static async isAuthenticated(): Promise<boolean> {
         try {
-            const response = await apiClient.get("/api/v1/auth/is_authenticated");
+            const response = await apiClient.get(`${API_URL}/is_authenticated`);
             return response.data.is_authenticated;
         } catch {
             return false;
