@@ -38,12 +38,15 @@ const isVisible = defineModel<boolean>('visible');
 const sectionTitle = ref('');
 
 const handleCreate = async () => {
-    if (!sectionTitle.value.trim()) return;
+    const title = sectionTitle.value.trim();
+    if (!title) {
+        return;
+    }
 
     try {
         const nextOrderIndex = sectionStore.sections.length;
         await sectionStore.createSection({
-            title: sectionTitle.value.trim(),
+            title,
             project_id: props.projectId,
             order_index: nextOrderIndex,
         });
