@@ -62,10 +62,20 @@
                     :showTime="true"
                     hourFormat="24"
                 />
-                <Button outlined size="small">
+                <Button outlined size="small" @click="showLabelPicker = true">
                     <FontAwesomeIcon icon="tag" class="button-icon" />
-                    <span>Label</span>
+                    <span>{{ labelButtonText }}</span>
                 </Button>
+            </div>
+            <div v-if="selectedLabels.length" class="selected-labels">
+                <span
+                    v-for="label in selectedLabels"
+                    :key="label.id"
+                    class="label-chip"
+                >
+                    <span class="label-chip-swatch" :style="{ backgroundColor: label.color }" />
+                    {{ label.name }}
+                </span>
             </div>
 
             <!-- Main Content Area -->
@@ -117,6 +127,44 @@
                 </div>
             </Popover>
 
+            <!-- Label Picker Popover -->
+            <Popover
+                v-model:visible="showLabelPicker"
+                title="Labels"
+                width="360px"
+            >
+                <div class="label-picker">
+                    <div v-if="labelStore.loading" class="label-picker-empty">
+                        <FontAwesomeIcon icon="spinner" class="spinner" />
+                        <span>Loading labels...</span>
+                    </div>
+                    <div v-else-if="!labelStore.sortedLabels.length" class="label-picker-empty">
+                        <FontAwesomeIcon icon="tag" class="label-picker-icon" />
+                        <span>No labels yet.</span>
+                        <p>Use the Labels workspace in the sidebar to create one.</p>
+                    </div>
+                    <div v-else class="label-picker-list">
+                        <label
+                            v-for="label in labelStore.sortedLabels"
+                            :key="label.id"
+                            class="label-picker-item"
+                            :for="`label-${label.id}`"
+                        >
+                            <Checkbox
+                                :inputId="`label-${label.id}`"
+                                v-model="selectedLabelIds"
+                                :value="label.id"
+                            />
+                            <span class="label-picker-swatch" :style="{ backgroundColor: label.color }" />
+                            <span class="label-picker-name">{{ label.name }}</span>
+                            <span v-if="label.description" class="label-picker-description">
+                                {{ label.description }}
+                            </span>
+                        </label>
+                    </div>
+                </div>
+            </Popover>
+
             <!-- Footer Actions -->
             <div class="task-modal-footer">
                 <Button label="Cancel" text @click="handleClose" />
@@ -138,9 +186,11 @@ import DatePicker from "primevue/datepicker";
 import { useTaskStore } from "@/stores/task";
 import { useChecklistStore } from "@/stores/checklist";
 import { usePriorityStore } from "@/stores/priority";
+import { useLabelStore } from "@/stores/label";
 import CheckList from "@/components/common/CheckList.vue";
 import Popover from "@/components/common/Popover.vue";
 import { useToast } from "primevue";
+import type { Label } from "@/models/label";
 
 const toast = useToast();
 
@@ -151,6 +201,7 @@ const props = defineProps<{
 const taskStore = useTaskStore();
 const checklistStore = useChecklistStore();
 const priorityStore = usePriorityStore();
+const labelStore = useLabelStore();
 
 const isLoading = ref(false);
 const title = ref("");
@@ -162,6 +213,8 @@ const dueDateTimeString: Ref<string | null> = ref(null);
 // UI state for popovers
 const showAddChecklist = ref(false);
 const newChecklistTitle = ref("");
+const showLabelPicker = ref(false);
+const selectedLabelIds = ref<string[]>([]);
 
 // Computed properties for display
 const selectedPriority = computed(() => {
@@ -187,12 +240,32 @@ const taskChecklists = computed(() => {
     return checklistStore.getChecklistsByTask(currentTaskId.value);
 });
 
+const selectedLabels = computed<Label[]>(() => {
+    return selectedLabelIds.value
+        .map(id => labelStore.getLabelById(id))
+        .filter((label): label is Label => Boolean(label));
+});
+
+const labelButtonText = computed(() => {
+    const count = selectedLabelIds.value.length;
+    if (count === 0) return "Label";
+    if (count === 1) return selectedLabels.value[0]?.name ?? "Label";
+    return `${count} Labels`;
+});
+
 // Watch for modal visibility changes and load task data
 watch(
     () => taskStore.isTaskModalVisible,
     async (newVal) => {
         if (newVal) {
             const currentTask = taskStore.getCurrentTask;
+            if (!labelStore.labels.length) {
+                try {
+                    await labelStore.loadLabels();
+                } catch (error) {
+                    toast.add({ severity: "error", summary: "Error", detail: "Failed to load labels" });
+                }
+            }
             if (currentTask) {
                 // Editing existing task
                 title.value = currentTask.title;
@@ -200,6 +273,9 @@ watch(
                 taskCompleted.value = currentTask.completed;
                 priorityId.value = currentTask.priority_id;
                 dueDateTimeString.value = currentTask.due_datetime;
+                selectedLabelIds.value =
+                    currentTask.label_ids?.slice() ??
+                    (currentTask.labels ? currentTask.labels.map(label => label.id) : []);
 
                 // Load checklists for this task
                 await loadChecklists(currentTask.id);
@@ -210,6 +286,8 @@ watch(
         } else {
             // Clear checklists when modal closes
             checklistStore.clearChecklists();
+            showLabelPicker.value = false;
+            resetForm();
         }
     }
 );
@@ -259,6 +337,7 @@ async function saveTask() {
                 completed: taskCompleted.value,
                 priority_id: priorityId.value,
                 due_datetime: dueDateTimeString.value,
+                label_ids: selectedLabelIds.value,
             });
         } else {
             // Create new task
@@ -269,6 +348,7 @@ async function saveTask() {
                 description: description.value,
                 priority_id: priorityId.value,
                 due_datetime: dueDateTimeString.value,
+                label_ids: selectedLabelIds.value,
             });
         }
         taskStore.setTaskModalVisible(false);
@@ -292,11 +372,20 @@ function resetForm() {
     dueDateTimeString.value = null;
     showAddChecklist.value = false;
     newChecklistTitle.value = "";
+    selectedLabelIds.value = [];
+    showLabelPicker.value = false;
 }
 
 onMounted(async () => {
     if (priorityStore.priorities.length === 0) {
         await priorityStore.loadPriorities();
+    }
+    if (labelStore.labels.length === 0) {
+        try {
+            await labelStore.loadLabels();
+        } catch (error) {
+            toast.add({ severity: "error", summary: "Error", detail: "Failed to load labels" });
+        }
     }
 });
 </script>
@@ -368,6 +457,31 @@ onMounted(async () => {
     gap: 0.5rem;
 }
 
+.selected-labels {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0 1.5rem 0.5rem;
+}
+
+.label-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    background-color: var(--p-surface-100);
+    color: var(--p-text-color);
+    font-size: 0.8125rem;
+}
+
+.label-chip-swatch {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(0, 0, 0, 0.2);
+}
+
 .task-modal-footer {
     display: flex;
     justify-content: flex-end;
@@ -381,6 +495,63 @@ onMounted(async () => {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+}
+
+.label-picker {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.label-picker-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.label-picker-item {
+    display: grid;
+    grid-template-columns: auto 24px 1fr;
+    gap: 0.75rem;
+    align-items: center;
+    font-size: 0.95rem;
+}
+
+.label-picker-swatch {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+.label-picker-name {
+    font-weight: 600;
+    color: var(--p-text-color);
+}
+
+.label-picker-description {
+    grid-column: 2 / span 2;
+    font-size: 0.8125rem;
+    color: var(--p-text-muted-color);
+}
+
+.label-picker-empty {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: center;
+    text-align: center;
+    color: var(--p-text-muted-color);
+}
+
+.label-picker-empty .spinner {
+    font-size: 1.5rem;
+    animation: spin 1s linear infinite;
+}
+
+.label-picker-icon {
+    font-size: 1.5rem;
+    color: var(--p-primary-color);
 }
 
 /* Match Select styling with outlined buttons */
@@ -424,6 +595,15 @@ onMounted(async () => {
 
 .action-buttons-row :deep(.p-datepicker:hover) {
     border-color: var(--p-button-outlined-primary-border-color);
-    background: var(--p-button-outlined-primary-hover-background);
+   background: var(--p-button-outlined-primary-hover-background);
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
 }
 </style>
