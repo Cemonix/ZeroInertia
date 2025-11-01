@@ -5,13 +5,6 @@ import type { ProjectReorderItem } from "@/models/project";
 import type { Project } from "@/models/project";
 import { useToast } from "primevue/usetoast";
 
-export interface ProjectTreeNode {
-    key: string;
-    label: string;
-    id: string;
-    children: ProjectTreeNode[];
-}
-
 export const useProjectStore = defineStore("project", () => {
     const toast = useToast();
 
@@ -34,9 +27,7 @@ export const useProjectStore = defineStore("project", () => {
         try {
             projects.value = await projectService.getProjects();
         } catch (err) {
-            error.value =
-                err instanceof Error ? err.message : "Failed to load projects";
-            toast.add({ severity: "error", summary: "Error", detail: "Failed to load projects" });
+            error.value = err instanceof Error ? err.message : "Failed to load projects";
         } finally {
             loading.value = false;
         }
@@ -81,9 +72,7 @@ export const useProjectStore = defineStore("project", () => {
 
             return newProject;
         } catch (err) {
-            error.value =
-                err instanceof Error ? err.message : "Failed to create project";
-            toast.add({ severity: "error", summary: "Error", detail: "Failed to create project" });
+            error.value = err instanceof Error ? err.message : "Failed to create project";
             throw err;
         } finally {
             loading.value = false;
@@ -104,9 +93,7 @@ export const useProjectStore = defineStore("project", () => {
             }
             return updatedProject;
         } catch (err) {
-            error.value =
-                err instanceof Error ? err.message : "Failed to update project";
-            toast.add({ severity: "error", summary: "Error", detail: "Failed to update project" });
+            error.value = err instanceof Error ? err.message : "Failed to update project";
             throw err;
         } finally {
             loading.value = false;
@@ -118,11 +105,25 @@ export const useProjectStore = defineStore("project", () => {
         error.value = null;
         try {
             await projectService.deleteProject(id);
-            projects.value = projects.value.filter((p) => p.id !== id);
+            const idsToRemove = new Set<string>();
+            const queue: string[] = [id];
+
+            while (queue.length > 0) {
+                const currentId = queue.shift() as string;
+                idsToRemove.add(currentId);
+
+                projects.value
+                    .filter((project) => project.parent_id === currentId)
+                    .forEach((child) => queue.push(child.id));
+            }
+
+            projects.value = projects.value.filter((project) => !idsToRemove.has(project.id));
+
+            if (selectedProjectId.value && idsToRemove.has(selectedProjectId.value)) {
+                selectedProjectId.value = null;
+            }
         } catch (err) {
-            error.value =
-                err instanceof Error ? err.message : "Failed to delete project";
-            toast.add({ severity: "error", summary: "Error", detail: "Failed to delete project" });
+            error.value = err instanceof Error ? err.message : "Failed to delete project";
             throw err;
         } finally {
             loading.value = false;
@@ -160,7 +161,6 @@ export const useProjectStore = defineStore("project", () => {
                 await projectService.reorderProjects(reordersToSend);
             } catch (err) {
                 error.value = err instanceof Error ? err.message : "Failed to reorder projects";
-                toast.add({ severity: "error", summary: "Error", detail: "Failed to reorder projects" });
 
                 // Show error toast
                 toast.add({

@@ -2,14 +2,12 @@ import { defineStore } from "pinia";
 import { ref, computed, readonly } from "vue";
 import type { User } from "@/models/auth";
 import { AuthService } from "@/services/authService";
-import { useToast } from 'primevue/usetoast';
 
 export const useAuthStore = defineStore("auth", () => {
-    const toast = useToast();
-
     const user = ref<User | null>(null);
     const isLoading = ref(false);
     const isInitialized = ref(false);
+    const error = ref<string | null>(null);
 
     const isAuthenticated = computed(() => user.value !== null);
     const userEmail = computed(() => user.value?.email ?? null);
@@ -53,8 +51,8 @@ export const useAuthStore = defineStore("auth", () => {
 
         try {
             await AuthService.logout();
-        } catch (error) {
-            toast.add({ severity: "error", summary: "Error", detail: "Failed to logout" });
+        } catch (err) {
+            error.value = err instanceof Error ? err.message : 'Failed to logout';
         } finally {
             clearUser();
             isLoading.value = false;

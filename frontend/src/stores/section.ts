@@ -2,11 +2,8 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import type { Section, SectionReorderItem } from '@/models/section';
 import { sectionService } from '@/services/sectionService';
-import { useToast } from 'primevue/usetoast';
 
 export const useSectionStore = defineStore('section', () => {
-    const toast = useToast();
-    
     const sections = ref<Section[]>([]);
     const loading = ref(false);
     const error = ref<string | null>(null);
@@ -23,7 +20,6 @@ export const useSectionStore = defineStore('section', () => {
             sections.value = await sectionService.getSections(projectId);
         } catch (err) {
             error.value = err instanceof Error ? err.message : 'Failed to load sections';
-            toast.add({ severity: "error", summary: "Error", detail: "Failed to load sections" });
             sections.value = [];
         } finally {
             loading.value = false;
@@ -39,7 +35,6 @@ export const useSectionStore = defineStore('section', () => {
             return newSection;
         } catch (err) {
             error.value = err instanceof Error ? err.message : 'Failed to create section';
-            toast.add({ severity: "error", summary: "Error", detail: "Failed to create section" });
             throw err;
         } finally {
             loading.value = false;
@@ -54,7 +49,6 @@ export const useSectionStore = defineStore('section', () => {
             sections.value = sections.value.filter(section => section.id !== sectionId);
         } catch (err) {
             error.value = err instanceof Error ? err.message : 'Failed to delete section';
-            toast.add({ severity: "error", summary: "Error", detail: "Failed to delete section" });
             throw err;
         } finally {
             loading.value = false;
@@ -89,7 +83,6 @@ export const useSectionStore = defineStore('section', () => {
             await sectionService.reorderSections(reorderPayload);
         } catch (err) {
             error.value = err instanceof Error ? err.message : 'Failed to reorder sections';
-            toast.add({ severity: "error", summary: "Error", detail: "Failed to reorder sections" });
             // Reload sections to restore correct order on failure
             const projectId = reorderedSections[0]?.project_id;
             if (projectId) {
