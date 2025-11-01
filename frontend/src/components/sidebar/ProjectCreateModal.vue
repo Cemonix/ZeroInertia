@@ -7,7 +7,11 @@
         :style="{ width: '400px' }">
         <div class="form-field">
             <label for="project-title">Project Title</label>
-            <InputText id="project-title" v-model="projectTitle" />
+            <InputText id="project-title" 
+                v-model="projectTitle" 
+                @keyup.enter="createProject" 
+                autofocus
+            />
         </div>
         <div class="button-group">
             <Button label="Cancel" text @click="visible = false" />
@@ -35,8 +39,13 @@ const projectTitle = ref('');
 const visible = defineModel('visible', { type: Boolean, default: false });
 
 async function createProject() {
+    const title = projectTitle.value.trim();
+    if (!title) {
+        return;
+    }
+
     try {
-        await projectStore.createProject({ title: projectTitle.value });
+        await projectStore.createProject({ title });
         projectTitle.value = '';
         visible.value = false;
     } catch (error) {
