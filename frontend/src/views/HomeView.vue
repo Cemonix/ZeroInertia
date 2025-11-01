@@ -1,7 +1,7 @@
 <template>
     <main class="main-grid">
         <aside class="sidebar" :class="{ 'collapsed': isSidebarCollapsed }">
-            <ControlPanel />
+            <ControlPanel v-model:activeView="activeWorkspaceView" />
             <ProjectPanel />
         </aside>
         <div class="content">
@@ -35,13 +35,35 @@
                     />
                 </div>
             </nav>
-            <Board :project-id="selectedProjectId" />
+            <section class="workspace">
+                <div
+                    v-if="activeWorkspaceView === 'today'"
+                    class="workspace-placeholder"
+                >
+                    <h2>Today</h2>
+                    <p>Today's focus view is under construction.</p>
+                </div>
+                <Board
+                    v-else-if="activeWorkspaceView === 'project'"
+                    :project-id="selectedProjectId"
+                />
+                <LabelManager
+                    v-else-if="activeWorkspaceView === 'labels'"
+                />
+                <div
+                    v-else
+                    class="workspace-placeholder"
+                >
+                    <h2>Filters</h2>
+                    <p>Filters are coming soon. Stay tuned!</p>
+                </div>
+            </section>
         </div>
     </main>
 </template>
 
 <script lang="ts" setup>
-import { onMounted, onUnmounted, ref, computed } from 'vue';
+import { onMounted, onUnmounted, ref, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useProjectStore } from '@/stores/project';
@@ -51,6 +73,7 @@ import Menu from 'primevue/menu';
 import ProjectPanel from '@/components/sidebar/ProjectPanel.vue';
 import ControlPanel from '@/components/sidebar/ControlPanel.vue';
 import Board from '@/components/board/Board.vue';
+import LabelManager from '@/components/labels/LabelManager.vue';
 import { useStreakStore } from '@/stores/streak';
 
 const authStore = useAuthStore();
@@ -61,6 +84,7 @@ const router = useRouter();
 const { selectedProjectId } = storeToRefs(projectStore);
 const userMenu = ref();
 const isSidebarCollapsed = ref(false);
+const activeWorkspaceView = ref<'today' | 'labels' | 'filters' | 'project'>('today');
 
 const getUserInitials = (fullName: string | null, email: string): string => {
     if (fullName && fullName.trim()) {
@@ -115,6 +139,21 @@ const checkMobileView = () => {
         isSidebarCollapsed.value = true;
     }
 };
+
+watch(selectedProjectId, (newProjectId) => {
+    if (newProjectId) {
+        activeWorkspaceView.value = 'project';
+    } else if (activeWorkspaceView.value === 'project') {
+        activeWorkspaceView.value = 'today';
+    }
+}, { immediate: true });
+
+// Deselect project when switching away from project view
+watch(activeWorkspaceView, (newView) => {
+    if (newView !== 'project') {
+        projectStore.selectProject(null);
+    }
+});
 
 onMounted(() => {
     if (authStore.isAuthenticated) {
@@ -237,6 +276,30 @@ onUnmounted(() => {
 
 .user-avatar:hover {
     transform: scale(1.1);
+}
+
+.workspace {
+    flex: 1;
+    padding: 1rem;
+    overflow-y: auto;
+}
+
+.workspace-placeholder {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 2rem;
+    border: 2px dashed var(--p-surface-300);
+    border-radius: 8px;
+    background-color: var(--p-surface-100);
+    color: var(--p-text-muted-color);
+}
+
+.workspace-placeholder h2 {
+    margin: 0;
+    color: var(--p-text-color);
 }
 
 :deep(.user-info) {

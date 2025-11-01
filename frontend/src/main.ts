@@ -26,7 +26,9 @@ import {
   faCalendar,
   faPen,
   faFlag,
-  faSignOutAlt
+  faSignOutAlt,
+  faFilter,
+  faTriangleExclamation
 } from '@fortawesome/free-solid-svg-icons'
 
 // PrimeVue components
@@ -53,7 +55,9 @@ library.add(
   faCalendar,
   faPen,
   faFlag,
-  faSignOutAlt
+  faSignOutAlt,
+  faFilter,
+  faTriangleExclamation
 )
 
 const app = createApp(App)

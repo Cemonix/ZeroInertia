@@ -6,6 +6,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import Text
 
 from app.models.base import Base
+from app.models.label import task_labels
 
 
 class Task(Base):
@@ -40,6 +41,11 @@ class Task(Base):
     priority: Mapped["Priority | None"] = relationship(back_populates="tasks")  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
     checklists: Mapped[list["CheckList"]] = relationship(  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
         back_populates="task", cascade="all, delete-orphan", order_by="CheckList.order_index"
+    )
+    labels: Mapped[list["Label"]] = relationship(  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
+        secondary=task_labels,
+        back_populates="tasks",
+        lazy="selectin",
     )
 
     # Constraints and Indexes

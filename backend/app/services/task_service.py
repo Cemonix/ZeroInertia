@@ -3,11 +3,32 @@ from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 from sqlalchemy.sql import select, update
 
+from app.models.label import Label
 from app.models.task import Task
 from app.schemas.task import TaskReorder
 from app.services import streak_service
+
+
+async def _get_labels_for_user(
+    db: AsyncSession,
+    user_id: UUID,
+    label_ids: list[UUID] | None,
+) -> Sequence[Label]:
+    """Fetch labels by id enforcing user ownership."""
+    if not label_ids:
+        return []
+
+    unique_label_ids = set(label_ids)
+    result = await db.execute(
+        select(Label).where(Label.id.in_(unique_label_ids), Label.user_id == user_id)
+    )
+    labels = result.scalars().all()
+    if len(labels) != len(unique_label_ids):
+        raise ValueError("One or more labels not found")
+    return labels
 
 
 async def create_task(
@@ -18,7 +39,8 @@ async def create_task(
     project_id: UUID,
     section_id: UUID,
     priority_id: UUID | None = None,
-    due_datetime: datetime | None = None
+    due_datetime: datetime | None = None,
+    label_ids: list[UUID] | None = None,
 ) -> Task:
     """Create a new task for a user."""
     # Get the max order_index for this section to append new task at the end
@@ -43,7 +65,13 @@ async def create_task(
         priority_id=priority_id,
         due_datetime=due_datetime
     )
+
     db.add(new_task)
+
+    if label_ids is not None:
+        labels = await _get_labels_for_user(db=db, user_id=user_id, label_ids=label_ids)
+        new_task.labels = list(labels)
+
     await db.commit()
     await db.refresh(new_task)
     return new_task
@@ -52,7 +80,9 @@ async def create_task(
 async def get_task_by_id(db: AsyncSession, task_id: UUID, user_id: UUID) -> Task | None:
     """Retrieve a task by its ID and user ID."""
     result = await db.execute(
-        select(Task).where(Task.id == task_id, Task.user_id == user_id)
+        select(Task)
+        .options(selectinload(Task.labels))  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
+        .where(Task.id == task_id, Task.user_id == user_id)
     )
     return result.scalars().first()
 
@@ -60,7 +90,9 @@ async def get_task_by_id(db: AsyncSession, task_id: UUID, user_id: UUID) -> Task
 async def get_tasks(db: AsyncSession, user_id: UUID) -> Sequence[Task]:
     """Retrieve all tasks for a specific user."""
     result = await db.execute(
-        select(Task).where(Task.user_id == user_id, Task.archived == False)  # noqa: E712
+        select(Task)
+        .options(selectinload(Task.labels))  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
+        .where(Task.user_id == user_id, Task.archived == False)  # noqa: E712
         .order_by(Task.order_index)
     )
     return result.scalars().all()
@@ -74,6 +106,7 @@ async def get_tasks_by_project(
     """Retrieve all tasks for a specific project and user."""
     result = await db.execute(
         select(Task)
+        .options(selectinload(Task.labels))  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
         .where(
             Task.user_id == user_id,
             Task.project_id == project_id,
@@ -91,6 +124,7 @@ async def get_archived_tasks(
     """Retrieve all archived tasks for a specific user."""
     result = await db.execute(
         select(Task)
+        .options(selectinload(Task.labels))  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
         .where(
             Task.user_id == user_id,
             Task.archived == True  # noqa: E712
@@ -108,7 +142,8 @@ async def update_task(
     description: str | None = None,
     completed: bool | None = None,
     priority_id: UUID | None = None,
-    due_datetime: datetime | None = None
+    due_datetime: datetime | None = None,
+    label_ids: list[UUID] | None = None,
 ) -> Task:
     """Update an existing task."""
     task = await get_task_by_id(db, task_id, user_id)
@@ -132,6 +167,9 @@ async def update_task(
         task.priority_id = priority_id
     if due_datetime is not None:
         task.due_datetime = due_datetime
+    if label_ids is not None:
+        labels = await _get_labels_for_user(db=db, user_id=user_id, label_ids=label_ids)
+        task.labels = list(labels)
 
     db.add(task)
     await db.commit()

@@ -20,16 +20,20 @@ async def create_task(
     db: AsyncSession = Depends(get_db),
 ) -> TaskResponse:
     """Create a new task for the authenticated user."""
-    new_task = await task_service.create_task(
-        db=db,
-        user_id=current_user.id,
-        title=task_data.title,
-        description=task_data.description,
-        project_id=task_data.project_id,
-        section_id=task_data.section_id,
-        priority_id=task_data.priority_id,
-        due_datetime=task_data.due_datetime
-    )
+    try:
+        new_task = await task_service.create_task(
+            db=db,
+            user_id=current_user.id,
+            title=task_data.title,
+            description=task_data.description,
+            project_id=task_data.project_id,
+            section_id=task_data.section_id,
+            priority_id=task_data.priority_id,
+            due_datetime=task_data.due_datetime,
+            label_ids=task_data.label_ids,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     return TaskResponse.model_validate(new_task)
 
 
@@ -93,11 +97,15 @@ async def update_task(
             description=task_data.description,
             completed=task_data.completed,
             priority_id=task_data.priority_id,
-            due_datetime=task_data.due_datetime
+            due_datetime=task_data.due_datetime,
+            label_ids=task_data.label_ids,
         )
         return TaskResponse.model_validate(updated_task)
-    except ValueError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found") from None
+    except ValueError as exc:
+        message = str(exc)
+        if message == "Task not found":
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=message) from exc
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=message) from exc
 
 
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)

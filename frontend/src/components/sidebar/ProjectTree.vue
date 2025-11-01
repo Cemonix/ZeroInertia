@@ -4,7 +4,7 @@
             v-model:value="treeNodes"
             v-model:expandedKeys="expandedKeys"
             selectionMode="single"
-            v-model:selectionKeys="selectedKey"
+            v-model:selectionKeys="selectedProject"
             draggableNodes
             droppableNodes
             @node-drop="onNodeDrop">
@@ -31,7 +31,7 @@
 <script lang="ts" setup>
 import { onMounted, ref, watch, watchEffect, type Ref } from 'vue';
 import Tree from 'primevue/tree';
-import type { TreeSelectionKeys, TreeExpandedKeys, TreeNodeDropEvent } from 'primevue/tree';
+import type { TreeExpandedKeys, TreeNodeDropEvent } from 'primevue/tree';
 import type { TreeNode } from 'primevue/treenode';
 import { useProjectStore } from '@/stores/project';
 import type { Project, ProjectReorderItem } from '@/models/project';
@@ -40,6 +40,7 @@ import { useToast } from "primevue";
 import Button from 'primevue/button';
 import { useConfirm } from 'primevue/useconfirm';
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
+import { storeToRefs } from 'pinia';
 
 const toast = useToast();
 const confirm = useConfirm();
@@ -48,19 +49,9 @@ const EXPANDED_KEYS_STORAGE_KEY = 'projectTree.expandedKeys';
 
 const projectStore = useProjectStore();
 const authStore = useAuthStore();
-const selectedKey: Ref<TreeSelectionKeys | undefined> = ref();
+const { selectedProject } = storeToRefs(projectStore);
 const treeNodes: Ref<TreeNode[]> = ref([]);
 const expandedKeys: Ref<TreeExpandedKeys> = ref({});
-
-watch(selectedKey, (newKey) => {
-    if (newKey && Object.keys(newKey).length > 0) {
-        const projectId = Object.keys(newKey)[0];
-        projectStore.selectProject(projectId);
-    } else {
-        // No project selected
-        projectStore.selectProject(null);
-    }
-});
 
 // Watch for changes from backend and rebuild tree
 watchEffect(() => {

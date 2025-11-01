@@ -26,6 +26,16 @@
                 <div v-if="task.description" class="task-description">
                     {{ task.description }}
                 </div>
+                <div v-if="taskLabels.length" class="task-labels">
+                    <span
+                        v-for="label in taskLabels"
+                        :key="label.id"
+                        class="task-label"
+                        :style="{ backgroundColor: label.color + '33', color: label.color }"
+                    >
+                        {{ label.name }}
+                    </span>
+                </div>
                 <div v-if="task.due_datetime" class="task-due-date" :class="{ 'overdue': isOverdue, 'future': isFuture }">
                     <FontAwesomeIcon icon="calendar" />
                     <span>{{ formattedDueDate }}</span>
@@ -52,13 +62,16 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, onMounted } from "vue";
 import type { Task } from "@/models/task";
 import { useTaskStore } from "@/stores/task";
 import { usePriorityStore } from "@/stores/priority";
+import { useLabelStore } from "@/stores/label";
+import type { Label } from "@/models/label";
 
 const taskStore = useTaskStore();
 const priorityStore = usePriorityStore();
+const labelStore = useLabelStore();
 
 interface Props {
     task: Task;
@@ -70,6 +83,20 @@ const props = defineProps<Props>();
 const taskPriority = computed(() => {
     if (!props.task.priority_id) return null;
     return priorityStore.getPriorityById(props.task.priority_id);
+});
+
+const taskLabels = computed<Label[]>(() => {
+    if (props.task.labels?.length) {
+        return props.task.labels;
+    }
+
+    if (props.task.label_ids?.length) {
+        return props.task.label_ids
+            .map(id => labelStore.getLabelById(id))
+            .filter((label): label is Label => Boolean(label));
+    }
+
+    return [];
 });
 
 // Format due date for display
@@ -145,6 +172,16 @@ const handleToggleComplete = () => {
 const handleDelete = () => {
     taskStore.deleteTask(props.task.id);
 };
+
+onMounted(async () => {
+    if (!labelStore.labels.length && props.task.label_ids?.length) {
+        try {
+            await labelStore.loadLabels();
+        } catch (_error) {
+            // Ignore label load errors for card display
+        }
+    }
+});
 </script>
 
 <style scoped>
@@ -207,11 +244,28 @@ const handleDelete = () => {
 
 .task-description {
     font-size: 0.875rem;
-    color: var(--p-text-color);
+   color: var(--p-text-color);
     opacity: 0.7;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.task-labels {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.35rem;
+}
+
+.task-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.125rem 0.5rem;
+    border-radius: 5px;
+    color: var(--p-text-color);
+    font-size: 0.75rem;
 }
 
 .task-actions {

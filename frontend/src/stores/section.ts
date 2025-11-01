@@ -92,6 +92,24 @@ export const useSectionStore = defineStore('section', () => {
         }
     }
 
+    async function updateSection(sectionId: string, updates: Partial<Omit<Section, 'id' | 'created_at'>>) {
+        loading.value = true;
+        error.value = null;
+        try {
+            const updatedSection = await sectionService.updateSection(sectionId, updates);
+            const index = sections.value.findIndex(section => section.id === sectionId);
+            if (index !== -1) {
+                sections.value[index] = { ...sections.value[index], ...updatedSection };
+            }
+            return updatedSection;
+        } catch (err) {
+            error.value = err instanceof Error ? err.message : 'Failed to update section';
+            throw err;
+        } finally {
+            loading.value = false;
+        }
+    }
+
     function clearSections() {
         sections.value = [];
     }
@@ -104,6 +122,7 @@ export const useSectionStore = defineStore('section', () => {
         loadSectionsForProject,
         createSection,
         deleteSection,
+        updateSection,
         reorderSections,
         clearSections,
     };

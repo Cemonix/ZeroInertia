@@ -6,10 +6,7 @@ from sqlalchemy.engine import Connection
 from alembic import context
 from app.core.database import engine
 from app.core.settings.database_settings import DatabaseSettings
-from app.models import (
-    task,  # noqa: F401
-    user,  # noqa: F401
-)
+from app.models import label, task, user  # noqa: F401
 from app.models.base import Base
 
 # pyright: reportUnusedImport=false

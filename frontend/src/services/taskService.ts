@@ -1,22 +1,7 @@
-import type { Task } from "@/models/task";
+import type { Task, TaskCreateInput, TaskReorderItem } from "@/models/task";
 import apiClient from "./apiClient";
 
 const API_URL = "/api/v1/tasks";
-
-export interface TaskCreateInput {
-    title: string;
-    description: string | null;
-    project_id: string;
-    section_id: string;
-    priority_id?: string | null;
-    due_datetime?: string | null;
-}
-
-export interface TaskReorderItem {
-    id: string;
-    section_id: string;
-    order_index: number;
-}
 
 export const taskService = {
     async getTasks(project_id?: string): Promise<Task[]> {
