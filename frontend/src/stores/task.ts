@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import type { Task } from '@/models/task';
-import { taskService, type TaskCreateInput, type TaskReorderItem } from '@/services/taskService';
+import type { Task, TaskCreateInput, TaskReorderItem } from '@/models/task';
+import { taskService } from '@/services/taskService';
 
 export const useTaskStore = defineStore('task', () => {
     const tasks = ref<Task[]>([]);
