@@ -64,6 +64,38 @@
             </Button>
         </div>
     </div>
+
+    <Dialog
+        v-model:visible="isRenameDialogVisible"
+        header="Rename Section"
+        modal
+        :style="{ width: '420px' }"
+        :pt="{ content: { style: { padding: '1.5rem' } } }"
+    >
+        <div class="rename-section-form">
+            <label for="section-rename-input">Section name</label>
+            <InputText
+                id="section-rename-input"
+                v-model="newSectionTitle"
+                autofocus
+                @keyup.enter="handleRenameSection"
+            />
+            <div class="rename-section-actions">
+                <Button
+                    label="Cancel"
+                    text
+                    type="button"
+                    @click="isRenameDialogVisible = false"
+                />
+                <Button
+                    label="Save"
+                    type="button"
+                    :disabled="!newSectionTitle.trim() || newSectionTitle.trim() === title"
+                    @click="handleRenameSection"
+                />
+            </div>
+        </div>
+    </Dialog>
 </template>
 
 <script setup lang="ts">
@@ -78,6 +110,8 @@ import type { Task } from "@/models/task";
 import Menu from "primevue/menu";
 import ToggleSwitch from "primevue/toggleswitch";
 import { useToast } from "primevue";
+import Dialog from "primevue/dialog";
+import InputText from "primevue/inputtext";
 
 const toast = useToast();
 
@@ -99,6 +133,10 @@ const items = ref([
         label: 'Options',
         items: [
             {
+                label: 'Rename Section',
+                command: () => openRenameDialog(),
+            },
+            {
                 label: 'Delete Section',
                 command: () => handleDeleteSection(),
             }
@@ -109,6 +147,8 @@ const isCollapsed = ref(false);
 const title = ref(props.section.title);
 const showCompleted = ref(false);
 const draggableTasks = ref<Task[]>([]);
+const isRenameDialogVisible = ref(false);
+const newSectionTitle = ref(props.section.title);
 
 const tasks = computed(() => taskStore.getTasksBySection(props.section.id));
 
@@ -123,6 +163,16 @@ const visibleTasks = computed(() => {
 watch(visibleTasks, (newTasks) => {
     draggableTasks.value = [...newTasks];
 }, { immediate: true });
+
+watch(() => props.section.title, (newTitle) => {
+    title.value = newTitle;
+});
+
+watch(isRenameDialogVisible, (visible) => {
+    if (visible) {
+        newSectionTitle.value = title.value;
+    }
+});
 
 const toggleCollapse = () => {
     isCollapsed.value = !isCollapsed.value;
@@ -143,6 +193,29 @@ function toggleSectionMenu(event: MouseEvent) {
 
 function openTaskModal() {
     taskStore.openTaskModal(props.section.id);
+}
+
+function openRenameDialog() {
+    isRenameDialogVisible.value = true;
+}
+
+async function handleRenameSection() {
+    const trimmedTitle = newSectionTitle.value.trim();
+    if (!trimmedTitle || trimmedTitle === title.value) {
+        isRenameDialogVisible.value = false;
+        return;
+    }
+
+    try {
+        await sectionStore.updateSection(props.section.id, { title: trimmedTitle });
+        title.value = trimmedTitle;
+        toast.add({ severity: "success", summary: "Section renamed", detail: `Section is now "${trimmedTitle}".` });
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to rename section";
+        toast.add({ severity: "error", summary: "Error", detail: message });
+    } finally {
+        isRenameDialogVisible.value = false;
+    }
 }
 
 function handleDeleteSection() {
@@ -250,6 +323,23 @@ function handleDeleteSection() {
 .add-task-button:hover {
     background: var(--p-surface-50);
     opacity: 1;
+}
+
+.rename-section-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.rename-section-form label {
+    font-weight: 600;
+    color: var(--p-text-color);
+}
+
+.rename-section-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
 }
 
 /* Show Completed Toggle */
