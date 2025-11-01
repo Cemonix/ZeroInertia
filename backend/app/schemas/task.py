@@ -4,6 +4,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.schemas.label import LabelResponse
+
 
 class TaskCreate(BaseModel):
     """Schema for creating a task"""
@@ -13,6 +15,7 @@ class TaskCreate(BaseModel):
     section_id: UUID
     priority_id: UUID | None = None
     due_datetime: datetime | None = None
+    label_ids: list[UUID] | None = None
 
 
 class TaskUpdate(BaseModel):
@@ -23,6 +26,7 @@ class TaskUpdate(BaseModel):
     order_index: int | None = None
     priority_id: UUID | None = None
     due_datetime: datetime | None = None
+    label_ids: list[UUID] | None = None
 
 
 class TaskResponse(BaseModel):
@@ -38,6 +42,7 @@ class TaskResponse(BaseModel):
     due_datetime: datetime | None
     created_at: datetime
     updated_at: datetime
+    labels: list[LabelResponse]
 
     model_config: ClassVar[ConfigDict] = ConfigDict(from_attributes=True)
 
