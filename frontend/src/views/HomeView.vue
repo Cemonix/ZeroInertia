@@ -1,23 +1,8 @@
 <template>
-    <Toast />
     <main class="main-grid">
         <aside class="sidebar" :class="{ 'collapsed': isSidebarCollapsed }">
-            <div class="sidebar-header">
-                <h2 class="sidebar-title" v-show="!isSidebarCollapsed">My Projects</h2>
-                <Button
-                class="sidebar-add-btn"
-                @click="openProjectModal"
-                text
-                rounded
-                aria-label="Add new project"
-                v-show="!isSidebarCollapsed"
-                >
-                <font-awesome-icon icon="plus" />
-            </Button>
-            </div>
-            <div class="sidebar-content">
-                <ProjectTree />
-            </div>
+            <ControlPanel />
+            <ProjectPanel />
         </aside>
         <div class="content">
             <nav class="navbar">
@@ -53,7 +38,6 @@
             <Board :project-id="selectedProjectId" />
         </div>
     </main>
-    <ProjectModal v-model:visible="isProjectModalVisible" />
 </template>
 
 <script lang="ts" setup>
@@ -62,11 +46,10 @@ import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useProjectStore } from '@/stores/project';
 import { storeToRefs } from 'pinia';
-import Toast from 'primevue/toast';
 import Avatar from 'primevue/avatar';
 import Menu from 'primevue/menu';
-import ProjectModal from '@/components/sidebar/ProjectCreateModal.vue';
-import ProjectTree from '@/components/sidebar/ProjectTree.vue';
+import ProjectPanel from '@/components/sidebar/ProjectPanel.vue';
+import ControlPanel from '@/components/sidebar/ControlPanel.vue';
 import Board from '@/components/board/Board.vue';
 import { useStreakStore } from '@/stores/streak';
 
@@ -76,7 +59,6 @@ const streakStore = useStreakStore();
 const router = useRouter();
 
 const { selectedProjectId } = storeToRefs(projectStore);
-const isProjectModalVisible = ref(false);
 const userMenu = ref();
 const isSidebarCollapsed = ref(false);
 
@@ -127,10 +109,6 @@ const login = () => {
     authStore.redirectToLogin();
 };
 
-const openProjectModal = () => {
-    isProjectModalVisible.value = true;
-};
-
 const checkMobileView = () => {
     const mobileBreakpoint = 768; // TODO: Extract the hardcoded width into a constant or config
     if (window.innerWidth < mobileBreakpoint) {
@@ -173,36 +151,6 @@ onUnmounted(() => {
     min-width: 0;
     max-width: 0;
     border-right: none;
-}
-
-.sidebar-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 1rem 1rem 0.75rem 1rem;
-    border-bottom: 1px solid var(--p-surface-200);
-}
-
-.sidebar-title {
-    font-size: 1.125rem;
-    font-weight: 600;
-    color: var(--p-text-color);
-    margin: 0;
-}
-
-.sidebar-add-btn {
-    color: var(--p-primary-color);
-    transition: all 0.2s ease;
-}
-
-.sidebar-add-btn:hover {
-    background-color: var(--p-primary-50);
-    color: var(--p-primary-600);
-}
-
-.sidebar-content {
-    flex: 1;
-    overflow-y: auto;
 }
 
 .content {
