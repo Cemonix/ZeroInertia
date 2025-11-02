@@ -22,6 +22,11 @@ export const useLabelStore = defineStore("label", () => {
     };
 
     const loadLabels = async () => {
+        // Prevent concurrent requests - if already loading, skip
+        if (loading.value) {
+            return;
+        }
+
         loading.value = true;
         setError(null);
         try {

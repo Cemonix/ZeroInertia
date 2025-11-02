@@ -256,6 +256,11 @@ onMounted(async () => {
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
+    padding: 1.5rem;
+    background: var(--p-surface-0);
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    border: 1px solid var(--p-surface-200);
 }
 
 .label-manager-header {
@@ -279,9 +284,6 @@ onMounted(async () => {
 .label-manager-body {
     flex: 1;
     padding: 1rem 0;
-    border: 1px solid var(--p-surface-300);
-    border-radius: 12px;
-    background-color: var(--p-surface-0);
 }
 
 .label-manager-loading,

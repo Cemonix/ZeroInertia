@@ -1,8 +1,7 @@
 <template>
     <main class="main-grid">
-        <aside class="sidebar" :class="{ 'collapsed': isSidebarCollapsed }">
-            <ControlPanel v-model:activeView="activeWorkspaceView" />
-            <ProjectPanel />
+        <aside class="sidebar" :class="{ collapsed: isSidebarCollapsed }">
+            <NoteExplorerPanel />
         </aside>
         <div class="content">
             <nav class="navbar">
@@ -17,14 +16,14 @@
                         <font-awesome-icon :icon="isSidebarCollapsed ? 'chevron-right' : 'chevron-left'" />
                     </Button>
                     <Button
-                        class="notes-nav-btn"
+                        class="home-nav-btn"
                         text
                         rounded
-                        @click="goToNotes"
-                        aria-label="Go to notes"
+                        @click="goHome"
+                        aria-label="Return to home"
                     >
-                        <font-awesome-icon icon="pen" />
-                        <span class="notes-nav-label">Notes</span>
+                        <font-awesome-icon icon="house" />
+                        <span class="home-nav-label">Home</span>
                     </Button>
                 </div>
                 <Button v-if="!authStore.isAuthenticated" @click="login" class="login-btn">Log in</Button>
@@ -48,55 +47,30 @@
                 </div>
             </nav>
             <section class="workspace">
-                <div
-                    v-if="activeWorkspaceView === 'today'"
-                    class="workspace-placeholder"
-                >
-                    <h2>Today</h2>
-                    <p>Today's focus view is under construction.</p>
-                </div>
-                <Board
-                    v-else-if="activeWorkspaceView === 'project'"
-                    :project-id="selectedProjectId"
-                />
-                <LabelManager
-                    v-else-if="activeWorkspaceView === 'labels'"
-                />
-                <div
-                    v-else
-                    class="workspace-placeholder"
-                >
-                    <h2>Filters</h2>
-                    <p>Filters are coming soon. Stay tuned!</p>
-                </div>
+                <NoteEditor />
             </section>
         </div>
     </main>
 </template>
 
 <script lang="ts" setup>
-import { onMounted, onUnmounted, ref, computed, watch } from 'vue';
-import { useRouter } from 'vue-router';
-import { useAuthStore } from '@/stores/auth';
-import { useProjectStore } from '@/stores/project';
-import { storeToRefs } from 'pinia';
-import Avatar from 'primevue/avatar';
-import Menu from 'primevue/menu';
-import ProjectPanel from '@/components/sidebar/ProjectPanel.vue';
-import ControlPanel from '@/components/sidebar/ControlPanel.vue';
-import Board from '@/components/board/Board.vue';
-import LabelManager from '@/components/labels/LabelManager.vue';
-import { useStreakStore } from '@/stores/streak';
+import { computed, onMounted, onUnmounted, ref } from "vue";
+import { useRouter } from "vue-router";
+import Avatar from "primevue/avatar";
+import Menu from "primevue/menu";
+import { useAuthStore } from "@/stores/auth";
+import { useStreakStore } from "@/stores/streak";
+import { useNoteStore } from "@/stores/note";
+import NoteExplorerPanel from "@/components/notes/NoteExplorerPanel.vue";
+import NoteEditor from "@/components/notes/NoteEditor.vue";
 
 const authStore = useAuthStore();
-const projectStore = useProjectStore();
 const streakStore = useStreakStore();
+const noteStore = useNoteStore();
 const router = useRouter();
 
-const { selectedProjectId } = storeToRefs(projectStore);
 const userMenu = ref();
 const isSidebarCollapsed = ref(false);
-const activeWorkspaceView = ref<'today' | 'labels' | 'filters' | 'project'>('today');
 
 const getUserInitials = (fullName: string | null, email: string): string => {
     if (fullName && fullName.trim()) {
@@ -106,31 +80,29 @@ const getUserInitials = (fullName: string | null, email: string): string => {
         }
         return nameParts[0][0].toUpperCase();
     }
-    return email[0].toUpperCase();
+    return email[0]?.toUpperCase() ?? "U";
 };
 
 const userInitials = computed(() => {
-    if (!authStore.user) return 'U';
-    return getUserInitials(authStore.userName, authStore.userEmail || '');
+    if (!authStore.user) return "U";
+    return getUserInitials(authStore.userName, authStore.userEmail || "");
 });
 
 const userMenuItems = computed(() => [
     {
-        label: authStore.userName || authStore.userEmail || 'User',
+        label: authStore.userName || authStore.userEmail || "User",
         disabled: true,
-        class: 'user-info'
+        class: "user-info",
     },
+    { separator: true },
     {
-        separator: true
-    },
-    {
-        label: 'Logout',
-        icon: 'fa fa-sign-out-alt',
+        label: "Logout",
+        icon: "fa fa-sign-out-alt",
         command: async () => {
             await authStore.logout();
-            router.push('/home');
-        }
-    }
+            router.push("/home");
+        },
+    },
 ]);
 
 const toggleSidebar = () => {
@@ -145,45 +117,30 @@ const login = () => {
     authStore.redirectToLogin();
 };
 
-const goToNotes = () => {
-    if (router.currentRoute.value.path !== '/notes') {
-        router.push('/notes');
+const goHome = () => {
+    if (router.currentRoute.value.path !== "/home") {
+        router.push("/home");
     }
 };
 
 const checkMobileView = () => {
-    const mobileBreakpoint = 768; // TODO: Extract the hardcoded width into a constant or config
+    const mobileBreakpoint = 768;
     if (window.innerWidth < mobileBreakpoint) {
         isSidebarCollapsed.value = true;
     }
 };
 
-// Add guards to prevent circular triggering between watchers
-watch(selectedProjectId, (newProjectId) => {
-    if (newProjectId && activeWorkspaceView.value !== 'project') {
-        activeWorkspaceView.value = 'project';
-    } else if (!newProjectId && activeWorkspaceView.value === 'project') {
-        activeWorkspaceView.value = 'today';
-    }
-}, { immediate: true });
-
-// Deselect project when switching away from project view, only if a project is selected
-watch(activeWorkspaceView, (newView) => {
-    if (newView !== 'project' && selectedProjectId.value !== null) {
-        projectStore.selectProject(null);
-    }
-});
-
-onMounted(() => {
+onMounted(async () => {
     if (authStore.isAuthenticated) {
         streakStore.loadStreak();
     }
+    await noteStore.loadNotes();
     checkMobileView();
-    window.addEventListener('resize', checkMobileView);
+    window.addEventListener("resize", checkMobileView);
 });
 
 onUnmounted(() => {
-    window.removeEventListener('resize', checkMobileView);
+    window.removeEventListener("resize", checkMobileView);
 });
 </script>
 
@@ -242,7 +199,7 @@ onUnmounted(() => {
     color: var(--p-primary-color);
 }
 
-.notes-nav-btn {
+.home-nav-btn {
     display: flex;
     align-items: center;
     gap: 0.4rem;
@@ -250,7 +207,7 @@ onUnmounted(() => {
     transition: all 0.2s ease;
 }
 
-.notes-nav-btn:hover {
+.home-nav-btn:hover {
     background-color: var(--p-surface-100);
     color: var(--p-primary-color);
 }
@@ -321,25 +278,6 @@ onUnmounted(() => {
     padding: 1rem;
     overflow-y: auto;
     background: var(--p-surface-100);
-}
-
-.workspace-placeholder {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    align-items: flex-start;
-    justify-content: center;
-    padding: 2rem;
-    border: 1px dashed var(--p-surface-300);
-    border-radius: 12px;
-    background-color: var(--p-surface-0);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-    color: var(--p-text-muted-color);
-}
-
-.workspace-placeholder h2 {
-    margin: 0;
-    color: var(--p-text-color);
 }
 
 :deep(.user-info) {

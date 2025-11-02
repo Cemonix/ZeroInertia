@@ -32,6 +32,7 @@ class User(Base):
     tasks: Mapped[list["Task"]] = relationship(back_populates="user", cascade="all, delete-orphan")  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
     streaks: Mapped[list["Streak"]] = relationship(back_populates="user", cascade="all, delete-orphan")  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
     labels: Mapped[list["Label"]] = relationship(back_populates="user", cascade="all, delete-orphan")  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
+    notes: Mapped[list["Note"]] = relationship(back_populates="user", cascade="all, delete-orphan")  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
 
     # Constraints and Indexes
     __table_args__: tuple[UniqueConstraint, UniqueConstraint, Index] = (

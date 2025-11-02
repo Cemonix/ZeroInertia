@@ -28,6 +28,7 @@ import {
   faFlag,
   faSignOutAlt,
   faFilter,
+  faHouse,
   faTriangleExclamation
 } from '@fortawesome/free-solid-svg-icons'
 
@@ -57,6 +58,7 @@ library.add(
   faFlag,
   faSignOutAlt,
   faFilter,
+  faHouse,
   faTriangleExclamation
 )
 

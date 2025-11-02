@@ -62,7 +62,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from "vue";
+import { computed } from "vue";
 import type { Task } from "@/models/task";
 import { useTaskStore } from "@/stores/task";
 import { usePriorityStore } from "@/stores/priority";
@@ -172,16 +172,6 @@ const handleToggleComplete = () => {
 const handleDelete = () => {
     taskStore.deleteTask(props.task.id);
 };
-
-onMounted(async () => {
-    if (!labelStore.labels.length && props.task.label_ids?.length) {
-        try {
-            await labelStore.loadLabels();
-        } catch (_error) {
-            // Ignore label load errors for card display
-        }
-    }
-});
 </script>
 
 <style scoped>
