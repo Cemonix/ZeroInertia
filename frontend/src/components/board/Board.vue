@@ -116,10 +116,10 @@ watch(
     width: 100%;
     padding: 1.5rem;
     margin: 0 auto;
-    background: var(--p-surface-0);
+    background: var(--p-content-background);
     border-radius: 12px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-    border: 1px solid var(--p-surface-200);
+    border: 1px solid var(--p-content-border-color);
 }
 
 .board-header {

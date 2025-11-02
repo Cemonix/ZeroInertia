@@ -2,6 +2,11 @@
 
 :root {
     --font-family-body: 'Montserrat';
+    color-scheme: light;
+}
+
+:root.dark-mode {
+    color-scheme: dark;
 }
 
 /* Wrap reset styles in a layer so they don't override PrimeVue */
@@ -21,9 +26,10 @@ body {
     font-family: var(--font-family-body), sans-serif;
     font-weight: 500;
     font-size: 1rem;
-    background-color: white;
-    color: black;
+    background-color: var(--p-content-background);
+    color: var(--p-text-color);
     line-height: 1.5;
+    transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 #app {

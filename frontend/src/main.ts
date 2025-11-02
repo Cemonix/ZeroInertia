@@ -29,7 +29,9 @@ import {
   faSignOutAlt,
   faFilter,
   faHouse,
-  faTriangleExclamation
+  faTriangleExclamation,
+  faSun,
+  faMoon
 } from '@fortawesome/free-solid-svg-icons'
 
 // PrimeVue components
@@ -39,6 +41,8 @@ import InputText from 'primevue/inputtext'
 import Checkbox from 'primevue/checkbox'
 import Dialog from 'primevue/dialog'
 import ConfirmDialog from 'primevue/confirmdialog'
+import Menu from 'primevue/menu'
+import Avatar from 'primevue/avatar'
 
 library.add(
   faTrash,
@@ -59,7 +63,9 @@ library.add(
   faSignOutAlt,
   faFilter,
   faHouse,
-  faTriangleExclamation
+  faTriangleExclamation,
+  faSun,
+  faMoon
 )
 
 const app = createApp(App)
@@ -90,6 +96,8 @@ app.component('InputText', InputText)
 app.component('Checkbox', Checkbox)
 app.component('Dialog', Dialog)
 app.component('ConfirmDialog', ConfirmDialog)
+app.component('Menu', Menu)
+app.component('Avatar', Avatar)
 
 app.mount('#app')
 

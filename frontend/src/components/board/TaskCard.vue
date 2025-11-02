@@ -176,8 +176,8 @@ const handleDelete = () => {
 
 <style scoped>
 .task-card {
-    background: white;
-    border: 1px solid var(--p-surface-200);
+    background: var(--p-content-background);
+    border: 1px solid var(--p-content-border-color);
     border-radius: 6px;
     padding: 0.75rem;
     cursor: pointer;
@@ -286,7 +286,7 @@ const handleDelete = () => {
 }
 
 .task-due-date.future {
-    color: var(--p-surface-500);
+    color: var(--p-text-muted-color);
     opacity: 0.6;
 }
 

@@ -428,7 +428,7 @@ onMounted(async () => {
 }
 
 .checklist-wrapper {
-    background: var(--p-surface-50);
+    background: var(--p-content-hover-background);
     border-radius: 8px;
     padding: 1rem;
     margin-bottom: 0.5rem;
@@ -470,7 +470,7 @@ onMounted(async () => {
     gap: 0.35rem;
     padding: 0.25rem 0.6rem;
     border-radius: 999px;
-    background-color: var(--p-surface-100);
+    background-color: var(--p-content-hover-background);
     color: var(--p-text-color);
     font-size: 0.8125rem;
 }

@@ -301,7 +301,7 @@ async function deleteItem(itemId: string) {
 .progress-bar {
     flex: 1;
     height: 8px;
-    background: var(--p-surface-200);
+    background: var(--p-content-border-color);
     border-radius: 4px;
     overflow: hidden;
 }
@@ -330,7 +330,7 @@ async function deleteItem(itemId: string) {
 }
 
 .checklist-item:hover {
-    background-color: var(--p-surface-100);
+    background-color: var(--p-content-hover-background);
 }
 
 .checklist-item.is-completed .item-text {
