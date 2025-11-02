@@ -1,6 +1,7 @@
 from app.models.base import Base
 from app.models.checklist import CheckList, CheckListItem
 from app.models.label import Label
+from app.models.note import Note
 from app.models.priority import Priority
 from app.models.project import Project
 from app.models.section import Section
@@ -19,4 +20,5 @@ __all__ = [
     "CheckListItem",
     "Priority",
     "Label",
+    "Note",
 ]
