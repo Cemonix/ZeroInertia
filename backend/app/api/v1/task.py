@@ -4,7 +4,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.routing import APIRouter
 from sqlalchemy.ext.asyncio.session import AsyncSession
 
-from app.api.v1.auth import get_current_user
+from app.api.v1.auth_deps import get_current_user
 from app.core.database import get_db
 from app.models.user import User
 from app.schemas.task import TaskCreate, TaskReorder, TaskResponse, TaskUpdate
@@ -33,7 +33,18 @@ async def create_task(
             label_ids=task_data.label_ids,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        # Check if this is a "not found" error (from foreign key constraint)
+        error_msg = str(exc).lower()
+        if "not found" in error_msg:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(exc)
+            ) from exc
+        # Other validation errors return 400
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc)
+        ) from exc
     return TaskResponse.model_validate(new_task)
 
 

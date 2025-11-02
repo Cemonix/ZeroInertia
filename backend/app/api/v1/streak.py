@@ -2,7 +2,7 @@ from fastapi import Depends, status
 from fastapi.routing import APIRouter
 from sqlalchemy.ext.asyncio.session import AsyncSession
 
-from app.api.v1.auth import get_current_user
+from app.api.v1.auth_deps import get_current_user
 from app.core.database import get_db
 from app.models.user import User
 from app.schemas.streak import StreakResponse

@@ -3,9 +3,9 @@ from uuid import UUID
 
 from fastapi import Depends, HTTPException, status
 from fastapi.routing import APIRouter
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio.session import AsyncSession
 
-from app.api.v1.auth import get_current_user
+from app.api.v1.auth_deps import get_current_user
 from app.core.database import get_db
 from app.models.user import User
 from app.schemas.note import NoteCreate, NoteReorder, NoteResponse, NoteUpdate

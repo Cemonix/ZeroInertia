@@ -235,11 +235,11 @@ function handleDeleteSection() {
 
 <style scoped>
 .board-section {
-    background: white;
+    background: var(--p-content-background);
     border-radius: 8px;
     padding: 1rem;
     margin-bottom: 1rem;
-    border: 1px solid var(--p-surface-200);
+    border: 1px solid var(--p-content-border-color);
 }
 
 .section-header {
@@ -252,7 +252,7 @@ function handleDeleteSection() {
 
 .section-divider {
     height: 1px;
-    background: var(--p-surface-200);
+    background: var(--p-content-border-color);
     margin-bottom: 0.75rem;
 }
 
@@ -296,7 +296,7 @@ function handleDeleteSection() {
 }
 
 .new-task-container {
-    background: var(--p-surface-50);
+    background: var(--p-content-hover-background);
     border: 2px solid var(--p-primary-color);
     border-radius: 6px;
     padding: 0.75rem;
@@ -320,7 +320,7 @@ function handleDeleteSection() {
 }
 
 .add-task-button:hover {
-    background: var(--p-surface-50);
+    background: var(--p-content-hover-background);
     opacity: 1;
 }
 
@@ -348,7 +348,7 @@ function handleDeleteSection() {
     gap: 0.5rem;
     margin-bottom: 0.75rem;
     padding: 0.5rem;
-    background: var(--p-surface-50);
+    background: var(--p-content-hover-background);
     border-radius: 6px;
 }
 

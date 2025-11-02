@@ -55,7 +55,7 @@ const selectView = (view: ControlPanelView) => {
     align-items: center;
     justify-content: space-between;
     padding: 1rem 1rem 0.75rem 1rem;
-    border-bottom: 1px solid var(--p-surface-200);
+    border-bottom: 1px solid var(--p-content-border-color);
 }
 
 .panel-title {

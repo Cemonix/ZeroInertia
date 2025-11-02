@@ -140,7 +140,7 @@ const formatTimestamp = (isoString: string) => {
     display: flex;
     flex-direction: column;
     height: 100%;
-    background: var(--p-surface-0);
+    background: var(--p-content-background);
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
@@ -150,7 +150,7 @@ const formatTimestamp = (isoString: string) => {
     align-items: center;
     justify-content: space-between;
     padding: 1rem 1.25rem;
-    border-bottom: 1px solid var(--p-surface-200);
+    border-bottom: 1px solid var(--p-content-border-color);
     gap: 1rem;
 }
 
@@ -180,7 +180,7 @@ const formatTimestamp = (isoString: string) => {
 .view-toggle {
     display: flex;
     align-items: center;
-    background: var(--p-surface-100);
+    background: var(--p-content-hover-background);
     border-radius: 999px;
     padding: 0.25rem;
 }
@@ -223,7 +223,7 @@ const formatTimestamp = (isoString: string) => {
 }
 
 .editor-pane--input {
-    border-right: 1px solid var(--p-surface-200);
+    border-right: 1px solid var(--p-content-border-color);
 }
 
 .content-area {
@@ -257,7 +257,7 @@ const formatTimestamp = (isoString: string) => {
 }
 
 .markdown-preview :deep(code) {
-    background: var(--p-surface-100);
+    background: var(--p-content-hover-background);
     padding: 0.15rem 0.35rem;
     border-radius: 4px;
     font-family: var(--font-family-monospace, "Fira Code", "SFMono-Regular", monospace);
@@ -270,10 +270,10 @@ const formatTimestamp = (isoString: string) => {
     align-items: center;
     height: 100%;
     color: var(--p-text-muted-color);
-    border: 2px dashed var(--p-surface-200);
+    border: 2px dashed var(--p-content-border-color);
     border-radius: 12px;
     padding: 2rem;
-    background: var(--p-surface-0);
+    background: var(--p-content-background);
     gap: 0.75rem;
 }
 

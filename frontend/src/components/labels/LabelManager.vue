@@ -257,10 +257,10 @@ onMounted(async () => {
     flex-direction: column;
     gap: 1.5rem;
     padding: 1.5rem;
-    background: var(--p-surface-0);
+    background: var(--p-content-background);
     border-radius: 12px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-    border: 1px solid var(--p-surface-200);
+    border: 1px solid var(--p-content-border-color);
 }
 
 .label-manager-header {
@@ -350,7 +350,7 @@ onMounted(async () => {
     align-items: center;
     gap: 1rem;
     padding: 0.75rem 1.25rem;
-    border-bottom: 1px solid var(--p-surface-200);
+    border-bottom: 1px solid var(--p-content-border-color);
 }
 
 .label-row:last-child {
@@ -423,7 +423,7 @@ onMounted(async () => {
     width: 3rem;
     height: 3rem;
     padding: 0.25rem;
-    border: 1px solid var(--p-surface-300);
+    border: 1px solid var(--p-content-border-color);
     border-radius: 8px;
     background: transparent;
     cursor: pointer;

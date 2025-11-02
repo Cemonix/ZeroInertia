@@ -98,9 +98,8 @@ onUnmounted(() => {
 }
 
 .popover-container {
-    background: var(--surface-0);
-    background-color: white;
-    border: 1px solid var(--surface-border);
+    background-color: var(--p-content-background);
+    border: 1px solid var(--p-content-border-color);
     border-radius: 8px;
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
     max-height: 80vh;
@@ -114,7 +113,7 @@ onUnmounted(() => {
     justify-content: space-between;
     align-items: center;
     padding: 0.75rem 1rem;
-    border-bottom: 1px solid var(--surface-border);
+    border-bottom: 1px solid var(--p-content-border-color);
     font-weight: 600;
     flex-shrink: 0;
 }

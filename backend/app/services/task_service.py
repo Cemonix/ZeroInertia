@@ -2,6 +2,7 @@ from collections.abc import Sequence
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy.sql import select, update
@@ -72,7 +73,21 @@ async def create_task(
         labels = await _get_labels_for_user(db=db, user_id=user_id, label_ids=label_ids)
         new_task.labels = list(labels)
 
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError as e:
+        await db.rollback()
+        # Parse the error to provide helpful feedback
+        error_msg = str(e.orig) if hasattr(e, 'orig') else str(e)
+        if 'section_id' in error_msg:
+            raise ValueError("Section not found or does not belong to you") from e
+        elif 'project_id' in error_msg:
+            raise ValueError("Project not found or does not belong to you") from e
+        elif 'priority_id' in error_msg:
+            raise ValueError("Priority not found") from e
+        else:
+            raise ValueError("Invalid reference: one or more related entities not found") from e
+
     await db.refresh(new_task)
     return new_task
 
