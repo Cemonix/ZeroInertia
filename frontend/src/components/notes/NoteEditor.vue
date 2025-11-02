@@ -65,6 +65,7 @@ import InputText from "primevue/inputtext";
 import Textarea from "primevue/textarea";
 import { useToast } from "primevue";
 import { marked } from "marked";
+import DOMPurify from "dompurify";
 import { useNoteStore } from "@/stores/note";
 
 type ViewMode = "edit" | "preview" | "split";
@@ -97,7 +98,8 @@ const isDirty = computed(() => {
 
 const renderedMarkdown = computed(() => {
     const source = localContent.value || "";
-    return marked.parse(source, { breaks: true });
+    const rawHtml = marked.parse(source, { breaks: true, async: false }) as string;
+    return DOMPurify.sanitize(rawHtml);
 });
 
 const saveChanges = async () => {
