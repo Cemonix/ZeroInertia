@@ -48,6 +48,7 @@ import SectionCreateModal from "./SectionCreateModal.vue";
 import TaskModal from "./TaskModal.vue";
 import { useSectionStore } from "@/stores/section";
 import { useTaskStore } from "@/stores/task";
+import { useLabelStore } from "@/stores/label";
 import type { Section } from "@/models/section";
 import { useToast } from "primevue";
 
@@ -63,6 +64,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const sectionStore = useSectionStore();
 const taskStore = useTaskStore();
+const labelStore = useLabelStore();
 
 const isSectionCreateVisible = ref(false);
 
@@ -94,6 +96,8 @@ const loadSections = async () => {
         await Promise.all([
             sectionStore.loadSectionsForProject(props.projectId),
             taskStore.loadTasksForProject(props.projectId),
+            // Load labels at board level to prevent duplicate requests from individual cards
+            labelStore.labels.length === 0 ? labelStore.loadLabels() : Promise.resolve(),
         ]);
     } catch (error) {
         toast.add({ severity: "error", summary: "Error", detail: "Failed to load sections and tasks" });
@@ -110,8 +114,12 @@ watch(
 <style scoped>
 .board-container {
     width: 100%;
-    padding: 1rem;
+    padding: 1.5rem;
     margin: 0 auto;
+    background: var(--p-surface-0);
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    border: 1px solid var(--p-surface-200);
 }
 
 .board-header {

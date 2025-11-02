@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import HomeView from "@/views/HomeView.vue";
+import NotesView from "@/views/NotesView.vue";
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
@@ -12,6 +13,14 @@ const router = createRouter({
             alias: "/",
             meta: {
                 title: "Zero Inertia",
+            },
+        },
+        {
+            path: "/notes",
+            name: "notes",
+            component: NotesView,
+            meta: {
+                title: "Notes | Zero Inertia",
             },
         },
     ],
