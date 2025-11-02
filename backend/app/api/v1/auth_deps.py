@@ -2,9 +2,10 @@ from typing import cast
 from uuid import UUID
 
 import httpx
-from fastapi import HTTPException, Request, status
+from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.database import get_db
 from app.core.settings.app_settings import AppSettings
 from app.models.user import User
 from app.services.jwt_service import JWTService
@@ -153,3 +154,25 @@ async def get_current_user_id(request: Request) -> UUID:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid user ID in token"
         ) from None
+
+
+async def get_current_user(
+    request: Request,
+    session: AsyncSession = Depends(get_db),
+) -> User:
+    """
+    Dependency to get the current authenticated user from JWT cookie.
+
+    This is used as a FastAPI dependency in protected routes.
+    """
+    user_id = await get_current_user_id(request)
+
+    # Get user from database
+    user = await UserService.get_user_by_id(session, user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found"
+        )
+
+    return user

@@ -1,8 +1,8 @@
-from fastapi import Depends, status
+from fastapi import Depends
 from fastapi.routing import APIRouter
 from sqlalchemy.ext.asyncio.session import AsyncSession
 
-from app.api.v1.auth import get_current_user
+from app.api.v1.auth_deps import get_current_user
 from app.core.database import get_db
 from app.core.logging import logger
 from app.models.user import User
