@@ -5,7 +5,10 @@ export type TaskRecurrenceType = "daily" | "alternate_days" | "weekly";
 export interface TaskRecurrence {
     type: TaskRecurrenceType;
     time: string; // HH:mm in 24h format
-    days_of_week?: number[]; // 0 (Sunday) - 6 (Saturday), required when type === "weekly"
+    // IMPORTANT: days_of_week uses JavaScript's convention (0=Sunday, 1=Monday, ..., 6=Saturday)
+    // for UI display. Must be converted to Python's convention (0=Monday, ..., 6=Sunday)
+    // before sending to backend using jsDaysToPythonDays() from recurrenceUtils.
+    days_of_week?: number[]; // Required when type === "weekly"
 }
 
 export interface Task {

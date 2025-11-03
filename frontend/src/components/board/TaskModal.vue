@@ -196,7 +196,7 @@
                         <label>Days of the week</label>
                         <div class="weekday-selector">
                             <button
-                                v-for="(dayLabel, dayIndex) in WEEKDAY_LABELS"
+                                v-for="(dayLabel, dayIndex) in JS_WEEKDAY_LABELS"
                                 :key="dayLabel"
                                 type="button"
                                 class="weekday-chip"
@@ -253,6 +253,11 @@ import { useToast } from "primevue";
 import type { Label } from "@/models/label";
 import type { RecurringTaskCreateInput, RecurringTaskUpdateInput } from "@/models/recurringTask";
 import type { Task, TaskRecurrence, TaskRecurrenceType } from "@/models/task";
+import {
+    jsDaysToPythonDays,
+    pythonDaysToJsDays,
+    JS_WEEKDAY_LABELS
+} from "@/utils/recurrenceUtils";
 
 const toast = useToast();
 
@@ -291,9 +296,6 @@ const RECURRENCE_OPTIONS: { label: string; value: TaskRecurrenceType }[] = [
     { label: "Specific Days", value: "weekly" },
 ];
 
-const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const WEEKDAY_NUMERIC = [0, 1, 2, 3, 4, 5, 6];
-
 function getRecurrenceFromTemplate(templateId: string | null): TaskRecurrence | null {
     if (!templateId) return null;
     const template = recurringTaskStore.getRecurringTaskById(templateId);
@@ -304,13 +306,14 @@ function getRecurrenceFromTemplate(templateId: string | null): TaskRecurrence | 
         time: template.recurrence_time,
     };
 
+    // Convert from backend Python convention (0=Monday) to frontend JS convention (0=Sunday)
     if (template.recurrence_type === "weekly") {
         const days = template.recurrence_days && template.recurrence_days.length
-            ? template.recurrence_days.filter(day => WEEKDAY_NUMERIC.includes(day))
+            ? pythonDaysToJsDays(template.recurrence_days)
             : [];
         recurrence.days_of_week = days;
     } else if (template.recurrence_days && template.recurrence_days.length) {
-        recurrence.days_of_week = template.recurrence_days;
+        recurrence.days_of_week = pythonDaysToJsDays(template.recurrence_days);
     }
 
     return recurrence;
@@ -371,7 +374,7 @@ const recurrenceButtonText = computed(() => {
     if (recurrenceType.value === "weekly") {
         const selectedDays = recurrenceDaysOfWeek.value
             .sort((a, b) => a - b)
-            .map(day => WEEKDAY_LABELS[day]);
+            .map(day => JS_WEEKDAY_LABELS[day]);
         const daysLabel = selectedDays.length ? selectedDays.join(" ") : "Days";
         return `Weekly · ${daysLabel}${timeDisplay}`;
     }
@@ -517,8 +520,11 @@ function getLabelIdsPayload(): string[] | null {
 }
 
 function buildRecurringTaskCreatePayload(task: Task, recurrence: TaskRecurrence): RecurringTaskCreateInput {
+    // Convert from JS convention (0=Sunday) to Python convention (0=Monday) for backend
     const recurrenceDays =
-        recurrence.type === "weekly" ? [...(recurrence.days_of_week ?? [])] : null;
+        recurrence.type === "weekly" && recurrence.days_of_week
+            ? jsDaysToPythonDays(recurrence.days_of_week)
+            : null;
 
     return {
         title: title.value.trim(),
@@ -537,8 +543,11 @@ function buildRecurringTaskCreatePayload(task: Task, recurrence: TaskRecurrence)
 }
 
 function buildRecurringTaskUpdatePayload(recurrence: TaskRecurrence): RecurringTaskUpdateInput {
+    // Convert from JS convention (0=Sunday) to Python convention (0=Monday) for backend
     const recurrenceDays =
-        recurrence.type === "weekly" ? [...(recurrence.days_of_week ?? [])] : null;
+        recurrence.type === "weekly" && recurrence.days_of_week
+            ? jsDaysToPythonDays(recurrence.days_of_week)
+            : null;
 
     const payload: RecurringTaskUpdateInput = {
         title: title.value.trim(),

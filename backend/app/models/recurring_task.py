@@ -22,7 +22,9 @@ class RecurringTask(Base):
 
     # Recurrence configuration - values: daily | weekly | alternate_days
     recurrence_type: Mapped[str] = mapped_column(String(50), nullable=False)
-    # Array of integers (0=Monday, 6=Sunday) for weekly recurrences
+    # Array of integers for weekly recurrences.
+    # IMPORTANT: Uses Python's weekday() convention (0=Monday, 1=Tuesday, ..., 6=Sunday).
+    # Frontend must convert from JavaScript's getDay() (0=Sunday) before sending.
     recurrence_days: Mapped[list[int] | None] = mapped_column(ARRAY(Integer), nullable=True)
 
     # Time of day when task should be due (e.g., "09:00")
