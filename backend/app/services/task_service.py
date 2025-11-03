@@ -1,5 +1,6 @@
 from collections.abc import Sequence
 from datetime import datetime, timedelta, timezone
+from typing import Any, cast
 from uuid import UUID
 
 from sqlalchemy.exc import IntegrityError
@@ -153,38 +154,44 @@ async def update_task(
     db: AsyncSession,
     task_id: UUID,
     user_id: UUID,
-    title: str | None = None,
-    description: str | None = None,
-    completed: bool | None = None,
-    priority_id: UUID | None = None,
-    due_datetime: datetime | None = None,
-    label_ids: list[UUID] | None = None,
+    **updates: dict[str, Any],  # pyright: ignore[reportExplicitAny]
 ) -> Task:
-    """Update an existing task."""
+    """
+    Update an existing task.
+
+    Only fields provided in updates dict will be modified.
+    Passing None for a field will set it to NULL (e.g., clearing due_datetime).
+    """
     task = await get_task_by_id(db, task_id, user_id)
     if task is None:
         raise ValueError("Task not found")
 
     # Track if task is being marked complete for the first time
     was_incomplete = not task.completed
-    is_now_complete = completed is True
+    completed_value = cast(bool | None, updates.get("completed"))
+    is_now_complete = completed_value is True
 
-    if title is not None:
-        task.title = title
-    if description is not None:
-        task.description = description
-    if completed is not None:
-        task.completed = completed
+    # Update only the fields that were provided
+    if "title" in updates:
+        task.title = updates["title"]  # pyright: ignore[reportAttributeAccessIssue]
+    if "description" in updates:
+        task.description = updates["description"]  # pyright: ignore[reportAttributeAccessIssue]
+    if "completed" in updates:
+        task.completed = updates["completed"]  # pyright: ignore[reportAttributeAccessIssue]
         # Set completed_at timestamp when marking as complete
-        if completed and was_incomplete:
+        if completed_value and was_incomplete:
             task.completed_at = datetime.now(timezone.utc)
-    if priority_id is not None:
-        task.priority_id = priority_id
-    if due_datetime is not None:
-        task.due_datetime = due_datetime
-    if label_ids is not None:
-        labels = await _get_labels_for_user(db=db, user_id=user_id, label_ids=label_ids)
-        task.labels = list(labels)
+    if "priority_id" in updates:
+        task.priority_id = updates["priority_id"]  # pyright: ignore[reportAttributeAccessIssue]
+    if "due_datetime" in updates:
+        task.due_datetime = updates["due_datetime"]  # pyright: ignore[reportAttributeAccessIssue]
+    if "label_ids" in updates:
+        label_ids = updates["label_ids"]
+        if label_ids is not None:  # pyright: ignore[reportUnnecessaryComparison]
+            labels = await _get_labels_for_user(db=db, user_id=user_id, label_ids=label_ids)  # pyright: ignore[reportArgumentType]
+            task.labels = list(labels)
+        else:
+            task.labels = []
 
     db.add(task)
     await db.commit()
