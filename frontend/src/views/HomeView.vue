@@ -17,13 +17,9 @@
             </Button>
         </template>
         <template #default>
-            <div
+            <TodayView
                 v-if="activeWorkspaceView === 'today'"
-                class="workspace-placeholder"
-            >
-                <h2>Today</h2>
-                <p>Today's focus view is under construction.</p>
-            </div>
+            />
             <Board
                 v-else-if="activeWorkspaceView === 'project'"
                 :project-id="selectedProjectId"
@@ -31,12 +27,15 @@
             <LabelManager
                 v-else-if="activeWorkspaceView === 'labels'"
             />
+            <TaskFilters
+                v-else-if="activeWorkspaceView === 'filters'"
+            />
             <div
                 v-else
                 class="workspace-placeholder"
             >
-                <h2>Filters</h2>
-                <p>Filters are coming soon. Stay tuned!</p>
+                <h2>Workspace</h2>
+                <p>Select a view from the control panel.</p>
             </div>
         </template>
     </WorkspaceLayout>
@@ -51,6 +50,8 @@ import ProjectPanel from '@/components/sidebar/ProjectPanel.vue';
 import ControlPanel from '@/components/sidebar/ControlPanel.vue';
 import Board from '@/components/board/Board.vue';
 import LabelManager from '@/components/labels/LabelManager.vue';
+import TaskFilters from '@/components/filters/TaskFilters.vue';
+import TodayView from '@/components/today/TodayView.vue';
 import WorkspaceLayout from '@/layouts/WorkspaceLayout.vue';
 
 const projectStore = useProjectStore();
