@@ -263,6 +263,43 @@ const formatTimestamp = (isoString: string) => {
     font-family: var(--font-family-monospace, "Fira Code", "SFMono-Regular", monospace);
 }
 
+.markdown-preview :deep(ul),
+.markdown-preview :deep(ol) {
+    margin-bottom: 1rem;
+    padding-left: 2rem;
+}
+
+.markdown-preview :deep(ul) {
+    list-style-type: disc;
+}
+
+.markdown-preview :deep(ol) {
+    list-style-type: decimal;
+}
+
+.markdown-preview :deep(li) {
+    margin-bottom: 0.5rem;
+}
+
+.markdown-preview :deep(li > ul),
+.markdown-preview :deep(li > ol) {
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.markdown-preview :deep(pre) {
+    background: var(--p-content-hover-background);
+    padding: 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin-bottom: 1rem;
+}
+
+.markdown-preview :deep(pre code) {
+    background: transparent;
+    padding: 0;
+}
+
 .note-placeholder {
     display: flex;
     flex-direction: column;

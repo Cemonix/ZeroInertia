@@ -21,7 +21,11 @@
                     :class="{ 'completed-text': task.completed }"
                 >
                     <FontAwesomeIcon v-if="taskPriority" icon="flag" :style="{ color: taskPriority.color }" class="priority-flag" />
-                    {{ task.title }}
+                    <span class="task-title-text">{{ task.title }}</span>
+                    <span v-if="isRecurring" class="recurring-pill">
+                        <FontAwesomeIcon icon="repeat" />
+                        <span>{{ recurrenceSummary }}</span>
+                    </span>
                 </div>
                 <div v-if="task.description" class="task-description">
                     {{ task.description }}
@@ -98,6 +102,34 @@ const taskLabels = computed<Label[]>(() => {
 
     return [];
 });
+
+const WEEK_DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+const recurrenceSummary = computed(() => {
+    const recurrence = props.task.recurrence;
+    if (recurrence) {
+        if (recurrence.type === "daily") {
+            return "Daily";
+        }
+        if (recurrence.type === "alternate_days") {
+            return "Every other day";
+        }
+        if (recurrence.type === "weekly") {
+            const days = recurrence.days_of_week ?? [];
+            if (!days.length) {
+                return "Weekly";
+            }
+            const labels = days.map(dayIndex => WEEK_DAYS[dayIndex] ?? "").filter(Boolean);
+            return labels.join(" · ") || "Weekly";
+        }
+    }
+    if (props.task.recurring_task_id) {
+        return "Recurring";
+    }
+    return null;
+});
+
+const isRecurring = computed(() => Boolean(recurrenceSummary.value));
 
 // Format due date for display
 const formattedDueDate = computed(() => {
@@ -176,15 +208,15 @@ const handleDelete = () => {
 
 <style scoped>
 .task-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     background: var(--p-content-background);
     border: 1px solid var(--p-content-border-color);
     border-radius: 6px;
     padding: 0.75rem;
     cursor: pointer;
     transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
     gap: 0.5rem;
 }
 
@@ -199,7 +231,7 @@ const handleDelete = () => {
 
 .task-content {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     gap: 0.75rem;
     flex: 1;
     min-width: 0; /* Allows text truncation */
@@ -207,12 +239,16 @@ const handleDelete = () => {
 
 .task-checkbox {
     flex-shrink: 0;
-    padding-top: 0.125rem;
+    display: flex;
+    align-items: center;
 }
 
 .task-details {
     flex: 1;
     min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 }
 
 .task-title {
@@ -222,8 +258,25 @@ const handleDelete = () => {
     font-size: 0.9375rem;
     font-weight: 500;
     color: var(--p-text-color);
-    margin-bottom: 0.25rem;
     word-wrap: break-word;
+}
+
+.task-title-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.recurring-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    border-radius: 10px;
+    padding: 0.125rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    background: rgba(59, 130, 246, 0.15);
+    color: var(--p-primary-color);
+    flex-shrink: 0;
 }
 
 .task-title.completed-text {

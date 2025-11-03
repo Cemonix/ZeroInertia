@@ -5,7 +5,6 @@
         @update:visible="taskStore.setTaskModalVisible($event)"
         :header="taskStore.getCurrentTask ? 'Edit Task' : 'New Task'"
         @hide="handleClose"
-        :style="{ width: '768px' }"
         :pt="{
             root: { style: { maxWidth: '95vw', maxHeight: '90vh' } },
             content: { style: { padding: '0' } }
@@ -62,6 +61,10 @@
                     :showTime="true"
                     hourFormat="24"
                 />
+                <Button outlined size="small" @click="showRecurrencePicker = true">
+                    <FontAwesomeIcon icon="repeat" class="button-icon" />
+                    <span>{{ recurrenceButtonText }}</span>
+                </Button>
                 <Button outlined size="small" @click="showLabelPicker = true">
                     <FontAwesomeIcon icon="tag" class="button-icon" />
                     <span>{{ labelButtonText }}</span>
@@ -165,6 +168,62 @@
                 </div>
             </Popover>
 
+            <!-- Recurrence Picker Popover -->
+            <Popover
+                v-model:visible="showRecurrencePicker"
+                title="Recurring Task"
+                width="360px"
+            >
+                <div class="recurrence-picker">
+                    <div class="recurrence-field">
+                        <label for="recurrence-frequency">Frequency</label>
+                        <Select
+                            id="recurrence-frequency"
+                            v-model="recurrenceType"
+                            :options="RECURRENCE_OPTIONS"
+                            optionLabel="label"
+                            optionValue="value"
+                            placeholder="Select frequency"
+                            size="small"
+                            showClear
+                            variant="outlined"
+                        />
+                    </div>
+                    <div
+                        v-if="recurrenceType === 'weekly'"
+                        class="recurrence-field"
+                    >
+                        <label>Days of the week</label>
+                        <div class="weekday-selector">
+                            <button
+                                v-for="(dayLabel, dayIndex) in WEEKDAY_LABELS"
+                                :key="dayLabel"
+                                type="button"
+                                class="weekday-chip"
+                                :class="{ active: recurrenceDaysOfWeek.includes(dayIndex) }"
+                                @click="toggleWeekday(dayIndex)"
+                            >
+                                {{ dayLabel }}
+                            </button>
+                        </div>
+                    </div>
+                    <div class="recurrence-field">
+                        <label for="recurrence-time">Time of day</label>
+                        <input
+                            id="recurrence-time"
+                            v-model="recurrenceTime"
+                            type="time"
+                            class="recurrence-time-input"
+                            step="60"
+                        />
+                    </div>
+                    <div class="recurrence-actions">
+                        <Button text size="small" @click="clearRecurrence">Clear</Button>
+                        <Button size="small" @click="showRecurrencePicker = false">Done</Button>
+                    </div>
+                </div>
+            </Popover>
+
             <!-- Footer Actions -->
             <div class="task-modal-footer">
                 <Button label="Cancel" text @click="handleClose" />
@@ -187,10 +246,13 @@ import { useTaskStore } from "@/stores/task";
 import { useChecklistStore } from "@/stores/checklist";
 import { usePriorityStore } from "@/stores/priority";
 import { useLabelStore } from "@/stores/label";
+import { useRecurringTaskStore } from "@/stores/recurringTask";
 import CheckList from "@/components/common/CheckList.vue";
 import Popover from "@/components/common/Popover.vue";
 import { useToast } from "primevue";
 import type { Label } from "@/models/label";
+import type { RecurringTaskCreateInput, RecurringTaskUpdateInput } from "@/models/recurringTask";
+import type { Task, TaskRecurrence, TaskRecurrenceType } from "@/models/task";
 
 const toast = useToast();
 
@@ -202,6 +264,7 @@ const taskStore = useTaskStore();
 const checklistStore = useChecklistStore();
 const priorityStore = usePriorityStore();
 const labelStore = useLabelStore();
+const recurringTaskStore = useRecurringTaskStore();
 
 const isLoading = ref(false);
 const title = ref("");
@@ -215,6 +278,43 @@ const showAddChecklist = ref(false);
 const newChecklistTitle = ref("");
 const showLabelPicker = ref(false);
 const selectedLabelIds = ref<string[]>([]);
+const showRecurrencePicker = ref(false);
+const existingRecurringTaskId = ref<string | null>(null);
+
+const recurrenceType = ref<TaskRecurrenceType | null>(null);
+const recurrenceTime = ref<string | null>(null);
+const recurrenceDaysOfWeek = ref<number[]>([]);
+
+const RECURRENCE_OPTIONS: { label: string; value: TaskRecurrenceType }[] = [
+    { label: "Daily", value: "daily" },
+    { label: "Every Other Day", value: "alternate_days" },
+    { label: "Specific Days", value: "weekly" },
+];
+
+const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const WEEKDAY_NUMERIC = [0, 1, 2, 3, 4, 5, 6];
+
+function getRecurrenceFromTemplate(templateId: string | null): TaskRecurrence | null {
+    if (!templateId) return null;
+    const template = recurringTaskStore.getRecurringTaskById(templateId);
+    if (!template) return null;
+
+    const recurrence: TaskRecurrence = {
+        type: template.recurrence_type,
+        time: template.recurrence_time,
+    };
+
+    if (template.recurrence_type === "weekly") {
+        const days = template.recurrence_days && template.recurrence_days.length
+            ? template.recurrence_days.filter(day => WEEKDAY_NUMERIC.includes(day))
+            : [];
+        recurrence.days_of_week = days;
+    } else if (template.recurrence_days && template.recurrence_days.length) {
+        recurrence.days_of_week = template.recurrence_days;
+    }
+
+    return recurrence;
+}
 
 // Computed properties for display
 const selectedPriority = computed(() => {
@@ -253,6 +353,32 @@ const labelButtonText = computed(() => {
     return `${count} Labels`;
 });
 
+const recurrenceButtonText = computed(() => {
+    if (!recurrenceType.value) {
+        return "Repeat";
+    }
+
+    const timeDisplay = recurrenceTime.value ? ` · ${recurrenceTime.value}` : "";
+
+    if (recurrenceType.value === "daily") {
+        return `Daily${timeDisplay}`;
+    }
+
+    if (recurrenceType.value === "alternate_days") {
+        return `Every Other Day${timeDisplay}`;
+    }
+
+    if (recurrenceType.value === "weekly") {
+        const selectedDays = recurrenceDaysOfWeek.value
+            .sort((a, b) => a - b)
+            .map(day => WEEKDAY_LABELS[day]);
+        const daysLabel = selectedDays.length ? selectedDays.join(" ") : "Days";
+        return `Weekly · ${daysLabel}${timeDisplay}`;
+    }
+
+    return "Repeat";
+});
+
 // Watch for modal visibility changes and load task data
 watch(
     () => taskStore.isTaskModalVisible,
@@ -277,7 +403,9 @@ watch(
                     currentTask.label_ids?.slice() ??
                     (currentTask.labels ? currentTask.labels.map(label => label.id) : []);
 
-                // Load checklists for this task
+                existingRecurringTaskId.value = currentTask.recurring_task_id ?? null;
+                const recurrenceSource = currentTask.recurrence ?? getRecurrenceFromTemplate(existingRecurringTaskId.value);
+                setRecurrenceState(recurrenceSource);
                 await loadChecklists(currentTask.id);
             } else {
                 // Creating new task
@@ -287,10 +415,21 @@ watch(
             // Clear checklists when modal closes
             checklistStore.clearChecklists();
             showLabelPicker.value = false;
+            showRecurrencePicker.value = false;
             resetForm();
         }
     }
 );
+
+function setRecurrenceState(recurrence: TaskRecurrence | null) {
+    if (recurrence) {
+        recurrenceType.value = recurrence.type;
+        recurrenceTime.value = recurrence.time ?? null;
+        recurrenceDaysOfWeek.value = recurrence.days_of_week ? [...recurrence.days_of_week] : [];
+    } else {
+        resetRecurrence();
+    }
+}
 
 async function loadChecklists(taskId: string) {
     try {
@@ -322,16 +461,169 @@ async function addChecklist() {
     }
 }
 
-async function saveTask() {
-    if (title.value.trim() === "" || !taskStore.currentSectionId) return;
+function toggleWeekday(dayIndex: number) {
+    if (recurrenceDaysOfWeek.value.includes(dayIndex)) {
+        recurrenceDaysOfWeek.value = recurrenceDaysOfWeek.value.filter(day => day !== dayIndex);
+    } else {
+        recurrenceDaysOfWeek.value = [...recurrenceDaysOfWeek.value, dayIndex].sort((a, b) => a - b);
+    }
+}
 
-    isLoading.value = true;
-    const currentTask = taskStore.getCurrentTask;
+function resetRecurrence() {
+    recurrenceType.value = null;
+    recurrenceTime.value = null;
+    recurrenceDaysOfWeek.value = [];
+}
+
+function clearRecurrence() {
+    resetRecurrence();
+    showRecurrencePicker.value = false;
+}
+
+function getRecurrencePayload(): TaskRecurrence | null {
+    if (!recurrenceType.value) {
+        return null;
+    }
+
+    if (!recurrenceTime.value) {
+        throw new Error("Select a time for the recurrence.");
+    }
+
+    if (recurrenceType.value === "weekly") {
+        if (!recurrenceDaysOfWeek.value.length) {
+            throw new Error("Select at least one day for weekly recurrence.");
+        }
+
+        return {
+            type: recurrenceType.value,
+            time: recurrenceTime.value,
+            days_of_week: [...recurrenceDaysOfWeek.value].sort((a, b) => a - b),
+        };
+    }
+
+    return {
+        type: recurrenceType.value,
+        time: recurrenceTime.value,
+    };
+}
+
+function computeStartDate(): string {
+    const source = dueDateTimeString.value ? new Date(dueDateTimeString.value) : new Date();
+    return source.toISOString().split("T")[0];
+}
+
+function getLabelIdsPayload(): string[] | null {
+    return selectedLabelIds.value.length ? [...selectedLabelIds.value] : null;
+}
+
+function buildRecurringTaskCreatePayload(task: Task, recurrence: TaskRecurrence): RecurringTaskCreateInput {
+    const recurrenceDays =
+        recurrence.type === "weekly" ? [...(recurrence.days_of_week ?? [])] : null;
+
+    return {
+        title: title.value.trim(),
+        description: description.value,
+        project_id: task.project_id,
+        section_id: task.section_id,
+        priority_id: priorityId.value ?? null,
+        label_ids: getLabelIdsPayload(),
+        recurrence_type: recurrence.type,
+        recurrence_days: recurrenceDays,
+        recurrence_time: recurrence.time,
+        start_date: computeStartDate(),
+        end_date: null,
+        is_active: true,
+    };
+}
+
+function buildRecurringTaskUpdatePayload(recurrence: TaskRecurrence): RecurringTaskUpdateInput {
+    const recurrenceDays =
+        recurrence.type === "weekly" ? [...(recurrence.days_of_week ?? [])] : null;
+
+    const payload: RecurringTaskUpdateInput = {
+        title: title.value.trim(),
+        description: description.value,
+        priority_id: priorityId.value ?? null,
+        label_ids: getLabelIdsPayload(),
+        recurrence_type: recurrence.type,
+        recurrence_days: recurrenceDays,
+        recurrence_time: recurrence.time,
+    };
+
+    if (dueDateTimeString.value) {
+        payload.start_date = computeStartDate();
+    }
+
+    return payload;
+}
+
+async function syncRecurringTemplate(task: Task, recurrence: TaskRecurrence | null) {
+    const targetTask = taskStore.getTaskById(task.id) ?? task;
 
     try {
+        if (!recurrence) {
+            if (existingRecurringTaskId.value) {
+                await recurringTaskStore.deleteRecurringTask(existingRecurringTaskId.value);
+                existingRecurringTaskId.value = null;
+            }
+            taskStore.setTaskRecurrence(task.id, null, null);
+            return;
+        }
+
+        if (existingRecurringTaskId.value) {
+            const updatePayload = buildRecurringTaskUpdatePayload(recurrence);
+            await recurringTaskStore.updateRecurringTask(
+                existingRecurringTaskId.value,
+                updatePayload
+            );
+            taskStore.setTaskRecurrence(task.id, recurrence, existingRecurringTaskId.value);
+        } else {
+            const createPayload = buildRecurringTaskCreatePayload(targetTask, recurrence);
+            const created = await recurringTaskStore.createRecurringTask(createPayload);
+            existingRecurringTaskId.value = created.id;
+            taskStore.setTaskRecurrence(task.id, recurrence, created.id);
+        }
+    } catch (error) {
+        throw error instanceof Error ? error : new Error("Failed to synchronize recurring task");
+    }
+}
+
+async function saveTask() {
+    if (title.value.trim() === "") return;
+
+    let recurrencePayload: TaskRecurrence | null;
+    try {
+        recurrencePayload = getRecurrencePayload();
+    } catch (validationError) {
+        const detail =
+            validationError instanceof Error
+                ? validationError.message
+                : "Invalid recurrence configuration.";
+        toast.add({ severity: "warn", summary: "Recurring Task", detail });
+        return;
+    }
+
+    const currentTask = taskStore.getCurrentTask;
+    const sectionIdForCreate = currentTask
+        ? currentTask.section_id
+        : taskStore.currentSectionId;
+
+    if (!currentTask && !sectionIdForCreate) {
+        toast.add({
+            severity: "warn",
+            summary: "Task",
+            detail: "Select a section before creating a task."
+        });
+        return;
+    }
+
+    isLoading.value = true;
+
+    try {
+        let savedTask: Task;
+
         if (currentTask) {
-            // Update existing task
-            await taskStore.updateTask(currentTask.id, {
+            savedTask = await taskStore.updateTask(currentTask.id, {
                 title: title.value,
                 description: description.value,
                 completed: taskCompleted.value,
@@ -340,10 +632,9 @@ async function saveTask() {
                 label_ids: selectedLabelIds.value,
             });
         } else {
-            // Create new task
-            await taskStore.createTask({
+            savedTask = await taskStore.createTask({
                 project_id: props.projectId,
-                section_id: taskStore.currentSectionId,
+                section_id: sectionIdForCreate as string,
                 title: title.value,
                 description: description.value,
                 priority_id: priorityId.value,
@@ -351,9 +642,13 @@ async function saveTask() {
                 label_ids: selectedLabelIds.value,
             });
         }
+
+        await syncRecurringTemplate(savedTask, recurrencePayload);
+
         taskStore.setTaskModalVisible(false);
     } catch (error) {
-        toast.add({ severity: "error", summary: "Error", detail: "Failed to save task" });
+        const detail = error instanceof Error ? error.message : "Failed to save task";
+        toast.add({ severity: "error", summary: "Error", detail });
     } finally {
         isLoading.value = false;
     }
@@ -374,6 +669,9 @@ function resetForm() {
     newChecklistTitle.value = "";
     selectedLabelIds.value = [];
     showLabelPicker.value = false;
+    showRecurrencePicker.value = false;
+    resetRecurrence();
+    existingRecurringTaskId.value = null;
 }
 
 onMounted(async () => {
@@ -445,7 +743,7 @@ onMounted(async () => {
 .checklist-form label {
     font-size: 0.875rem;
     font-weight: 500;
-    color: var(--p-gray-100);
+    color: var(--p-text-color);
 }
 
 .checklist-form .add-button {
@@ -595,7 +893,78 @@ onMounted(async () => {
 
 .action-buttons-row :deep(.p-datepicker:hover) {
     border-color: var(--p-button-outlined-primary-border-color);
-   background: var(--p-button-outlined-primary-hover-background);
+    background: var(--p-button-outlined-primary-hover-background);
+}
+
+.button-icon {
+    margin-right: 0.4rem;
+}
+
+.recurrence-picker {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.recurrence-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.recurrence-field label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--p-text-color);
+}
+
+.weekday-selector {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 0.4rem;
+}
+
+.weekday-chip {
+    padding: 0.4rem 0;
+    border-radius: 6px;
+    border: 1px solid var(--p-content-border-color);
+    background: var(--p-content-hover-background);
+    color: var(--p-text-color);
+    font-size: 0.8125rem;
+    text-align: center;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.weekday-chip:hover {
+    border-color: var(--p-primary-color);
+}
+
+.weekday-chip.active {
+    background: var(--p-primary-color);
+    color: #fff;
+    border-color: var(--p-primary-color);
+}
+
+.recurrence-time-input {
+    padding: 0.5rem;
+    border-radius: 6px;
+    border: 1px solid var(--p-content-border-color);
+    background: var(--p-content-background);
+    color: var(--p-text-color);
+}
+
+.recurrence-time-input:focus {
+    outline: none;
+    border-color: var(--p-primary-color);
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.03);
+}
+
+.recurrence-actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding-top: 0.5rem;
 }
 
 @keyframes spin {

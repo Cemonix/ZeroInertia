@@ -23,6 +23,9 @@ class Priority(Base):
     tasks: Mapped[list["Task"]] = relationship(  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
         back_populates="priority"
     )
+    recurring_tasks: Mapped[list["RecurringTask"]] = relationship(  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
+        back_populates="priority"
+    )
 
     # Constraints and Indexes
     # TODO: Redundant with unique=True on name, can be removed
