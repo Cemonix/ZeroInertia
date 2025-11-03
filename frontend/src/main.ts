@@ -31,7 +31,8 @@ import {
   faHouse,
   faTriangleExclamation,
   faSun,
-  faMoon
+  faMoon,
+  faRepeat
 } from '@fortawesome/free-solid-svg-icons'
 
 // PrimeVue components
@@ -65,7 +66,8 @@ library.add(
   faHouse,
   faTriangleExclamation,
   faSun,
-  faMoon
+  faMoon,
+  faRepeat
 )
 
 const app = createApp(App)

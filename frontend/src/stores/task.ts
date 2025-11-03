@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import type { Task, TaskCreateInput, TaskReorderItem } from '@/models/task';
+import type { Task, TaskCreateInput, TaskReorderItem, TaskRecurrence } from '@/models/task';
 import { taskService } from '@/services/taskService';
 
 export const useTaskStore = defineStore('task', () => {
@@ -169,6 +169,17 @@ export const useTaskStore = defineStore('task', () => {
         }
     }
 
+    function setTaskRecurrence(taskId: string, recurrence: TaskRecurrence | null, recurringTaskId: string | null = null) {
+        const index = tasks.value.findIndex(task => task.id === taskId);
+        if (index === -1) return;
+        const existing = tasks.value[index];
+        tasks.value[index] = {
+            ...existing,
+            recurrence,
+            recurring_task_id: recurringTaskId ?? null
+        };
+    }
+
     return {
         tasks,
         loading,
@@ -189,5 +200,6 @@ export const useTaskStore = defineStore('task', () => {
         updateTask,
         deleteTask,
         reorderTasks,
+        setTaskRecurrence,
     };
 });
