@@ -88,6 +88,19 @@ export const useTaskStore = defineStore('task', () => {
         }
     }
 
+    async function loadAllTasks() {
+        loading.value = true;
+        error.value = null;
+        try {
+            tasks.value = await taskService.getTasks();
+        } catch (err) {
+            error.value = err instanceof Error ? err.message : 'Failed to load tasks';
+            tasks.value = [];
+        } finally {
+            loading.value = false;
+        }
+    }
+
     async function createTask(taskData: TaskCreateInput) {
         loading.value = true;
         error.value = null;
@@ -196,6 +209,7 @@ export const useTaskStore = defineStore('task', () => {
         openTaskModal,
         toggleTaskComplete,
         loadTasksForProject,
+        loadAllTasks,
         createTask,
         updateTask,
         deleteTask,
