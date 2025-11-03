@@ -27,6 +27,7 @@ class Task(Base):
     project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
     section_id: Mapped[UUID] = mapped_column(ForeignKey("sections.id", ondelete="CASCADE"), nullable=False)
     priority_id: Mapped[UUID | None] = mapped_column(ForeignKey("priorities.id", ondelete="SET NULL"), nullable=True)
+    recurring_task_id: Mapped[UUID | None] = mapped_column(ForeignKey("recurring_tasks.id", ondelete="SET NULL"), nullable=True)
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
@@ -39,6 +40,7 @@ class Task(Base):
     project: Mapped["Project"] = relationship(back_populates="tasks")  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
     section: Mapped["Section"] = relationship(back_populates="tasks")  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
     priority: Mapped["Priority | None"] = relationship(back_populates="tasks")  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
+    recurring_task: Mapped["RecurringTask | None"] = relationship(back_populates="generated_tasks")  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
     checklists: Mapped[list["CheckList"]] = relationship(  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
         back_populates="task", cascade="all, delete-orphan", order_by="CheckList.order_index"
     )
