@@ -72,6 +72,7 @@ import { useTaskStore } from "@/stores/task";
 import { usePriorityStore } from "@/stores/priority";
 import { useLabelStore } from "@/stores/label";
 import type { Label } from "@/models/label";
+import { JS_WEEKDAY_LABELS } from "@/utils/recurrenceUtils";
 
 const taskStore = useTaskStore();
 const priorityStore = usePriorityStore();
@@ -103,8 +104,8 @@ const taskLabels = computed<Label[]>(() => {
     return [];
 });
 
-const WEEK_DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
+// Recurrence summary for display
+// Note: days_of_week in task.recurrence uses JS convention (0=Sunday) after conversion from backend
 const recurrenceSummary = computed(() => {
     const recurrence = props.task.recurrence;
     if (recurrence) {
@@ -119,7 +120,7 @@ const recurrenceSummary = computed(() => {
             if (!days.length) {
                 return "Weekly";
             }
-            const labels = days.map(dayIndex => WEEK_DAYS[dayIndex] ?? "").filter(Boolean);
+            const labels = days.map(dayIndex => JS_WEEKDAY_LABELS[dayIndex] ?? "").filter(Boolean);
             return labels.join(" · ") || "Weekly";
         }
     }

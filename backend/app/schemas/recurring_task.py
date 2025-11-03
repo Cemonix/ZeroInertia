@@ -25,7 +25,7 @@ class RecurringTaskCreate(BaseModel):
     recurrence_type: RecurrenceTypeEnum
     recurrence_days: list[int] | None = Field(
         None,
-        description="Array of weekday integers (0=Monday, 6=Sunday) for weekly recurrence"
+        description="Array of weekday integers using Python's convention (0=Monday, 1=Tuesday, ..., 6=Sunday) for weekly recurrence"
     )
     recurrence_time: time = Field(..., description="Time of day when task should be created")
     start_date: date = Field(..., description="Date when recurrence starts")
@@ -46,9 +46,9 @@ class RecurringTaskCreate(BaseModel):
                 raise ValueError("recurrence_days is only allowed for weekly recurrence")
             return None
 
-        # Check all values are valid weekday numbers (0-6)
+        # Check all values are valid weekday numbers (0-6, Python's weekday() convention)
         if not all(0 <= day <= 6 for day in v):
-            raise ValueError("recurrence_days must contain integers between 0 (Monday) and 6 (Sunday)")
+            raise ValueError("recurrence_days must contain integers between 0 (Monday) and 6 (Sunday) using Python's weekday() convention")
         # Check for duplicates
         if len(v) != len(set(v)):
             raise ValueError("recurrence_days must not contain duplicate values")
@@ -89,7 +89,7 @@ class RecurringTaskUpdate(BaseModel):
         """Validate recurrence_days values"""
         if v is not None:
             if not all(0 <= day <= 6 for day in v):
-                raise ValueError("recurrence_days must contain integers between 0 (Monday) and 6 (Sunday)")
+                raise ValueError("recurrence_days must contain integers between 0 (Monday) and 6 (Sunday) using Python's weekday() convention")
             if len(v) != len(set(v)):
                 raise ValueError("recurrence_days must not contain duplicate values")
             v = sorted(v)
