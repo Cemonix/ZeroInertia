@@ -1,4 +1,4 @@
-import type { Task, TaskCreateInput, TaskReorderItem } from "@/models/task";
+import type { Task, TaskCreateInput, TaskUpdateInput, TaskReorderItem } from "@/models/task";
 import apiClient from "./apiClient";
 
 const API_URL = "/api/v1/tasks";
@@ -21,7 +21,7 @@ export const taskService = {
         return response.data;
     },
 
-    async updateTask(taskId: string, updates: Partial<Omit<Task, 'id' | 'created_at'>>): Promise<Task> {
+    async updateTask(taskId: string, updates: TaskUpdateInput): Promise<Task> {
         const response = await apiClient.patch(`${API_URL}/${taskId}`, updates);
         return response.data;
     },
@@ -36,5 +36,10 @@ export const taskService = {
 
     async archiveTask(taskId: string): Promise<void> {
         await apiClient.post(`${API_URL}/${taskId}/archive`);
+    },
+
+    async snoozeTask(taskId: string): Promise<Task> {
+        const response = await apiClient.post(`${API_URL}/${taskId}/snooze`);
+        return response.data;
     }
 }

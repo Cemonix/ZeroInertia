@@ -29,7 +29,6 @@ class Project(Base):
     subprojects: Mapped[list["Project"]] = relationship(back_populates="parent")
     sections: Mapped[list["Section"]] = relationship(back_populates="project", cascade="all, delete-orphan")  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
     tasks: Mapped[list["Task"]] = relationship(back_populates="project", cascade="all, delete-orphan")  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
-    recurring_tasks: Mapped[list["RecurringTask"]] = relationship(back_populates="project", cascade="all, delete-orphan")  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
 
     # Constraints and Indexes
     __table_args__: tuple[Index] = (

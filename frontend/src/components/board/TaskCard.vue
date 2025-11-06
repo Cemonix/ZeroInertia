@@ -53,36 +53,56 @@
                 text
                 rounded
                 size="small"
-                severity="danger"
-                class="task-delete-btn"
-                @click.stop="handleDelete"
+                class="task-menu-trigger"
+                aria-haspopup="true"
+                :aria-controls="menuId"
+                @click.stop="toggleTaskMenu"
+                aria-label="Task options"
             >
                 <template #icon>
-                    <FontAwesomeIcon icon="trash" />
+                    <FontAwesomeIcon icon="ellipsis" />
                 </template>
             </Button>
+            <Menu
+                :id="menuId"
+                ref="taskMenu"
+                :model="taskMenuItems"
+                :popup="true"
+            />
         </div>
     </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import type { Task } from "@/models/task";
 import { useTaskStore } from "@/stores/task";
 import { usePriorityStore } from "@/stores/priority";
 import { useLabelStore } from "@/stores/label";
 import type { Label } from "@/models/label";
-import { JS_WEEKDAY_LABELS } from "@/utils/recurrenceUtils";
+import { JS_WEEKDAY_LABELS, pythonDayToJsDay } from "@/utils/recurrenceUtils";
+import type { MenuItem } from "primevue/menuitem";
+import { useToast } from "primevue/usetoast";
 
 const taskStore = useTaskStore();
 const priorityStore = usePriorityStore();
 const labelStore = useLabelStore();
+const toast = useToast();
 
 interface Props {
     task: Task;
 }
 
 const props = defineProps<Props>();
+
+type TaskMenuInstance = {
+    toggle: (event: MouseEvent) => void;
+    hide: () => void;
+};
+
+const taskMenu = ref<TaskMenuInstance | null>(null);
+
+const menuId = computed(() => `task_menu_${props.task.id}`);
 
 // Get the full priority object for this task
 const taskPriority = computed(() => {
@@ -104,28 +124,33 @@ const taskLabels = computed<Label[]>(() => {
     return [];
 });
 
-// Recurrence summary for display
-// Note: days_of_week in task.recurrence uses JS convention (0=Sunday) after conversion from backend
 const recurrenceSummary = computed(() => {
-    const recurrence = props.task.recurrence;
-    if (recurrence) {
-        if (recurrence.type === "daily") {
+    const recurrenceType = props.task.recurrence_type;
+    if (recurrenceType) {
+        if (recurrenceType === "daily") {
             return "Daily";
         }
-        if (recurrence.type === "alternate_days") {
+        if (recurrenceType === "alternate_days") {
             return "Every other day";
         }
-        if (recurrence.type === "weekly") {
-            const days = recurrence.days_of_week ?? [];
+        if (recurrenceType === "weekly") {
+            const days = props.task.recurrence_days ?? [];
             if (!days.length) {
                 return "Weekly";
             }
-            const labels = days.map(dayIndex => JS_WEEKDAY_LABELS[dayIndex] ?? "").filter(Boolean);
+            // recurrence_days uses Python convention (0=Mon), convert to JS convention for display
+            const labels = days
+                .map(dayIndex => {
+                    try {
+                        const jsDay = pythonDayToJsDay(dayIndex);
+                        return JS_WEEKDAY_LABELS[jsDay] ?? "";
+                    } catch {
+                        return "";
+                    }
+                })
+                .filter(Boolean);
             return labels.join(" · ") || "Weekly";
         }
-    }
-    if (props.task.recurring_task_id) {
-        return "Recurring";
     }
     return null;
 });
@@ -185,16 +210,15 @@ const isFuture = computed(() => {
 });
 
 const handleCardClick = (event: MouseEvent) => {
-    // Don't trigger card click if clicking on checkbox or delete button
+    // Ignore clicks originating from interactive controls
     const target = event.target as HTMLElement;
     if (
         target.closest(".task-checkbox") ||
-        target.closest(".task-delete-btn")
+        target.closest(".task-actions")
     ) {
         return;
     }
 
-    // Open task modal for editing
     taskStore.openTaskModal(props.task.section_id, props.task);
 };
 
@@ -202,9 +226,84 @@ const handleToggleComplete = () => {
     taskStore.toggleTaskComplete(props.task.id);
 };
 
-const handleDelete = () => {
-    taskStore.deleteTask(props.task.id);
+const closeMenu = () => {
+    taskMenu.value?.hide();
 };
+
+const handleDelete = async () => {
+    closeMenu();
+    await taskStore.deleteTask(props.task.id);
+};
+
+const handleDuplicate = async () => {
+    closeMenu();
+    await taskStore.duplicateTask(props.task.id);
+};
+
+const handleSnooze = async () => {
+    closeMenu();
+    try {
+        const updatedTask = await taskStore.snoozeTask(props.task.id);
+        if (updatedTask?.due_datetime) {
+            const dueDate = new Date(updatedTask.due_datetime);
+            const formatted = dueDate.toLocaleString(undefined, {
+                month: "short",
+                day: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+            });
+            toast.add({
+                severity: "info",
+                summary: "Task snoozed",
+                detail: `Next due ${formatted}`,
+                life: 3500,
+            });
+        } else {
+            toast.add({
+                severity: "info",
+                summary: "Task snoozed",
+                detail: "Task snoozed successfully.",
+                life: 3500,
+            });
+        }
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to snooze task";
+        toast.add({
+            severity: "error",
+            summary: "Error",
+            detail: message,
+            life: 4000,
+        });
+    }
+};
+
+const toggleTaskMenu = (event: MouseEvent) => {
+    taskMenu.value?.toggle(event);
+};
+
+const taskMenuItems = computed<MenuItem[]>(() => {
+    const items: MenuItem[] = [];
+
+    if (props.task.due_datetime && !props.task.completed) {
+        items.push({
+            label: "Snooze Task",
+            command: () => handleSnooze(),
+        });
+    }
+
+    items.push(
+        {
+            label: "Duplicate Task",
+            command: () => handleDuplicate(),
+        },
+        {
+            label: "Delete Task",
+            command: () => handleDelete(),
+        },
+    );
+
+    return items;
+});
 </script>
 
 <style scoped>
@@ -317,6 +416,7 @@ const handleDelete = () => {
     display: flex;
     gap: 0.25rem;
     flex-shrink: 0;
+    align-items: center;
     transition: opacity 0.2s;
 }
 

@@ -30,6 +30,8 @@ async def create_task(
             section_id=task_data.section_id,
             priority_id=task_data.priority_id,
             due_datetime=task_data.due_datetime,
+            recurrence_type=task_data.recurrence_type,
+            recurrence_days=task_data.recurrence_days,
             label_ids=task_data.label_ids,
         )
     except ValueError as exc:
@@ -158,3 +160,28 @@ async def archive_task(
         await task_service.archive_task(db=db, task_id=task_id, user_id=current_user.id)
     except ValueError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found") from None
+
+
+@router.post(
+    "/{task_id}/snooze",
+    response_model=TaskResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def snooze_task(
+    task_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> TaskResponse:
+    """Snooze a specific task by ID for the authenticated user."""
+    try:
+        snoozed_task = await task_service.snooze_task(
+            db=db,
+            task_id=task_id,
+            user_id=current_user.id,
+        )
+        return TaskResponse.model_validate(snoozed_task)
+    except ValueError as exc:
+        message = str(exc)
+        if message == "Task not found":
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=message) from exc
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=message) from exc

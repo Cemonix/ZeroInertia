@@ -1,7 +1,8 @@
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, ForeignKey, Index, String, func
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, func
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import Text
 
@@ -22,12 +23,16 @@ class Task(Base):
     due_datetime: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     archived: Mapped[bool] = mapped_column(default=False, nullable=False)
     order_index: Mapped[int] = mapped_column(default=0, nullable=False)
+    snooze_count: Mapped[int] = mapped_column(default=0, nullable=False)  # Track how many times task was snoozed
+
+    # Recurrence fields
+    recurrence_type: Mapped[str | None] = mapped_column(String(50), nullable=True)  # daily | weekly | alternate_days
+    recurrence_days: Mapped[list[int] | None] = mapped_column(ARRAY(Integer), nullable=True)  # For weekly: 0=Mon, 6=Sun
 
     user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
     section_id: Mapped[UUID] = mapped_column(ForeignKey("sections.id", ondelete="CASCADE"), nullable=False)
     priority_id: Mapped[UUID | None] = mapped_column(ForeignKey("priorities.id", ondelete="SET NULL"), nullable=True)
-    recurring_task_id: Mapped[UUID | None] = mapped_column(ForeignKey("recurring_tasks.id", ondelete="SET NULL"), nullable=True)
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
@@ -40,7 +45,6 @@ class Task(Base):
     project: Mapped["Project"] = relationship(back_populates="tasks")  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
     section: Mapped["Section"] = relationship(back_populates="tasks")  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
     priority: Mapped["Priority | None"] = relationship(back_populates="tasks")  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
-    recurring_task: Mapped["RecurringTask | None"] = relationship(back_populates="generated_tasks")  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
     checklists: Mapped[list["CheckList"]] = relationship(  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
         back_populates="task", cascade="all, delete-orphan", order_by="CheckList.order_index"
     )

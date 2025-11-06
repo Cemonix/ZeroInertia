@@ -1,5 +1,5 @@
 <template>
-    <div class="board-section">
+    <div class="board-section" v-bind="attrs">
         <!-- Section Header -->
         <div class="section-header">
             <div class="section-info" @click="toggleCollapse">
@@ -99,7 +99,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, useAttrs } from "vue";
 import { useTaskStore } from "@/stores/task";
 import { useSectionStore } from "@/stores/section";
 import { useConfirm } from "primevue/useconfirm";
@@ -125,6 +125,7 @@ const sectionStore = useSectionStore();
 const confirm = useConfirm();
 
 const props = defineProps<Props>();
+const attrs = useAttrs();
 
 // State
 const menu = ref<InstanceType<typeof Menu>>();

@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
-from app.api.v1 import auth, checklist, label, note, priority, project, recurring_task, section, streak, task
+from app.api.v1 import auth, checklist, label, note, priority, project, section, streak, task
 from app.core.database import engine
 from app.core.logging import logger, setup_logging
 from app.core.scheduler import setup_scheduler
@@ -74,7 +74,6 @@ app.include_router(auth.router, prefix="/api/v1/auth", tags=["authentication"])
 app.include_router(project.router, prefix="/api/v1/projects", tags=["projects"])
 app.include_router(section.router, prefix="/api/v1/sections", tags=["sections"])
 app.include_router(task.router, prefix="/api/v1/tasks", tags=["tasks"])
-app.include_router(recurring_task.router, prefix="/api/v1/recurring-tasks", tags=["recurring-tasks"])
 app.include_router(checklist.router, prefix="/api/v1/checklists", tags=["checklists"])
 app.include_router(priority.router, prefix="/api/v1/priorities", tags=["priorities"])
 app.include_router(streak.router, prefix="/api/v1/streaks", tags=["streaks"])

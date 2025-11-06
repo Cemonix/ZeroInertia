@@ -11,25 +11,66 @@
             <template #default="{ node }">
                 <div class="node-content">
                     <span class="node-label">{{ node.label }}</span>
-                    <Button
-                        severity="danger"
-                        text
-                        rounded
-                        size="small"
-                        class="node-action"
-                        @click.stop="confirmProjectDeletion(node)"
-                        aria-label="Delete project"
-                    >
-                        <FontAwesomeIcon icon="trash" />
-                    </Button>
+                    <div class="node-actions">
+                        <Button
+                            text
+                            rounded
+                            size="small"
+                            class="node-action"
+                            aria-haspopup="true"
+                            :aria-controls="`project_menu_${node.key}`"
+                            @click.stop="toggleProjectMenu(node, $event)"
+                            aria-label="Project options"
+                        >
+                            <FontAwesomeIcon icon="ellipsis" />
+                        </Button>
+                        <Menu
+                            :id="`project_menu_${node.key}`"
+                            :model="getProjectMenuItems(node)"
+                            :popup="true"
+                            :ref="(el) => setMenuRef(node.key, el)"
+                        />
+                    </div>
                 </div>
             </template>
         </Tree>
+        <Dialog
+            v-model:visible="isRenameDialogVisible"
+            header="Rename Project"
+            modal
+            :style="{ width: '420px' }"
+            :pt="{ content: { style: { padding: '1.5rem' } } }"
+            @hide="onRenameDialogHide"
+        >
+            <div class="rename-project-form">
+                <label for="project-rename-input">Project name</label>
+                <InputText
+                    id="project-rename-input"
+                    v-model="renameProjectTitle"
+                    autofocus
+                    @keyup.enter="handleRenameProject"
+                />
+                <div class="rename-project-actions">
+                    <Button
+                        label="Cancel"
+                        text
+                        type="button"
+                        @click="isRenameDialogVisible = false"
+                    />
+                    <Button
+                        label="Save"
+                        type="button"
+                        :disabled="!renameProjectTitle.trim() || renameProjectTitle.trim() === originalProjectTitle"
+                        @click="handleRenameProject"
+                    />
+                </div>
+            </div>
+        </Dialog>
     </div>
 </template>
 
 <script lang="ts" setup>
-import { onMounted, ref, watch, watchEffect, type Ref } from 'vue';
+import { onMounted, ref, watch, watchEffect, type Ref, type ComponentPublicInstance } from 'vue';
 import Tree from 'primevue/tree';
 import type { TreeExpandedKeys, TreeNodeDropEvent } from 'primevue/tree';
 import type { TreeNode } from 'primevue/treenode';
@@ -38,6 +79,7 @@ import type { Project, ProjectReorderItem } from '@/models/project';
 import { useAuthStore } from '@/stores/auth';
 import { useToast } from "primevue";
 import Button from 'primevue/button';
+import Menu from 'primevue/menu';
 import { useConfirm } from 'primevue/useconfirm';
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
 import { storeToRefs } from 'pinia';
@@ -52,6 +94,15 @@ const authStore = useAuthStore();
 const { selectedProject } = storeToRefs(projectStore);
 const treeNodes: Ref<TreeNode[]> = ref([]);
 const expandedKeys: Ref<TreeExpandedKeys> = ref({});
+type ProjectMenu = ComponentPublicInstance & {
+    toggle: (event: MouseEvent) => void;
+    hide: () => void;
+};
+const menuRefs = new Map<string, ProjectMenu>();
+const isRenameDialogVisible = ref(false);
+const renameProjectTitle = ref('');
+const projectBeingRenamed = ref<TreeNode | null>(null);
+const originalProjectTitle = ref('');
 
 // Watch for changes from backend and rebuild tree
 watchEffect(() => {
@@ -109,6 +160,85 @@ function flattenTree(nodes: TreeNode[], parentId: string | null = null): Project
 function onNodeDrop(_event: TreeNodeDropEvent) {
     const flattenedTree = flattenTree(treeNodes.value);
     projectStore.handleTreeReorder(flattenedTree);
+}
+
+function getProjectMenuItems(node: TreeNode) {
+    return [
+        {
+            label: 'Rename Project',
+            command: () => openRenameDialog(node),
+        },
+        {
+            label: 'Delete Project',
+            command: () => confirmProjectDeletion(node),
+        },
+    ];
+}
+
+function setMenuRef(
+    key: TreeNode['key'],
+    menu: Element | ComponentPublicInstance | null
+) {
+    if (key === undefined || key === null) {
+        return;
+    }
+    const normalizedKey = typeof key === 'string' ? key : String(key);
+    if (menu && 'toggle' in menu && typeof (menu as ProjectMenu).toggle === 'function') {
+        menuRefs.set(normalizedKey, menu as ProjectMenu);
+    } else {
+        menuRefs.delete(normalizedKey);
+    }
+}
+
+function toggleProjectMenu(node: TreeNode, event: MouseEvent) {
+    if (node.key === undefined || node.key === null) {
+        return;
+    }
+    const normalizedKey = typeof node.key === 'string' ? node.key : String(node.key);
+    const menu = menuRefs.get(normalizedKey);
+    menu?.toggle(event);
+}
+
+function openRenameDialog(node: TreeNode) {
+    projectBeingRenamed.value = node;
+    renameProjectTitle.value = typeof node.label === 'string' ? node.label : '';
+    originalProjectTitle.value = renameProjectTitle.value;
+    isRenameDialogVisible.value = true;
+}
+
+function onRenameDialogHide() {
+    projectBeingRenamed.value = null;
+    renameProjectTitle.value = '';
+    originalProjectTitle.value = '';
+}
+
+async function handleRenameProject() {
+    const node = projectBeingRenamed.value;
+    if (!node || !node.key) {
+        isRenameDialogVisible.value = false;
+        return;
+    }
+
+    const trimmedTitle = renameProjectTitle.value.trim();
+    if (!trimmedTitle || trimmedTitle === originalProjectTitle.value) {
+        isRenameDialogVisible.value = false;
+        return;
+    }
+
+    try {
+        await projectStore.updateProject(String(node.key), { title: trimmedTitle });
+        toast.add({
+            severity: "success",
+            summary: "Project renamed",
+            detail: `Project is now "${trimmedTitle}".`,
+            life: 4000,
+        });
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to rename project";
+        toast.add({ severity: "error", summary: "Error", detail: message });
+    } finally {
+        isRenameDialogVisible.value = false;
+    }
 }
 
 function confirmProjectDeletion(node: TreeNode) {
@@ -179,8 +309,30 @@ onMounted(async () => {
     transition: opacity 0.2s ease;
 }
 
+.node-actions {
+    display: flex;
+    align-items: center;
+}
+
 .node-content:hover .node-action,
 .node-content:focus-within .node-action {
     opacity: 1;
+}
+
+.rename-project-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.rename-project-form label {
+    font-weight: 600;
+    color: var(--p-text-color);
+}
+
+.rename-project-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
 }
 </style>

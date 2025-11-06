@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import type { Task, TaskCreateInput, TaskReorderItem, TaskRecurrence } from '@/models/task';
+import type { Task, TaskCreateInput, TaskUpdateInput, TaskReorderItem } from '@/models/task';
 import { taskService } from '@/services/taskService';
+import { playTaskCompletedSound } from '@/core/sound';
 
 export const useTaskStore = defineStore('task', () => {
     const tasks = ref<Task[]>([]);
@@ -62,13 +63,31 @@ export const useTaskStore = defineStore('task', () => {
         const task = getTaskById.value(taskId);
         if (!task) return;
 
+        const wasRecurring = !!task.recurrence_type;
+        const projectId = task.project_id;
+
         try {
             const updatedTask = await taskService.updateTask(taskId, {
                 completed: !task.completed,
             });
-            const index = tasks.value.findIndex(t => t.id === taskId);
-            if (index !== -1) {
-                tasks.value[index] = updatedTask;
+
+            // If task was recurring and is now completed, it was archived and a new one was created
+            // We need to reload the project's tasks to get the new task and remove the archived one
+            if (wasRecurring && !task.completed && updatedTask.completed && updatedTask.archived) {
+                // Remove the archived task from the list
+                tasks.value = tasks.value.filter(t => t.id !== taskId);
+                // Reload tasks for this project to get the new recurring task instance
+                await loadTasksForProject(projectId);
+            } else {
+                // Normal task completion - just update in place
+                const index = tasks.value.findIndex(t => t.id === taskId);
+                if (index !== -1) {
+                    tasks.value[index] = updatedTask;
+                }
+            }
+
+            if (!task.completed && updatedTask.completed) {
+                await playTaskCompletedSound();
             }
         } catch (err) {
             error.value = err instanceof Error ? err.message : "Failed to toggle task completion";
@@ -116,7 +135,7 @@ export const useTaskStore = defineStore('task', () => {
         }
     }
 
-    async function updateTask(taskId: string, updates: Partial<Task>) {
+    async function updateTask(taskId: string, updates: TaskUpdateInput) {
         loading.value = true;
         error.value = null;
         try {
@@ -182,15 +201,47 @@ export const useTaskStore = defineStore('task', () => {
         }
     }
 
-    function setTaskRecurrence(taskId: string, recurrence: TaskRecurrence | null, recurringTaskId: string | null = null) {
-        const index = tasks.value.findIndex(task => task.id === taskId);
-        if (index === -1) return;
-        const existing = tasks.value[index];
-        tasks.value[index] = {
-            ...existing,
-            recurrence,
-            recurring_task_id: recurringTaskId ?? null
+    async function duplicateTask(taskId: string) {
+        const task = getTaskById.value(taskId);
+        if (!task) {
+            return null;
+        }
+
+        const labelIds = task.label_ids ?? task.labels?.map(label => label.id) ?? null;
+
+        const duplicatePayload: TaskCreateInput = {
+            title: task.title,
+            description: task.description,
+            project_id: task.project_id,
+            section_id: task.section_id,
+            priority_id: task.priority_id,
+            due_datetime: task.due_datetime,
+            recurrence_type: task.recurrence_type,
+            recurrence_days: task.recurrence_days,
+            ...(labelIds !== null ? { label_ids: labelIds } : {}),
         };
+
+        try {
+            return await createTask(duplicatePayload);
+        } catch (err) {
+            error.value = err instanceof Error ? err.message : 'Failed to duplicate task';
+            throw err;
+        }
+    }
+
+    async function snoozeTask(taskId: string) {
+        error.value = null;
+        try {
+            const updatedTask = await taskService.snoozeTask(taskId);
+            const index = tasks.value.findIndex(t => t.id === taskId);
+            if (index !== -1) {
+                tasks.value[index] = updatedTask;
+            }
+            return updatedTask;
+        } catch (err) {
+            error.value = err instanceof Error ? err.message : 'Failed to snooze task';
+            throw err;
+        }
     }
 
     return {
@@ -214,6 +265,7 @@ export const useTaskStore = defineStore('task', () => {
         updateTask,
         deleteTask,
         reorderTasks,
-        setTaskRecurrence,
+        duplicateTask,
+        snoozeTask,
     };
 });

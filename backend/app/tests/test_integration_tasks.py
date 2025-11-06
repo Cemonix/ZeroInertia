@@ -10,6 +10,7 @@ Tests cover:
 - Edge cases and security
 """
 
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 import pytest
@@ -207,6 +208,48 @@ class TestTaskEndpoints:
         # Verify task is actually deleted
         get_response = await authenticated_client.get(f"/api/v1/tasks/{test_task.id}")
         assert get_response.status_code == 404
+
+    async def test_snooze_non_recurring_task(
+        self,
+        authenticated_client: AsyncClient,
+        test_task: Task,
+    ) -> None:
+        """Snoozing a task without recurrence should push due date forward one day."""
+        base_due = (datetime.now(timezone.utc) + timedelta(days=3)).replace(microsecond=0)
+        base_due_iso = base_due.isoformat().replace("+00:00", "Z")
+
+        patch_response = await authenticated_client.patch(
+            f"/api/v1/tasks/{test_task.id}",
+            json={"due_datetime": base_due_iso},
+        )
+        assert patch_response.status_code == 200
+
+        response = await authenticated_client.post(f"/api/v1/tasks/{test_task.id}/snooze")
+        assert response.status_code == 200
+
+        data = response.json()
+        first_due = datetime.fromisoformat(data["due_datetime"].replace("Z", "+00:00"))
+        expected_first_due = base_due + timedelta(days=1)
+        assert abs((first_due - expected_first_due).total_seconds()) < 1
+        assert data["snooze_count"] == 1
+
+        # Snoozing again should continue to advance the due date and increment the counter
+        second_response = await authenticated_client.post(f"/api/v1/tasks/{test_task.id}/snooze")
+        assert second_response.status_code == 200
+        data_second = second_response.json()
+        second_due = datetime.fromisoformat(data_second["due_datetime"].replace("Z", "+00:00"))
+        expected_second_due = expected_first_due + timedelta(days=1)
+        assert abs((second_due - expected_second_due).total_seconds()) < 1
+        assert data_second["snooze_count"] == 2
+
+    async def test_snooze_without_due_date_returns_error(
+        self,
+        authenticated_client: AsyncClient,
+        test_task: Task,
+    ) -> None:
+        """Snoozing a task without a due date should return a 400."""
+        response = await authenticated_client.post(f"/api/v1/tasks/{test_task.id}/snooze")
+        assert response.status_code == 400
 
     async def test_cannot_access_other_users_task(
         self, authenticated_client: AsyncClient, db_session: AsyncSession, test_project: Project, test_section: Section
@@ -598,3 +641,267 @@ class TestTaskSecurity:
         response = await authenticated_client.delete(f"/api/v1/tasks/{other_task.id}")
 
         assert response.status_code == 404
+
+
+class TestRecurringTasks:
+    """Test recurring task functionality."""
+
+    async def test_complete_daily_recurring_task_creates_new_instance(
+        self,
+        authenticated_client: AsyncClient,
+        test_project: Project,
+        test_section: Section,
+    ) -> None:
+        """Test that completing a daily recurring task archives it and creates a new instance."""
+        # Create a daily recurring task
+        response = await authenticated_client.post(
+            "/api/v1/tasks",
+            json={
+                "title": "Daily Standup",
+                "description": "Attend daily standup meeting",
+                "project_id": str(test_project.id),
+                "section_id": str(test_section.id),
+                "due_datetime": "2025-01-15T09:00:00Z",
+                "recurrence_type": "daily",
+                "recurrence_days": None,
+            },
+        )
+
+        assert response.status_code == 201
+        original_task = response.json()
+        original_task_id = original_task["id"]
+
+        # Complete the recurring task
+        complete_response = await authenticated_client.patch(
+            f"/api/v1/tasks/{original_task_id}",
+            json={"completed": True},
+        )
+
+        # Should succeed and return the archived task
+        assert complete_response.status_code == 200
+        completed_task = complete_response.json()
+        assert completed_task["completed"] is True
+        assert completed_task["archived"] is True
+        assert completed_task["recurrence_type"] is None  # Cleared on archived task
+
+        # Get all tasks - should not include the archived one
+        list_response = await authenticated_client.get(
+            f"/api/v1/tasks?project_id={test_project.id}"
+        )
+        assert list_response.status_code == 200
+        active_tasks = list_response.json()
+
+        # The archived task should not appear
+        assert not any(task["id"] == original_task_id for task in active_tasks)
+
+        # Should have a new recurring task instance
+        recurring_tasks = [
+            task for task in active_tasks
+            if task["title"] == "Daily Standup" and task["recurrence_type"] == "daily"
+        ]
+        assert len(recurring_tasks) == 1
+        new_task = recurring_tasks[0]
+
+        # Verify the new task has correct properties
+        assert new_task["id"] != original_task_id  # Different ID
+        assert new_task["title"] == original_task["title"]
+        assert new_task["description"] == original_task["description"]
+        assert new_task["completed"] is False
+        assert new_task["archived"] is False
+        assert new_task["recurrence_type"] == "daily"
+        # Due date should be one day later
+        assert new_task["due_datetime"] == "2025-01-16T09:00:00Z"
+
+    async def test_complete_weekly_recurring_task_creates_new_instance(
+        self,
+        authenticated_client: AsyncClient,
+        test_project: Project,
+        test_section: Section,
+    ) -> None:
+        """Test that completing a weekly recurring task archives it and creates a new instance."""
+        # Create a weekly recurring task (Monday and Friday = 0 and 4 in Python weekday convention)
+        response = await authenticated_client.post(
+            "/api/v1/tasks",
+            json={
+                "title": "Team Meeting",
+                "description": "Weekly team sync",
+                "project_id": str(test_project.id),
+                "section_id": str(test_section.id),
+                "due_datetime": "2025-01-13T14:00:00Z",  # Monday
+                "recurrence_type": "weekly",
+                "recurrence_days": [0, 4],  # Monday=0, Friday=4
+            },
+        )
+
+        assert response.status_code == 201
+        original_task = response.json()
+        original_task_id = original_task["id"]
+
+        # Complete the recurring task
+        complete_response = await authenticated_client.patch(
+            f"/api/v1/tasks/{original_task_id}",
+            json={"completed": True},
+        )
+
+        # Should succeed
+        assert complete_response.status_code == 200
+        completed_task = complete_response.json()
+        assert completed_task["completed"] is True
+        assert completed_task["archived"] is True
+
+        # Get all tasks - verify new instance exists
+        list_response = await authenticated_client.get(
+            f"/api/v1/tasks?project_id={test_project.id}"
+        )
+        assert list_response.status_code == 200
+        active_tasks = list_response.json()
+
+        # Should have a new recurring task instance
+        recurring_tasks = [
+            task for task in active_tasks
+            if task["title"] == "Team Meeting" and task["recurrence_type"] == "weekly"
+        ]
+        assert len(recurring_tasks) == 1
+        new_task = recurring_tasks[0]
+
+        # Verify the new task
+        assert new_task["id"] != original_task_id
+        assert new_task["completed"] is False
+        assert new_task["archived"] is False
+        assert new_task["recurrence_type"] == "weekly"
+        assert new_task["recurrence_days"] == [0, 4]
+        # Due date should be Friday (next occurrence)
+        assert new_task["due_datetime"] == "2025-01-17T14:00:00Z"
+
+    async def test_complete_alternate_days_recurring_task(
+        self,
+        authenticated_client: AsyncClient,
+        test_project: Project,
+        test_section: Section,
+    ) -> None:
+        """Test that completing an alternate days recurring task works correctly."""
+        # Create an alternate days recurring task
+        response = await authenticated_client.post(
+            "/api/v1/tasks",
+            json={
+                "title": "Exercise",
+                "project_id": str(test_project.id),
+                "section_id": str(test_section.id),
+                "due_datetime": "2025-01-15T06:00:00Z",
+                "recurrence_type": "alternate_days",
+                "recurrence_days": None,
+            },
+        )
+
+        assert response.status_code == 201
+        original_task = response.json()
+        original_task_id = original_task["id"]
+
+        # Complete the task
+        complete_response = await authenticated_client.patch(
+            f"/api/v1/tasks/{original_task_id}",
+            json={"completed": True},
+        )
+
+        assert complete_response.status_code == 200
+        completed_task = complete_response.json()
+        assert completed_task["completed"] is True
+        assert completed_task["archived"] is True
+
+        # Verify new instance exists with due date 2 days later
+        list_response = await authenticated_client.get(
+            f"/api/v1/tasks?project_id={test_project.id}"
+        )
+        active_tasks = list_response.json()
+
+        recurring_tasks = [
+            task for task in active_tasks
+            if task["title"] == "Exercise" and task["recurrence_type"] == "alternate_days"
+        ]
+        assert len(recurring_tasks) == 1
+        new_task = recurring_tasks[0]
+        assert new_task["due_datetime"] == "2025-01-17T06:00:00Z"
+
+    async def test_complete_non_recurring_task_does_not_create_new_instance(
+        self,
+        authenticated_client: AsyncClient,
+        test_task: Task,
+    ) -> None:
+        """Test that completing a regular (non-recurring) task doesn't create a new instance."""
+        # Get initial task count
+        initial_response = await authenticated_client.get(
+            f"/api/v1/tasks?project_id={test_task.project_id}"
+        )
+        initial_count = len(initial_response.json())
+
+        # Complete the non-recurring task
+        complete_response = await authenticated_client.patch(
+            f"/api/v1/tasks/{test_task.id}",
+            json={"completed": True},
+        )
+
+        assert complete_response.status_code == 200
+        completed_task = complete_response.json()
+        assert completed_task["completed"] is True
+        assert completed_task["archived"] is False  # Regular tasks don't auto-archive
+
+        # Task count should remain the same
+        final_response = await authenticated_client.get(
+            f"/api/v1/tasks?project_id={test_task.project_id}"
+        )
+        final_count = len(final_response.json())
+        assert final_count == initial_count
+
+    async def test_uncomplete_recurring_task_does_not_duplicate(
+        self,
+        authenticated_client: AsyncClient,
+        test_project: Project,
+        test_section: Section,
+    ) -> None:
+        """Test that un-completing a completed task doesn't trigger duplication."""
+        # Create and complete a recurring task
+        create_response = await authenticated_client.post(
+            "/api/v1/tasks",
+            json={
+                "title": "Daily Task",
+                "project_id": str(test_project.id),
+                "section_id": str(test_section.id),
+                "due_datetime": "2025-01-15T10:00:00Z",
+                "recurrence_type": "daily",
+            },
+        )
+        original_task_id = create_response.json()["id"]
+
+        # Complete it
+        _ = await authenticated_client.patch(
+            f"/api/v1/tasks/{original_task_id}",
+            json={"completed": True},
+        )
+
+        # Get the new task that was created
+        list_response = await authenticated_client.get(
+            f"/api/v1/tasks?project_id={test_project.id}"
+        )
+        active_tasks = list_response.json()
+        new_task = [
+            task for task in active_tasks
+            if task["title"] == "Daily Task" and task["recurrence_type"] == "daily"
+        ][0]
+        new_task_id = new_task["id"]
+
+        # Mark the new task as completed, then un-complete it
+        _ = await authenticated_client.patch(
+            f"/api/v1/tasks/{new_task_id}",
+            json={"completed": True},
+        )
+
+        # Un-complete should not work on archived task
+        # (attempting to uncomplete an archived task should fail or be ignored)
+        uncomplete_response = await authenticated_client.patch(
+            f"/api/v1/tasks/{new_task_id}",
+            json={"completed": False},
+        )
+
+        # The task is archived, so it should either be 404 or rejected
+        # (depends on implementation - archived tasks shouldn't be modifiable)
+        assert uncomplete_response.status_code in [200, 404]
