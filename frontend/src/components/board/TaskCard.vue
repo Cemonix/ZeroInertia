@@ -80,7 +80,7 @@ import { useTaskStore } from "@/stores/task";
 import { usePriorityStore } from "@/stores/priority";
 import { useLabelStore } from "@/stores/label";
 import type { Label } from "@/models/label";
-import { JS_WEEKDAY_LABELS } from "@/utils/recurrenceUtils";
+import { JS_WEEKDAY_LABELS, pythonDayToJsDay } from "@/utils/recurrenceUtils";
 import type { MenuItem } from "primevue/menuitem";
 import { useToast } from "primevue/usetoast";
 
@@ -139,11 +139,16 @@ const recurrenceSummary = computed(() => {
                 return "Weekly";
             }
             // recurrence_days uses Python convention (0=Mon), convert to JS convention for display
-            const labels = days.map(dayIndex => {
-                // Convert Python weekday to JS: Python 0=Mon -> JS 1=Mon
-                const jsDay = (dayIndex + 1) % 7;
-                return JS_WEEKDAY_LABELS[jsDay] ?? "";
-            }).filter(Boolean);
+            const labels = days
+                .map(dayIndex => {
+                    try {
+                        const jsDay = pythonDayToJsDay(dayIndex);
+                        return JS_WEEKDAY_LABELS[jsDay] ?? "";
+                    } catch {
+                        return "";
+                    }
+                })
+                .filter(Boolean);
             return labels.join(" · ") || "Weekly";
         }
     }
