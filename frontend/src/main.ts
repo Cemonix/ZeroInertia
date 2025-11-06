@@ -19,6 +19,7 @@ import {
   faChevronDown,
   faChevronRight,
   faChevronLeft,
+  faEllipsis,
   faEllipsisVertical,
   faCheckSquare,
   faTimes,
@@ -32,7 +33,9 @@ import {
   faTriangleExclamation,
   faSun,
   faMoon,
-  faRepeat
+  faRepeat,
+  faCheckCircle,
+  faExclamationCircle
 } from '@fortawesome/free-solid-svg-icons'
 
 // PrimeVue components
@@ -54,6 +57,7 @@ library.add(
   faChevronDown,
   faChevronRight,
   faChevronLeft,
+  faEllipsis,
   faEllipsisVertical,
   faCheckSquare,
   faTimes,
@@ -67,7 +71,9 @@ library.add(
   faTriangleExclamation,
   faSun,
   faMoon,
-  faRepeat
+  faRepeat,
+  faCheckCircle,
+  faExclamationCircle
 )
 
 const app = createApp(App)

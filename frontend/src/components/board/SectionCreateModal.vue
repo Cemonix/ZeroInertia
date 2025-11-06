@@ -51,7 +51,7 @@ const handleCreate = async () => {
             order_index: nextOrderIndex,
         });
     } catch (error) {
-        toast.add({ severity: "error", summary: "Error", detail: "Failed to create section" });
+        toast.add({ severity: "error", summary: "Error", detail: "Failed to create section", life: 3000 });
     }
     handleClose();
 };

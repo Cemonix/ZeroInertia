@@ -207,16 +207,6 @@
                             </button>
                         </div>
                     </div>
-                    <div class="recurrence-field">
-                        <label for="recurrence-time">Time of day</label>
-                        <input
-                            id="recurrence-time"
-                            v-model="recurrenceTime"
-                            type="time"
-                            class="recurrence-time-input"
-                            step="60"
-                        />
-                    </div>
                     <div class="recurrence-actions">
                         <Button text size="small" @click="clearRecurrence">Clear</Button>
                         <Button size="small" @click="showRecurrencePicker = false">Done</Button>
@@ -246,13 +236,11 @@ import { useTaskStore } from "@/stores/task";
 import { useChecklistStore } from "@/stores/checklist";
 import { usePriorityStore } from "@/stores/priority";
 import { useLabelStore } from "@/stores/label";
-import { useRecurringTaskStore } from "@/stores/recurringTask";
 import CheckList from "@/components/common/CheckList.vue";
 import Popover from "@/components/common/Popover.vue";
 import { useToast } from "primevue";
 import type { Label } from "@/models/label";
-import type { RecurringTaskCreateInput, RecurringTaskUpdateInput } from "@/models/recurringTask";
-import type { Task, TaskRecurrence, TaskRecurrenceType } from "@/models/task";
+import type { Task, TaskRecurrenceType } from "@/models/task";
 import {
     jsDaysToPythonDays,
     pythonDaysToJsDays,
@@ -269,7 +257,6 @@ const taskStore = useTaskStore();
 const checklistStore = useChecklistStore();
 const priorityStore = usePriorityStore();
 const labelStore = useLabelStore();
-const recurringTaskStore = useRecurringTaskStore();
 
 const isLoading = ref(false);
 const title = ref("");
@@ -284,40 +271,16 @@ const newChecklistTitle = ref("");
 const showLabelPicker = ref(false);
 const selectedLabelIds = ref<string[]>([]);
 const showRecurrencePicker = ref(false);
-const existingRecurringTaskId = ref<string | null>(null);
 
+// Recurrence state (stored directly on task now)
 const recurrenceType = ref<TaskRecurrenceType | null>(null);
-const recurrenceTime = ref<string | null>(null);
-const recurrenceDaysOfWeek = ref<number[]>([]);
+const recurrenceDaysOfWeek = ref<number[]>([]); // JS convention: 0=Sunday
 
 const RECURRENCE_OPTIONS: { label: string; value: TaskRecurrenceType }[] = [
     { label: "Daily", value: "daily" },
     { label: "Every Other Day", value: "alternate_days" },
     { label: "Specific Days", value: "weekly" },
 ];
-
-function getRecurrenceFromTemplate(templateId: string | null): TaskRecurrence | null {
-    if (!templateId) return null;
-    const template = recurringTaskStore.getRecurringTaskById(templateId);
-    if (!template) return null;
-
-    const recurrence: TaskRecurrence = {
-        type: template.recurrence_type,
-        time: template.recurrence_time,
-    };
-
-    // Convert from backend Python convention (0=Monday) to frontend JS convention (0=Sunday)
-    if (template.recurrence_type === "weekly") {
-        const days = template.recurrence_days && template.recurrence_days.length
-            ? pythonDaysToJsDays(template.recurrence_days)
-            : [];
-        recurrence.days_of_week = days;
-    } else if (template.recurrence_days && template.recurrence_days.length) {
-        recurrence.days_of_week = pythonDaysToJsDays(template.recurrence_days);
-    }
-
-    return recurrence;
-}
 
 // Computed properties for display
 const selectedPriority = computed(() => {
@@ -361,14 +324,12 @@ const recurrenceButtonText = computed(() => {
         return "Repeat";
     }
 
-    const timeDisplay = recurrenceTime.value ? ` · ${recurrenceTime.value}` : "";
-
     if (recurrenceType.value === "daily") {
-        return `Daily${timeDisplay}`;
+        return "Daily";
     }
 
     if (recurrenceType.value === "alternate_days") {
-        return `Every Other Day${timeDisplay}`;
+        return "Every Other Day";
     }
 
     if (recurrenceType.value === "weekly") {
@@ -376,7 +337,7 @@ const recurrenceButtonText = computed(() => {
             .sort((a, b) => a - b)
             .map(day => JS_WEEKDAY_LABELS[day]);
         const daysLabel = selectedDays.length ? selectedDays.join(" ") : "Days";
-        return `Weekly · ${daysLabel}${timeDisplay}`;
+        return `Weekly · ${daysLabel}`;
     }
 
     return "Repeat";
@@ -406,9 +367,16 @@ watch(
                     currentTask.label_ids?.slice() ??
                     (currentTask.labels ? currentTask.labels.map(label => label.id) : []);
 
-                existingRecurringTaskId.value = currentTask.recurring_task_id ?? null;
-                const recurrenceSource = currentTask.recurrence ?? getRecurrenceFromTemplate(existingRecurringTaskId.value);
-                setRecurrenceState(recurrenceSource);
+                // Load recurrence from task fields (convert Python days to JS convention)
+                if (currentTask.recurrence_type) {
+                    recurrenceType.value = currentTask.recurrence_type;
+                    if (currentTask.recurrence_type === "weekly" && currentTask.recurrence_days) {
+                        recurrenceDaysOfWeek.value = pythonDaysToJsDays(currentTask.recurrence_days);
+                    }
+                } else {
+                    resetRecurrence();
+                }
+
                 await loadChecklists(currentTask.id);
             } else {
                 // Creating new task
@@ -423,16 +391,6 @@ watch(
         }
     }
 );
-
-function setRecurrenceState(recurrence: TaskRecurrence | null) {
-    if (recurrence) {
-        recurrenceType.value = recurrence.type;
-        recurrenceTime.value = recurrence.time ?? null;
-        recurrenceDaysOfWeek.value = recurrence.days_of_week ? [...recurrence.days_of_week] : [];
-    } else {
-        resetRecurrence();
-    }
-}
 
 async function loadChecklists(taskId: string) {
     try {
@@ -474,7 +432,6 @@ function toggleWeekday(dayIndex: number) {
 
 function resetRecurrence() {
     recurrenceType.value = null;
-    recurrenceTime.value = null;
     recurrenceDaysOfWeek.value = [];
 }
 
@@ -483,124 +440,32 @@ function clearRecurrence() {
     showRecurrencePicker.value = false;
 }
 
-function getRecurrencePayload(): TaskRecurrence | null {
+function getRecurrencePayload(): { type: string | null; days: number[] | null } {
     if (!recurrenceType.value) {
-        return null;
-    }
-
-    if (!recurrenceTime.value) {
-        throw new Error("Select a time for the recurrence.");
+        return { type: null, days: null };
     }
 
     if (recurrenceType.value === "weekly") {
         if (!recurrenceDaysOfWeek.value.length) {
             throw new Error("Select at least one day for weekly recurrence.");
         }
-
+        // Convert from JS convention (0=Sunday) to Python convention (0=Monday)
         return {
             type: recurrenceType.value,
-            time: recurrenceTime.value,
-            days_of_week: [...recurrenceDaysOfWeek.value].sort((a, b) => a - b),
+            days: jsDaysToPythonDays(recurrenceDaysOfWeek.value),
         };
     }
 
     return {
         type: recurrenceType.value,
-        time: recurrenceTime.value,
+        days: null,
     };
-}
-
-function computeStartDate(): string {
-    const source = dueDateTimeString.value ? new Date(dueDateTimeString.value) : new Date();
-    return source.toISOString().split("T")[0];
-}
-
-function getLabelIdsPayload(): string[] | null {
-    return selectedLabelIds.value.length ? [...selectedLabelIds.value] : null;
-}
-
-function buildRecurringTaskCreatePayload(task: Task, recurrence: TaskRecurrence): RecurringTaskCreateInput {
-    // Convert from JS convention (0=Sunday) to Python convention (0=Monday) for backend
-    const recurrenceDays =
-        recurrence.type === "weekly" && recurrence.days_of_week
-            ? jsDaysToPythonDays(recurrence.days_of_week)
-            : null;
-
-    return {
-        title: title.value.trim(),
-        description: description.value,
-        project_id: task.project_id,
-        section_id: task.section_id,
-        priority_id: priorityId.value ?? null,
-        label_ids: getLabelIdsPayload(),
-        recurrence_type: recurrence.type,
-        recurrence_days: recurrenceDays,
-        recurrence_time: recurrence.time,
-        start_date: computeStartDate(),
-        end_date: null,
-        is_active: true,
-    };
-}
-
-function buildRecurringTaskUpdatePayload(recurrence: TaskRecurrence): RecurringTaskUpdateInput {
-    // Convert from JS convention (0=Sunday) to Python convention (0=Monday) for backend
-    const recurrenceDays =
-        recurrence.type === "weekly" && recurrence.days_of_week
-            ? jsDaysToPythonDays(recurrence.days_of_week)
-            : null;
-
-    const payload: RecurringTaskUpdateInput = {
-        title: title.value.trim(),
-        description: description.value,
-        priority_id: priorityId.value ?? null,
-        label_ids: getLabelIdsPayload(),
-        recurrence_type: recurrence.type,
-        recurrence_days: recurrenceDays,
-        recurrence_time: recurrence.time,
-    };
-
-    if (dueDateTimeString.value) {
-        payload.start_date = computeStartDate();
-    }
-
-    return payload;
-}
-
-async function syncRecurringTemplate(task: Task, recurrence: TaskRecurrence | null) {
-    const targetTask = taskStore.getTaskById(task.id) ?? task;
-
-    try {
-        if (!recurrence) {
-            if (existingRecurringTaskId.value) {
-                await recurringTaskStore.deleteRecurringTask(existingRecurringTaskId.value);
-                existingRecurringTaskId.value = null;
-            }
-            taskStore.setTaskRecurrence(task.id, null, null);
-            return;
-        }
-
-        if (existingRecurringTaskId.value) {
-            const updatePayload = buildRecurringTaskUpdatePayload(recurrence);
-            await recurringTaskStore.updateRecurringTask(
-                existingRecurringTaskId.value,
-                updatePayload
-            );
-            taskStore.setTaskRecurrence(task.id, recurrence, existingRecurringTaskId.value);
-        } else {
-            const createPayload = buildRecurringTaskCreatePayload(targetTask, recurrence);
-            const created = await recurringTaskStore.createRecurringTask(createPayload);
-            existingRecurringTaskId.value = created.id;
-            taskStore.setTaskRecurrence(task.id, recurrence, created.id);
-        }
-    } catch (error) {
-        throw error instanceof Error ? error : new Error("Failed to synchronize recurring task");
-    }
 }
 
 async function saveTask() {
     if (title.value.trim() === "") return;
 
-    let recurrencePayload: TaskRecurrence | null;
+    let recurrencePayload: { type: string | null; days: number[] | null };
     try {
         recurrencePayload = getRecurrencePayload();
     } catch (validationError) {
@@ -629,19 +494,19 @@ async function saveTask() {
     isLoading.value = true;
 
     try {
-        let savedTask: Task;
-
         if (currentTask) {
-            savedTask = await taskStore.updateTask(currentTask.id, {
+            await taskStore.updateTask(currentTask.id, {
                 title: title.value,
                 description: description.value,
                 completed: taskCompleted.value,
                 priority_id: priorityId.value,
                 due_datetime: dueDateTimeString.value,
                 label_ids: selectedLabelIds.value,
+                recurrence_type: recurrencePayload.type,
+                recurrence_days: recurrencePayload.days,
             });
         } else {
-            savedTask = await taskStore.createTask({
+            await taskStore.createTask({
                 project_id: props.projectId,
                 section_id: sectionIdForCreate as string,
                 title: title.value,
@@ -649,10 +514,10 @@ async function saveTask() {
                 priority_id: priorityId.value,
                 due_datetime: dueDateTimeString.value,
                 label_ids: selectedLabelIds.value,
+                recurrence_type: recurrencePayload.type,
+                recurrence_days: recurrencePayload.days,
             });
         }
-
-        await syncRecurringTemplate(savedTask, recurrencePayload);
 
         taskStore.setTaskModalVisible(false);
     } catch (error) {
@@ -680,7 +545,6 @@ function resetForm() {
     showLabelPicker.value = false;
     showRecurrencePicker.value = false;
     resetRecurrence();
-    existingRecurringTaskId.value = null;
 }
 
 onMounted(async () => {
