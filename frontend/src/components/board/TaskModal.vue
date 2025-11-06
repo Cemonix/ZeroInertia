@@ -240,7 +240,7 @@ import CheckList from "@/components/common/CheckList.vue";
 import Popover from "@/components/common/Popover.vue";
 import { useToast } from "primevue";
 import type { Label } from "@/models/label";
-import type { Task, TaskRecurrenceType } from "@/models/task";
+import type { TaskRecurrenceType } from "@/models/task";
 import {
     jsDaysToPythonDays,
     pythonDaysToJsDays,
@@ -369,9 +369,12 @@ watch(
 
                 // Load recurrence from task fields (convert Python days to JS convention)
                 if (currentTask.recurrence_type) {
-                    recurrenceType.value = currentTask.recurrence_type;
-                    if (currentTask.recurrence_type === "weekly" && currentTask.recurrence_days) {
+                    const recurrence = currentTask.recurrence_type as TaskRecurrenceType;
+                    recurrenceType.value = recurrence;
+                    if (recurrence === "weekly" && currentTask.recurrence_days) {
                         recurrenceDaysOfWeek.value = pythonDaysToJsDays(currentTask.recurrence_days);
+                    } else {
+                        recurrenceDaysOfWeek.value = [];
                     }
                 } else {
                     resetRecurrence();
@@ -440,7 +443,7 @@ function clearRecurrence() {
     showRecurrencePicker.value = false;
 }
 
-function getRecurrencePayload(): { type: string | null; days: number[] | null } {
+function getRecurrencePayload(): { type: TaskRecurrenceType | null; days: number[] | null } {
     if (!recurrenceType.value) {
         return { type: null, days: null };
     }
@@ -465,7 +468,7 @@ function getRecurrencePayload(): { type: string | null; days: number[] | null } 
 async function saveTask() {
     if (title.value.trim() === "") return;
 
-    let recurrencePayload: { type: string | null; days: number[] | null };
+    let recurrencePayload: { type: TaskRecurrenceType | null; days: number[] | null };
     try {
         recurrencePayload = getRecurrencePayload();
     } catch (validationError) {
