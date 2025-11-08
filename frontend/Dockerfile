@@ -7,8 +7,10 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
-# Build the application
+# Copy application files and .env
 COPY . .
+
+# Build the application (Vite will read .env file during build)
 RUN npm run build
 
 # Runtime stage
