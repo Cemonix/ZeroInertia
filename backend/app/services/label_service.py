@@ -5,6 +5,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import select
 
+from app.core.exceptions import DuplicateResourceException, LabelNotFoundException
 from app.models.label import Label
 
 
@@ -33,7 +34,7 @@ async def create_label(
         await db.commit()
     except IntegrityError as exc:
         await db.rollback()
-        raise ValueError("Label with this name already exists") from exc
+        raise DuplicateResourceException("Label", f"name '{name}'") from exc
 
     await db.refresh(new_label)
     return new_label
@@ -69,7 +70,7 @@ async def update_label(
     """Update an existing label."""
     label = await get_label_by_id(db, label_id, user_id)
     if label is None:
-        raise ValueError("Label not found")
+        raise LabelNotFoundException(str(label_id))
 
     if name is not None:
         label.name = name
@@ -86,7 +87,7 @@ async def update_label(
         await db.commit()
     except IntegrityError as exc:
         await db.rollback()
-        raise ValueError("Label with this name already exists") from exc
+        raise DuplicateResourceException("Label", f"name '{name}'") from exc
 
     await db.refresh(label)
     return label
@@ -96,7 +97,7 @@ async def delete_label(db: AsyncSession, label_id: UUID, user_id: UUID) -> None:
     """Delete a label."""
     label = await get_label_by_id(db, label_id, user_id)
     if label is None:
-        raise ValueError("Label not found")
+        raise LabelNotFoundException(str(label_id))
 
     await db.delete(label)
     await db.commit()

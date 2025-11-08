@@ -3,8 +3,8 @@ from typing import cast
 from uuid import UUID
 
 import jwt
-from fastapi import HTTPException, status
 
+from app.core.exceptions import InvalidTokenException
 from app.core.settings.app_settings import get_app_settings
 
 settings = get_app_settings()
@@ -43,20 +43,11 @@ class JWTService:
 
             # Validate token type
             if payload.get("type") != "access":
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Invalid token type"
-                )
+                raise InvalidTokenException("Invalid token type")
 
             return payload
 
-        except jwt.ExpiredSignatureError:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Token has expired"
-            ) from None
-        except jwt.InvalidTokenError:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token"
-            ) from None
+        except jwt.ExpiredSignatureError as e:
+            raise InvalidTokenException("Token has expired") from e
+        except jwt.InvalidTokenError as e:
+            raise InvalidTokenException("Invalid token") from e

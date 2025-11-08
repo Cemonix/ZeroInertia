@@ -2,10 +2,16 @@ from typing import cast
 from uuid import UUID
 
 import httpx
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.exceptions import (
+    BadRequestException,
+    ExternalServiceException,
+    InvalidTokenException,
+    UnauthorizedException,
+)
 from app.core.settings.app_settings import AppSettings
 from app.models.user import User
 from app.services.jwt_service import JWTService
@@ -31,26 +37,20 @@ async def exchange_code_for_token(code: str) -> str:
             )
 
             if response.status_code != 200:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Token exchange failed: {response.status_code}"
-                )
+                raise BadRequestException(f"Token exchange failed: {response.status_code}")
 
             token_data = cast(dict[str, object], response.json())
             access_token = token_data.get('access_token')
 
             if access_token is None or not isinstance(access_token, str):
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="No access token received from Google"
-                )
+                raise BadRequestException("No access token received from Google")
 
             return access_token
 
         except httpx.RequestError as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to connect to Google OAuth service"
+            raise ExternalServiceException(
+                "Google OAuth",
+                "Failed to connect to authentication service"
             ) from e
 
 
@@ -67,17 +67,14 @@ async def fetch_user_info(access_token: str) -> dict[str, str | None]:
             )
 
             if response.status_code != 200:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Failed to fetch user info: {response.status_code}"
-                )
+                raise BadRequestException(f"Failed to fetch user info: {response.status_code}")
 
             return cast(dict[str, str | None], response.json())
 
         except httpx.RequestError as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to fetch user information from Google"
+            raise ExternalServiceException(
+                "Google OAuth",
+                "Failed to fetch user information"
             ) from e
 
 
@@ -99,10 +96,7 @@ async def create_or_update_user(session: AsyncSession, user_data: dict[str, str 
     avatar_url = user_data.get('picture')
 
     if oauth_subject_id is None or email is None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Incomplete user data received from Google"
-        )
+        raise BadRequestException("Incomplete user data received from Google")
 
     user = await UserService.get_user_by_oauth(session, 'google', str(oauth_subject_id))
 
@@ -133,27 +127,18 @@ async def get_current_user_id(request: Request) -> UUID:
     """Extract user ID from JWT cookie."""
     access_token = request.cookies.get("access_token")
     if not access_token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated"
-        )
+        raise UnauthorizedException("Not authenticated")
 
     payload = JWTService.verify_token(access_token)
     user_id_str = payload.get("sub")
 
     if not user_id_str:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token payload"
-        )
+        raise UnauthorizedException("Invalid token payload")
 
     try:
         return UUID(str(user_id_str))
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid user ID in token"
-        ) from None
+    except ValueError as e:
+        raise InvalidTokenException("Invalid user ID in token") from e
 
 
 async def get_current_user(
@@ -170,9 +155,6 @@ async def get_current_user(
     # Get user from database
     user = await UserService.get_user_by_id(session, user_id)
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found"
-        )
+        raise UnauthorizedException("User not found")
 
     return user

@@ -1,11 +1,12 @@
 from uuid import UUID
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, status
 from fastapi.routing import APIRouter
 from sqlalchemy.ext.asyncio.session import AsyncSession
 
 from app.api.v1.auth_deps import get_current_user
 from app.core.database import get_db
+from app.core.exceptions import SectionNotFoundException
 from app.models.user import User
 from app.schemas.section import SectionCreate, SectionReorder, SectionResponse, SectionUpdate
 from app.services import section_service
@@ -57,7 +58,7 @@ async def get_section(
     """Get a specific section by ID for the authenticated user."""
     section = await section_service.get_section_by_id(db=db, section_id=section_id, user_id=current_user.id)
     if not section:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Section not found")
+        raise SectionNotFoundException(str(section_id))
     return SectionResponse.model_validate(section)
 
 
@@ -68,14 +69,11 @@ async def reorder_sections(
     db: AsyncSession = Depends(get_db),
 ) -> None:
     """Batch update section order."""
-    try:
-        await section_service.reorder_sections(
-            db=db,
-            user_id=current_user.id,
-            sections_reorder=sections_reorder
-        )
-    except ValueError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="One or more sections not found") from None
+    await section_service.reorder_sections(
+        db=db,
+        user_id=current_user.id,
+        sections_reorder=sections_reorder
+    )
 
 
 @router.patch(
@@ -90,17 +88,14 @@ async def update_section(
     db: AsyncSession = Depends(get_db),
 ) -> SectionResponse:
     """Update a specific section by ID for the authenticated user."""
-    try:
-        updated_section = await section_service.update_section(
-            db=db,
-            section_id=section_id,
-            user_id=current_user.id,
-            title=section_data.title,
-            order_index=section_data.order_index,
-        )
-        return SectionResponse.model_validate(updated_section)
-    except ValueError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Section not found") from None
+    updated_section = await section_service.update_section(
+        db=db,
+        section_id=section_id,
+        user_id=current_user.id,
+        title=section_data.title,
+        order_index=section_data.order_index,
+    )
+    return SectionResponse.model_validate(updated_section)
 
 
 @router.delete("/{section_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -110,7 +105,4 @@ async def delete_section(
     db: AsyncSession = Depends(get_db),
 ) -> None:
     """Delete a specific section by ID for the authenticated user."""
-    try:
-        await section_service.delete_section(db=db, section_id=section_id, user_id=current_user.id)
-    except ValueError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Section not found") from None
+    await section_service.delete_section(db=db, section_id=section_id, user_id=current_user.id)

@@ -1,11 +1,12 @@
 from uuid import UUID
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, status
 from fastapi.routing import APIRouter
 from sqlalchemy.ext.asyncio.session import AsyncSession
 
 from app.api.v1.auth_deps import get_current_user
 from app.core.database import get_db
+from app.core.exceptions import ChecklistNotFoundException, TaskNotFoundException
 from app.models.user import User
 from app.schemas.checklist import (
     CheckListCreate,
@@ -37,7 +38,7 @@ async def create_checklist(
     # Verify that the task belongs to the current user
     task = await task_service.get_task_by_id(db=db, task_id=checklist_data.task_id, user_id=current_user.id)
     if not task:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
+        raise TaskNotFoundException(str(checklist_data.task_id))
 
     new_checklist = await checklist_service.create_checklist(
         db=db, task_id=checklist_data.task_id, title=checklist_data.title
@@ -55,7 +56,7 @@ async def get_checklists(
     # Verify that the task belongs to the current user
     task = await task_service.get_task_by_id(db=db, task_id=task_id, user_id=current_user.id)
     if not task:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
+        raise TaskNotFoundException(str(task_id))
 
     checklists = await checklist_service.get_checklists_by_task(db=db, task_id=task_id)
     return [CheckListResponse.model_validate(checklist) for checklist in checklists]
@@ -70,11 +71,11 @@ async def get_checklist(
     """Get a specific checklist by ID."""
     # Verify ownership before fetching
     if not await checklist_service.verify_checklist_ownership(db=db, checklist_id=checklist_id, user_id=current_user.id):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Checklist not found")
+        raise ChecklistNotFoundException(str(checklist_id))
 
     checklist = await checklist_service.get_checklist_by_id(db=db, checklist_id=checklist_id)
     if not checklist:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Checklist not found")
+        raise ChecklistNotFoundException(str(checklist_id))
 
     return CheckListResponse.model_validate(checklist)
 
@@ -89,18 +90,15 @@ async def update_checklist(
     """Update a checklist."""
     # Verify ownership
     if not await checklist_service.verify_checklist_ownership(db=db, checklist_id=checklist_id, user_id=current_user.id):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Checklist not found")
+        raise ChecklistNotFoundException(str(checklist_id))
 
-    try:
-        updated_checklist = await checklist_service.update_checklist(
-            db=db,
-            checklist_id=checklist_id,
-            title=checklist_data.title,
-            order_index=checklist_data.order_index,
-        )
-        return CheckListResponse.model_validate(updated_checklist)
-    except ValueError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Checklist not found") from None
+    updated_checklist = await checklist_service.update_checklist(
+        db=db,
+        checklist_id=checklist_id,
+        title=checklist_data.title,
+        order_index=checklist_data.order_index,
+    )
+    return CheckListResponse.model_validate(updated_checklist)
 
 
 @router.delete("/{checklist_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -112,12 +110,9 @@ async def delete_checklist(
     """Delete a checklist."""
     # Verify ownership
     if not await checklist_service.verify_checklist_ownership(db=db, checklist_id=checklist_id, user_id=current_user.id):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Checklist not found")
+        raise ChecklistNotFoundException(str(checklist_id))
 
-    try:
-        await checklist_service.delete_checklist(db=db, checklist_id=checklist_id)
-    except ValueError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Checklist not found") from None
+    await checklist_service.delete_checklist(db=db, checklist_id=checklist_id)
 
 
 @router.post("/reorder", status_code=status.HTTP_204_NO_CONTENT)
@@ -130,7 +125,7 @@ async def reorder_checklists(
     # Verify ownership of all checklists
     for item in reorder_data:
         if not await checklist_service.verify_checklist_ownership(db=db, checklist_id=item.id, user_id=current_user.id):
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="One or more checklists not found")
+            raise ChecklistNotFoundException(str(item.id))
 
     reorder_list = [{"id": item.id, "order_index": item.order_index} for item in reorder_data]
     await checklist_service.reorder_checklists(db=db, reorder_data=reorder_list)
@@ -155,7 +150,7 @@ async def create_checklist_item(
     """Create a new item in a checklist."""
     # Verify ownership
     if not await checklist_service.verify_checklist_ownership(db=db, checklist_id=checklist_id, user_id=current_user.id):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Checklist not found")
+        raise ChecklistNotFoundException(str(checklist_id))
 
     new_item = await checklist_service.create_checklist_item(
         db=db, checklist_id=checklist_id, text=item_data.text
@@ -174,19 +169,16 @@ async def update_checklist_item(
     """Update a checklist item."""
     # Verify ownership
     if not await checklist_service.verify_checklist_ownership(db=db, checklist_id=checklist_id, user_id=current_user.id):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Checklist not found")
+        raise ChecklistNotFoundException(str(checklist_id))
 
-    try:
-        updated_item = await checklist_service.update_checklist_item(
-            db=db,
-            item_id=item_id,
-            text=item_data.text,
-            completed=item_data.completed,
-            order_index=item_data.order_index,
-        )
-        return CheckListItemResponse.model_validate(updated_item)
-    except ValueError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="CheckListItem not found") from None
+    updated_item = await checklist_service.update_checklist_item(
+        db=db,
+        item_id=item_id,
+        text=item_data.text,
+        completed=item_data.completed,
+        order_index=item_data.order_index,
+    )
+    return CheckListItemResponse.model_validate(updated_item)
 
 
 @router.delete("/{checklist_id}/items/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -199,12 +191,9 @@ async def delete_checklist_item(
     """Delete a checklist item."""
     # Verify ownership
     if not await checklist_service.verify_checklist_ownership(db=db, checklist_id=checklist_id, user_id=current_user.id):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Checklist not found")
+        raise ChecklistNotFoundException(str(checklist_id))
 
-    try:
-        await checklist_service.delete_checklist_item(db=db, item_id=item_id)
-    except ValueError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="CheckListItem not found") from None
+    await checklist_service.delete_checklist_item(db=db, item_id=item_id)
 
 
 @router.post("/{checklist_id}/items/reorder", status_code=status.HTTP_204_NO_CONTENT)
@@ -217,7 +206,7 @@ async def reorder_checklist_items(
     """Reorder items in a checklist."""
     # Verify ownership
     if not await checklist_service.verify_checklist_ownership(db=db, checklist_id=checklist_id, user_id=current_user.id):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Checklist not found")
+        raise ChecklistNotFoundException(str(checklist_id))
 
     reorder_list = [{"id": item.id, "order_index": item.order_index} for item in reorder_data]
     await checklist_service.reorder_checklist_items(db=db, reorder_data=reorder_list)

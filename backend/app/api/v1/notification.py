@@ -1,11 +1,12 @@
 """API endpoints for push notification management."""
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, status
 from fastapi.routing import APIRouter
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio.session import AsyncSession
 
 from app.api.v1.auth_deps import get_current_user
 from app.core.database import get_db
+from app.core.exceptions import PushSubscriptionNotFoundException
 from app.core.logging import logger
 from app.models.user import User
 from app.schemas.push_subscription import PushSubscriptionCreate, PushSubscriptionResponse
@@ -30,19 +31,12 @@ async def subscribe_to_push(
     Subscribe to push notifications.
     Creates or updates a push subscription for the authenticated user.
     """
-    try:
-        subscription = await push_subscription_service.create_subscription(
-            db=db,
-            user_id=current_user.id,
-            subscription_data=subscription_data,
-        )
-        return PushSubscriptionResponse.model_validate(subscription)
-    except Exception as e:
-        logger.error(f"Error creating push subscription for user {current_user.id}: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to create push subscription"
-        ) from e
+    subscription = await push_subscription_service.create_subscription(
+        db=db,
+        user_id=current_user.id,
+        subscription_data=subscription_data,
+    )
+    return PushSubscriptionResponse.model_validate(subscription)
 
 
 @router.post("/unsubscribe", status_code=status.HTTP_204_NO_CONTENT)
@@ -62,10 +56,7 @@ async def unsubscribe_from_push(
     )
 
     if not deleted:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Push subscription not found"
-        )
+        raise PushSubscriptionNotFoundException()
 
 
 @router.get("/subscriptions", response_model=list[PushSubscriptionResponse])
@@ -113,9 +104,6 @@ async def send_test_notification(
     )
 
     if count == 0:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No active push subscriptions found. Please enable notifications first."
-        )
+        raise PushSubscriptionNotFoundException()
 
     return {"sent": count}

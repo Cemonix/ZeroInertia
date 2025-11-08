@@ -4,6 +4,7 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import select
 
+from app.core.exceptions import ProjectNotFoundException
 from app.models import Section
 from app.models.project import Project
 from app.schemas.project import ProjectsReorder
@@ -60,7 +61,7 @@ async def update_project(
     """Update an existing project."""
     project = await get_project_by_id(db, project_id, user_id)
     if project is None:
-        raise ValueError("Project not found")
+        raise ProjectNotFoundException(str(project_id))
 
     if parent_id is not None:
         project.parent_id = parent_id
@@ -79,7 +80,7 @@ async def delete_project(db: AsyncSession, project_id: UUID, user_id: UUID) -> N
     """Delete a project."""
     project = await get_project_by_id(db, project_id, user_id)
     if project is None:
-        raise ValueError("Project not found")
+        raise ProjectNotFoundException(str(project_id))
 
     await db.delete(project)
     await db.commit()
@@ -98,7 +99,7 @@ async def reorder_projects(db: AsyncSession, user_id: UUID, projects_reorder: li
     projects = {p.id: p for p in result.scalars().all()}
 
     if len(projects) != len(project_ids):
-        raise ValueError("One or more projects not found")
+        raise ProjectNotFoundException()
 
     for project_data in projects_reorder:
         project = projects[project_data.id]

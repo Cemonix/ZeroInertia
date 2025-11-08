@@ -31,8 +31,6 @@ async def reset_streaks_job() -> None:
             logger.info(f"Reset {count} inactive streaks")
         except Exception as e:
             logger.error(f"Error resetting streaks: {e}")
-        finally:
-            await db.close()
 
 
 async def archive_old_completed_tasks_job() -> None:

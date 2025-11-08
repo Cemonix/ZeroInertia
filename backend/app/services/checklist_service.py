@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy.sql import select
 
+from app.core.exceptions import ChecklistItemNotFoundException, ChecklistNotFoundException
 from app.models.checklist import CheckList, CheckListItem
 from app.models.task import Task
 
@@ -79,7 +80,7 @@ async def update_checklist(
     """Update a checklist."""
     checklist = await get_checklist_by_id(db, checklist_id)
     if not checklist:
-        raise ValueError(f"Checklist with id {checklist_id} not found")
+        raise ChecklistNotFoundException(str(checklist_id))
 
     if title is not None:
         checklist.title = title
@@ -95,7 +96,7 @@ async def delete_checklist(db: AsyncSession, checklist_id: UUID) -> None:
     """Delete a checklist and all its items (cascade)."""
     checklist = await get_checklist_by_id(db, checklist_id)
     if not checklist:
-        raise ValueError(f"Checklist with id {checklist_id} not found")
+        raise ChecklistNotFoundException(str(checklist_id))
 
     await db.delete(checklist)
     await db.commit()
@@ -169,7 +170,7 @@ async def update_checklist_item(
     """Update a checklist item."""
     item = await get_checklist_item_by_id(db, item_id)
     if not item:
-        raise ValueError(f"CheckListItem with id {item_id} not found")
+        raise ChecklistItemNotFoundException(str(item_id))
 
     if text is not None:
         item.text = text
@@ -187,7 +188,7 @@ async def delete_checklist_item(db: AsyncSession, item_id: UUID) -> None:
     """Delete a checklist item."""
     item = await get_checklist_item_by_id(db, item_id)
     if not item:
-        raise ValueError(f"CheckListItem with id {item_id} not found")
+        raise ChecklistItemNotFoundException(str(item_id))
 
     await db.delete(item)
     await db.commit()
