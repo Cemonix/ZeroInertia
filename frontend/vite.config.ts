@@ -2,12 +2,31 @@ import { defineConfig } from 'vitest/config'
 import vue from '@vitejs/plugin-vue'
 import path from 'path'
 import { loadEnv } from 'vite'
+import { execSync } from 'child_process'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
 
   return {
-    plugins: [vue()],
+    plugins: [
+      vue(),
+      // Generate service worker with environment variables
+      {
+        name: 'generate-service-worker',
+        buildStart() {
+          console.log('🔧 Generating service worker with environment variables...')
+          try {
+            execSync('node scripts/generate-sw.js', {
+              stdio: 'inherit',
+              env: { ...process.env, ...env }
+            })
+          } catch (error) {
+            console.error('❌ Failed to generate service worker:', error)
+            throw error
+          }
+        }
+      }
+    ],
     resolve: {
         alias: {
         '@': path.resolve(__dirname, './src'),
