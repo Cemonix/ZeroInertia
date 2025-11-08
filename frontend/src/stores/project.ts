@@ -67,13 +67,10 @@ export const useProjectStore = defineStore("project", () => {
                 parent_id: projectData.parent_id ?? null,
             } as Project);
 
-            // Add to projects array
-            projects.value.push(newProject);
-
-            // Shift other root-level projects down
-            const rootProjects = projects.value.filter(
-                (p) => p.id !== newProject.id && p.parent_id === null
-            );
+            // Shift other root-level projects down (before adding new project)
+            const rootProjects = projects.value
+                .filter((p) => p.parent_id === null)
+                .sort((a, b) => a.order_index - b.order_index);
 
             if (rootProjects.length > 0) {
                 const updates = rootProjects.map((p, index) => ({
@@ -92,6 +89,9 @@ export const useProjectStore = defineStore("project", () => {
 
                 await projectService.reorderProjects(updates);
             }
+
+            // Add new project to the array after reordering others
+            projects.value.push(newProject);
 
             return newProject;
         } catch (err) {

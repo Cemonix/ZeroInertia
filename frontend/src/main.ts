@@ -39,6 +39,8 @@ import {
     faBell,
     faBellSlash,
     faCalendarDay,
+    faList,
+    faTableColumns,
 } from "@fortawesome/free-solid-svg-icons";
 
 // PrimeVue components
@@ -80,7 +82,9 @@ library.add(
     faExclamationCircle,
     faBell,
     faBellSlash,
-    faCalendarDay
+    faCalendarDay,
+    faList,
+    faTableColumns
 );
 
 const app = createApp(App);
