@@ -1,6 +1,7 @@
 """API endpoints for push notification management."""
 from fastapi import Depends, HTTPException, status
 from fastapi.routing import APIRouter
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio.session import AsyncSession
 
 from app.api.v1.auth_deps import get_current_user
@@ -8,9 +9,15 @@ from app.core.database import get_db
 from app.core.logging import logger
 from app.models.user import User
 from app.schemas.push_subscription import PushSubscriptionCreate, PushSubscriptionResponse
-from app.services import push_subscription_service
+from app.services import notification_service, push_subscription_service
 
 router = APIRouter()
+
+
+class TestNotificationRequest(BaseModel):
+    """Schema for test notification requests."""
+    title: str
+    body: str
 
 
 @router.post("/subscribe", response_model=PushSubscriptionResponse, status_code=status.HTTP_201_CREATED)
@@ -85,3 +92,30 @@ async def delete_all_subscriptions(
         user_id=current_user.id,
     )
     logger.info(f"Deleted {count} push subscriptions for user {current_user.id}")
+
+
+@router.post("/test", status_code=status.HTTP_200_OK)
+async def send_test_notification(
+    request: TestNotificationRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, int]:
+    """
+    Send a test notification immediately to the authenticated user.
+    Useful for testing notification setup without waiting for scheduled reminders.
+    """
+    count = await notification_service.send_notification_to_user(
+        db=db,
+        user_id=current_user.id,
+        title=request.title,
+        body=request.body,
+        data={"type": "test"},
+    )
+
+    if count == 0:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No active push subscriptions found. Please enable notifications first."
+        )
+
+    return {"sent": count}

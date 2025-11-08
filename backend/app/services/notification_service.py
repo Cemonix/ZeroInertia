@@ -35,6 +35,10 @@ def _send_fcm_message_sync(
     """
     Synchronous FCM message sending - to be wrapped in asyncio.to_thread().
 
+    Sends data-only messages to ensure the service worker onBackgroundMessage handler
+    is always triggered, allowing custom notification handling (click events, icons, etc.)
+    on both desktop and mobile browsers.
+
     Args:
         fcm_token: FCM registration token
         title: Notification title
@@ -48,31 +52,27 @@ def _send_fcm_message_sync(
     Raises:
         firebase_exceptions.FirebaseError: On FCM errors
     """
-    # Build the notification
-    notification_payload = messaging.Notification(
-        title=title,
-        body=body,
-    )
+    # Prepare data payload with notification info
+    # Using data-only messages ensures onBackgroundMessage is triggered on mobile
+    # FCM requires all data values to be strings
+    notification_data = {
+        "title": title,
+        "body": body,
+        "icon": f"{frontend_url}/ZeroInertia.svg",
+        "badge": f"{frontend_url}/ZeroInertia.svg",
+        **(data or {}),
+    }
 
-    # Web push specific configuration
-    webpush_config = messaging.WebpushConfig(
-        headers={
-            "TTL": "86400",  # 24 hours time-to-live
-        },
-        notification=messaging.WebpushNotification(
-            title=title,
-            body=body,
-            icon=f"{frontend_url}/ZeroInertia.svg",
-            badge=f"{frontend_url}/ZeroInertia.svg",
-        ),
-        data=data or {},
-    )
-
-    # Build and send the complete message
+    # Build and send the complete message (data-only, no notification payload)
+    # Data-only messages trigger onBackgroundMessage on both desktop and mobile
     message = messaging.Message(
-        notification=notification_payload,
-        webpush=webpush_config,
+        data=notification_data,
         token=fcm_token,
+        webpush=messaging.WebpushConfig(
+            headers={
+                "TTL": "86400",  # 24 hours time-to-live
+            },
+        ),
     )
 
     return messaging.send(message)

@@ -112,6 +112,7 @@ export async function getUserSubscriptions(): Promise<PushSubscription[]> {
 /**
  * Setup foreground message listener
  * Handles notifications when the app is open and in focus
+ * Works with data-only FCM messages for consistent behavior across platforms
  */
 export async function setupForegroundMessageListener(
     onMessageReceived: (payload: any) => void
@@ -122,13 +123,31 @@ export async function setupForegroundMessageListener(
     }
 
     onMessage(messaging, (payload) => {
-        onMessageReceived(payload);
+        console.log('Foreground message received:', payload);
 
-        if (payload.notification) {
-            new Notification(payload.notification.title || "Zero Inertia", {
-                body: payload.notification.body,
-                icon: payload.notification.icon || "/ZeroInertia.svg",
-                data: payload.data,
+        // Extract notification data from payload.data (data-only messages)
+        const data = payload.data || {};
+        const title = data.title || payload.notification?.title || "Zero Inertia";
+        const body = data.body || payload.notification?.body || "";
+        const icon = data.icon || payload.notification?.icon || "/ZeroInertia.svg";
+
+        // Call the callback with enhanced payload
+        onMessageReceived({
+            ...payload,
+            notification: {
+                title,
+                body,
+                icon,
+            },
+            data,
+        });
+
+        // Show browser notification if permission is granted
+        if (Notification.permission === "granted") {
+            new Notification(title, {
+                body,
+                icon,
+                data,
             });
         }
     });

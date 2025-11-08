@@ -162,6 +162,8 @@ async def _apply_task_updates(
         task.priority_id = updates["priority_id"]  # pyright: ignore[reportAttributeAccessIssue]
     if "due_datetime" in updates:
         task.due_datetime = updates["due_datetime"]  # pyright: ignore[reportAttributeAccessIssue]
+    if "reminder_minutes" in updates:
+        task.reminder_minutes = updates["reminder_minutes"]  # pyright: ignore[reportAttributeAccessIssue]
     if "recurrence_type" in updates:
         task.recurrence_type = updates["recurrence_type"]  # pyright: ignore[reportAttributeAccessIssue]
     if "recurrence_days" in updates:
