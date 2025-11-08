@@ -1,6 +1,17 @@
 <template>
     <main class="main-grid">
         <aside class="sidebar" :class="{ collapsed: isSidebarCollapsed }">
+            <!-- Mobile close button inside full-screen sidebar -->
+            <Button
+                v-if="isMobileView && !isSidebarCollapsed"
+                class="sidebar-close-btn"
+                text
+                rounded
+                aria-label="Close sidebar"
+                @click="toggleSidebar"
+            >
+                <FontAwesomeIcon icon="times" />
+            </Button>
             <slot name="sidebar" />
         </aside>
         <div class="content">
@@ -58,7 +69,9 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
+import { storeToRefs } from "pinia";
+import { useUiStore } from "@/stores/ui";
 import { useAuthStore } from "@/stores/auth";
 import { useStreakStore } from "@/stores/streak";
 import NotificationToggle from "@/components/common/NotificationToggle.vue";
@@ -72,11 +85,14 @@ const props = withDefaults(defineProps<{
 const authStore = useAuthStore();
 const streakStore = useStreakStore();
 const router = useRouter();
+const route = useRoute();
 
 const userMenu = ref();
-const isSidebarCollapsed = ref(false);
+const uiStore = useUiStore();
+const { isSidebarCollapsed } = storeToRefs(uiStore);
 const isDarkMode = ref(false);
 const showNotificationSettings = ref(false);
+const isMobileView = ref(false);
 
 const getUserInitials = (fullName: string | null, email: string): string => {
     if (fullName && fullName.trim()) {
@@ -119,7 +135,7 @@ const userMenuItems = computed(() => [
 ]);
 
 const toggleSidebar = () => {
-    isSidebarCollapsed.value = !isSidebarCollapsed.value;
+    uiStore.toggleSidebar();
 };
 
 const toggleTheme = () => {
@@ -152,8 +168,16 @@ const login = () => {
 const checkMobileView = () => {
     if (typeof window === "undefined") return;
     const mobileBreakpoint = 768;
-    if (window.innerWidth < mobileBreakpoint) {
-        isSidebarCollapsed.value = true;
+    const wasMobile = isMobileView.value;
+    isMobileView.value = window.innerWidth < mobileBreakpoint;
+
+    // Collapse sidebar when entering mobile view
+    if (isMobileView.value && !wasMobile) {
+        uiStore.setSidebarCollapsed(true);
+    }
+    // Expand sidebar when entering desktop view
+    else if (!isMobileView.value && wasMobile) {
+        uiStore.setSidebarCollapsed(false);
     }
 };
 
@@ -177,11 +201,25 @@ onMounted(() => {
     if (typeof window !== "undefined") {
         window.addEventListener("resize", checkMobileView);
     }
+    
+    // Prevent background scroll when mobile sidebar is open
+    if (typeof document !== "undefined") {
+        const updateBodyOverflow = () => {
+            document.body.style.overflow = (isMobileView.value && !isSidebarCollapsed.value) ? "hidden" : "";
+        };
+        // Initial set
+        updateBodyOverflow();
+        // Watch for changes
+        watch([isMobileView, isSidebarCollapsed], updateBodyOverflow);
+    }
 });
 
 onUnmounted(() => {
     if (typeof window !== "undefined") {
         window.removeEventListener("resize", checkMobileView);
+    }
+    if (typeof document !== "undefined") {
+        document.body.style.overflow = "";
     }
 });
 
@@ -193,6 +231,16 @@ watch(
         }
     },
 );
+
+// Close the mobile sidebar on navigation (e.g., selecting a project)
+watch(
+    () => route.fullPath,
+    () => {
+        if (isMobileView.value && !isSidebarCollapsed.value) {
+            isSidebarCollapsed.value = true;
+        }
+    }
+);
 </script>
 
 <style scoped>
@@ -200,6 +248,7 @@ watch(
     display: grid;
     grid-template-columns: auto 1fr;
     height: 100vh;
+    position: relative;
 }
 
 .sidebar {
@@ -217,6 +266,85 @@ watch(
     min-width: 0;
     max-width: 0;
     border-right: none;
+}
+
+/* Mobile sidebar - full screen overlay */
+@media (max-width: 768px) {
+    .main-grid {
+        grid-template-columns: 1fr;
+        width: 100%;
+    }
+
+    .sidebar-close-btn {
+        position: absolute;
+        right: calc(0.75rem + env(safe-area-inset-right, 0px));
+        bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+        width: 2.75rem;
+        height: 2.75rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1110; /* above slot content */
+        color: var(--p-content-background);
+        background: var(--p-primary-color);
+        border-radius: 999px;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+    }
+    .sidebar-close-btn.p-button {
+        background: var(--p-primary-color);
+        border: none;
+        padding: 0;
+    }
+    .sidebar-close-btn :deep(.p-button-icon) {
+        font-size: 1.15rem;
+    }
+    .sidebar-close-btn:hover {
+        filter: brightness(0.95);
+    }
+
+    .sidebar-overlay {
+        display: block;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1099;
+        animation: fadeIn 0.3s ease;
+    }
+
+    .sidebar {
+        position: fixed;
+        inset: 0; /* full-bleed overlay */
+        width: auto;
+        min-width: 0;
+        max-width: none;
+        z-index: 1100;
+        border-right: none;
+        box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15);
+        /* smoother slide performance */
+        will-change: transform, opacity;
+        transition: transform 260ms cubic-bezier(0.4, 0, 0.2, 1), opacity 200ms ease;
+    }
+
+    .sidebar.collapsed {
+        transform: translateX(-100%);
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .sidebar:not(.collapsed) {
+        transform: translateX(0);
+        opacity: 1;
+        pointer-events: auto;
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
 }
 
 .content {
@@ -346,5 +474,61 @@ watch(
     font-weight: 600;
     color: var(--p-text-color);
     padding: 0.5rem 1rem;
+}
+
+/* Mobile responsive navbar */
+@media (max-width: 768px) {
+    .navbar {
+        padding: 0.4rem;
+    }
+
+    .user-section {
+        gap: 0.5rem;
+    }
+
+    .streak-widget {
+        padding: 0.3rem 0.6rem;
+        font-size: 0.875rem;
+    }
+
+    .streak-flame {
+        font-size: 1rem;
+    }
+
+    .streak-count {
+        font-size: 0.8125rem;
+    }
+
+    .theme-toggle-btn {
+        width: 1.875rem;
+        height: 1.875rem;
+    }
+
+    .workspace {
+        padding: 0.75rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .navbar {
+        padding: 0.3rem;
+    }
+
+    .navbar-left {
+        gap: 0.3rem;
+    }
+
+    .user-section {
+        gap: 0.4rem;
+    }
+
+    .streak-widget {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.8125rem;
+    }
+
+    .workspace {
+        padding: 0.5rem;
+    }
 }
 </style>

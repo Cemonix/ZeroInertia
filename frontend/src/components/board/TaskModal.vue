@@ -6,7 +6,10 @@
         :header="taskStore.getCurrentTask ? 'Edit Task' : 'New Task'"
         @hide="handleClose"
         :pt="{
-            root: { style: { maxWidth: '95vw', maxHeight: '90vh' } },
+            root: {
+                style: { maxWidth: '95vw', maxHeight: '90vh' },
+                class: 'task-modal-dialog'
+            },
             content: { style: { padding: '0' } }
         }"
     >
@@ -664,11 +667,13 @@ onMounted(async () => {
     gap: 0.5rem;
     padding: 1rem 1.5rem;
     border-top: 1px solid var(--p-gray-200);
+    flex-wrap: wrap;
 }
 
 .task-main {
     flex: 1;
     padding: 1rem 1.5rem;
+    overflow-y: auto;
 }
 
 .form-field {
@@ -681,6 +686,98 @@ onMounted(async () => {
     display: block;
     margin-bottom: 0.5rem;
     font-weight: 500;
+}
+
+/* Mobile responsive styles */
+@media (max-width: 768px) {
+    :deep(.task-modal-dialog) {
+        width: 95vw !important;
+        margin: 1rem;
+    }
+
+    .action-buttons-row {
+        padding: 0.75rem 1rem;
+        gap: 0.4rem;
+    }
+
+    .action-buttons-row :deep(.p-button) {
+        flex: 1 1 auto;
+        min-width: 0;
+        justify-content: center;
+        font-size: 0.8125rem;
+        padding: 0.4rem 0.6rem;
+    }
+
+    .action-buttons-row :deep(.p-select),
+    .action-buttons-row :deep(.p-datepicker) {
+        flex: 1 1 auto;
+        min-width: 110px;
+        max-width: 200px;
+    }
+
+    .task-main {
+        padding: 0.75rem 1rem;
+    }
+
+    .form-field {
+        margin-bottom: 1rem;
+    }
+
+    .selected-labels {
+        padding: 0 1rem 0.5rem;
+    }
+
+    .task-modal-footer {
+        padding: 0.75rem 1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    :deep(.task-modal-dialog) {
+        margin: 0;
+        border-radius: 0;
+    }
+
+    .action-buttons-row {
+        gap: 0.3rem;
+    }
+
+    /* Priority and Date */
+    .action-buttons-row :deep(.p-select) {
+        flex: 0 0 calc(40% - 0.15rem);
+        min-width: 0;
+        order: -2;
+        /* Override previous max-width caps for phones */
+        max-width: none;
+        width: 100%;
+    }
+
+    .action-buttons-row :deep(.p-datepicker) {
+        flex: 0 0 calc(60% - 0.15rem);
+        min-width: 0;
+        order: -1;
+        /* Override previous max-width caps for phones */
+        max-width: none;
+        width: 100%;
+    }
+
+    /* Regular buttons with icons - 3 per row */
+    .action-buttons-row :deep(.p-button) {
+        flex: 1 1 calc(33.333% - 0.2rem);
+        min-width: 0;
+        max-width: none;
+        padding: 0.5rem 0.4rem;
+    }
+
+    .button-icon {
+        margin-right: 0 !important;
+        font-size: 1rem;
+    }
+
+    /* Ensure the DatePicker input fills its container on phones */
+    .action-buttons-row :deep(.p-datepicker .p-inputtext) {
+        width: 100%;
+    }
 }
 
 .section-header h3 {
@@ -777,6 +874,14 @@ onMounted(async () => {
     gap: 0.75rem;
     align-items: center;
     font-size: 0.95rem;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 6px;
+    transition: background-color 0.15s ease;
+}
+
+.label-picker-item:hover {
+    background-color: var(--p-content-hover-background);
 }
 
 .label-picker-swatch {
@@ -795,6 +900,28 @@ onMounted(async () => {
     grid-column: 2 / span 2;
     font-size: 0.8125rem;
     color: var(--p-text-muted-color);
+}
+
+/* Mobile label picker */
+@media (max-width: 480px) {
+    .label-picker-item {
+        padding: 0.75rem 0.5rem;
+        gap: 0.625rem;
+    }
+
+    .label-picker-swatch {
+        width: 28px;
+        height: 28px;
+    }
+
+    .label-picker-name {
+        font-size: 0.9375rem;
+    }
+
+    .label-chip {
+        font-size: 0.75rem;
+        padding: 0.2rem 0.5rem;
+    }
 }
 
 .label-picker-empty {
@@ -908,6 +1035,18 @@ onMounted(async () => {
     background: var(--p-primary-color);
     color: #fff;
     border-color: var(--p-primary-color);
+}
+
+/* Mobile weekday selector */
+@media (max-width: 480px) {
+    .weekday-selector {
+        gap: 0.3rem;
+    }
+
+    .weekday-chip {
+        padding: 0.5rem 0.25rem;
+        font-size: 0.75rem;
+    }
 }
 
 .recurrence-time-input {

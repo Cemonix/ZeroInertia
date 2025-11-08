@@ -95,6 +95,7 @@ onUnmounted(() => {
     align-items: center;
     justify-content: center;
     z-index: 1200;
+    padding: 1rem;
 }
 
 .popover-container {
@@ -103,6 +104,7 @@ onUnmounted(() => {
     border-radius: 8px;
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
     max-height: 80vh;
+    max-width: 95vw;
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -121,6 +123,27 @@ onUnmounted(() => {
 .popover-body {
     padding: 1rem;
     overflow-y: auto;
+}
+
+/* Mobile responsive styles */
+@media (max-width: 480px) {
+    .popover-overlay {
+        padding: 0.5rem;
+    }
+
+    .popover-container {
+        max-width: 100%;
+        width: 100% !important;
+    }
+
+    .popover-header {
+        padding: 0.625rem 0.75rem;
+        font-size: 0.9375rem;
+    }
+
+    .popover-body {
+        padding: 0.75rem;
+    }
 }
 
 /* Transition animations */

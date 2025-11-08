@@ -24,12 +24,15 @@ import { onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { useNoteStore } from "@/stores/note";
+import { useUiStore } from "@/stores/ui";
+import { storeToRefs } from "pinia";
 import NoteExplorerPanel from "@/components/notes/NoteExplorerPanel.vue";
 import NoteEditor from "@/components/notes/NoteEditor.vue";
 import WorkspaceLayout from "@/layouts/WorkspaceLayout.vue";
 
 const authStore = useAuthStore();
 const noteStore = useNoteStore();
+const uiStore = useUiStore();
 const router = useRouter();
 
 const goHome = () => {
@@ -45,6 +48,14 @@ const loadNotes = async () => {
 
 onMounted(() => {
     void loadNotes();
+});
+
+// Close sidebar on mobile when a note is selected (or created)
+const { selectedNoteId } = storeToRefs(noteStore);
+watch(selectedNoteId, (newNoteId) => {
+    if (!newNoteId) return;
+    const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
+    if (isMobile) uiStore.setSidebarCollapsed(true);
 });
 
 watch(
