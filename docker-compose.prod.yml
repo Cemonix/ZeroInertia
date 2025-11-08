@@ -36,6 +36,8 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: zero_inertia_frontend
+    env_file:
+      - frontend/.env
     networks:
       - app-network
     depends_on:
