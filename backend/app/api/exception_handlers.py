@@ -11,6 +11,7 @@ from app.core.exceptions import (
     ConflictException,
     ForbiddenException,
     NotFoundException,
+    ServiceUnavailableException,
     UnauthorizedException,
 )
 from app.core.logging import logger
@@ -33,6 +34,8 @@ async def app_exception_handler(request: Request, exc: Exception) -> JSONRespons
         status_code = status.HTTP_403_FORBIDDEN
     elif isinstance(exc, ConflictException):
         status_code = status.HTTP_409_CONFLICT
+    elif isinstance(exc, ServiceUnavailableException):
+        status_code = status.HTTP_503_SERVICE_UNAVAILABLE
     elif isinstance(exc, BadRequestException):
         status_code = status.HTTP_400_BAD_REQUEST
     else:

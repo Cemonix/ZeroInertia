@@ -6,7 +6,12 @@ from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.exceptions import BadRequestException, InvalidTokenException, UnauthorizedException
+from app.core.exceptions import (
+    BadRequestException,
+    ExternalServiceException,
+    InvalidTokenException,
+    UnauthorizedException,
+)
 from app.core.settings.app_settings import AppSettings
 from app.models.user import User
 from app.services.jwt_service import JWTService
@@ -43,7 +48,10 @@ async def exchange_code_for_token(code: str) -> str:
             return access_token
 
         except httpx.RequestError as e:
-            raise BadRequestException("Failed to connect to Google OAuth service") from e
+            raise ExternalServiceException(
+                "Google OAuth",
+                "Failed to connect to authentication service"
+            ) from e
 
 
 async def fetch_user_info(access_token: str) -> dict[str, str | None]:
@@ -64,7 +72,10 @@ async def fetch_user_info(access_token: str) -> dict[str, str | None]:
             return cast(dict[str, str | None], response.json())
 
         except httpx.RequestError as e:
-            raise BadRequestException("Failed to fetch user information from Google") from e
+            raise ExternalServiceException(
+                "Google OAuth",
+                "Failed to fetch user information"
+            ) from e
 
 
 async def create_or_update_user(session: AsyncSession, user_data: dict[str, str | None]) -> User:

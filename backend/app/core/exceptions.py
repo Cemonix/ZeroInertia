@@ -158,3 +158,21 @@ class InvalidTokenException(UnauthorizedException):
 # 409 Conflict Exceptions
 class ConflictException(AppException):
     """Base class for resource conflicts (maps to HTTP 409)."""
+
+
+# 503 Service Unavailable Exceptions
+class ServiceUnavailableException(AppException):
+    """Base class for external service failures (maps to HTTP 503)."""
+
+    def __init__(self, message: str = "External service temporarily unavailable") -> None:
+        super().__init__(message)
+
+
+class ExternalServiceException(ServiceUnavailableException):
+    """Raised when an external service (OAuth provider, API, etc.) fails or is unreachable."""
+
+    def __init__(self, service_name: str, details: str | None = None) -> None:
+        message = f"{service_name} is currently unavailable"
+        if details:
+            message += f": {details}"
+        super().__init__(message)
