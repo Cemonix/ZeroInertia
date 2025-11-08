@@ -4,30 +4,66 @@
             <p>Select a project to view its tasks</p>
         </div>
         <div v-else>
-            <div class="board-sections">
+            <!-- View mode toggle -->
+            <div class="board-header">
+                <SelectButton
+                    v-model="viewMode"
+                    :options="viewModeOptions"
+                    optionLabel="label"
+                    optionValue="value"
+                    aria-labelledby="view-mode-toggle"
+                >
+                    <template #option="{ option }">
+                        <FontAwesomeIcon :icon="option.icon" />
+                        <span class="option-label">{{ option.label }}</span>
+                    </template>
+                </SelectButton>
+            </div>
+
+            <div class="board-sections" :class="{ 'kanban-view': viewMode === 'kanban' }">
                 <draggable
                     v-model="draggableSections"
                     item-key="id"
+                    @start="handleDragStart"
                     @end="handleDragEnd"
-                    handle=".section-header"
+                    handle=".drag-handle"
                     animation="200"
                     ghost-class="section-ghost"
                 >
                     <template #item="{element}">
-                        <BoardSection
-                            :project-id="projectId"
-                            :section="element"
-                        />
+                        <div v-if="element" :key="element.id">
+                            <BoardSection
+                                class="drag-handle"
+                                :project-id="projectId"
+                                :section="element"
+                            />
+                        </div>
                     </template>
                 </draggable>
+                <div v-if="viewMode === 'kanban'" class="add-section-card">
+                    <Button
+                        @click="isSectionCreateVisible = true"
+                        label="Add Section"
+                        text
+                        class="add-section-inline-btn"
+                    >
+                        <template #icon>
+                            <FontAwesomeIcon icon="plus" />
+                        </template>
+                    </Button>
+                </div>
             </div>
             <Button
+                v-if="viewMode === 'list'"
                 @click="isSectionCreateVisible = true"
                 class="add-section-btn"
-                icon="pi pi-plus"
                 label="Add Section"
                 outlined
-            />
+            >
+                <template #icon>
+                    <FontAwesomeIcon icon="plus" />
+                </template>
+            </Button>
         </div>
     </div>
 
@@ -51,6 +87,8 @@ import { useTaskStore } from "@/stores/task";
 import { useLabelStore } from "@/stores/label";
 import type { Section } from "@/models/section";
 import { useToast } from "primevue";
+import SelectButton from "primevue/selectbutton";
+import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 
 const toast = useToast();
 
@@ -68,21 +106,46 @@ const labelStore = useLabelStore();
 
 const isSectionCreateVisible = ref(false);
 
+// View mode state
+const VIEW_MODE_STORAGE_KEY = 'board.viewMode';
+
+type ViewMode = 'list' | 'kanban';
+const savedViewMode = localStorage.getItem(VIEW_MODE_STORAGE_KEY) as ViewMode | null;
+
+const viewMode = ref<ViewMode>(savedViewMode || 'list');
+const viewModeOptions = [
+    { label: 'List', value: 'list', icon: 'list' },
+    { label: 'Kanban', value: 'kanban', icon: 'table-columns' }
+];
+
+// Save view mode preference to localStorage
+watch(viewMode, (newMode) => {
+    localStorage.setItem(VIEW_MODE_STORAGE_KEY, newMode);
+});
+
 // Create a local ref that draggable can mutate
 const draggableSections = ref<Section[]>([]);
+const isDragging = ref(false);
 
 // Watch sections from store and sync to local draggable array
 watch(() => sectionStore.sortedSections, (newSections) => {
-    draggableSections.value = [...newSections];
+    if (!isDragging.value) {
+        draggableSections.value = [...newSections];
+    }
 }, { immediate: true });
 
+function handleDragStart() {
+    isDragging.value = true;
+}
+
 async function handleDragEnd() {
-    // Use the mutated draggableSections array (which has the new order)
     const sectionIds = draggableSections.value.map((section: Section) => section.id);
     try {
         await sectionStore.reorderSections(sectionIds);
     } catch (error) {
         toast.add({ severity: "error", summary: "Error", detail: "Failed to reorder sections" });
+    } finally {
+        isDragging.value = false;
     }
 }
 
@@ -114,16 +177,30 @@ watch(
 <style scoped>
 .board-container {
     width: 100%;
+    height: 100%;
     padding: 1.5rem;
     margin: 0 auto;
     background: var(--p-content-background);
     border-radius: 12px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
     border: 1px solid var(--p-content-border-color);
+    display: flex;
+    flex-direction: column;
+    /* allow inner flex children to size/scroll correctly */
+    min-height: 0;
+    /* include padding and border in explicit height */
+    box-sizing: border-box;
 }
 
 .board-header {
+    display: flex;
+    justify-content: flex-end;
     margin-bottom: 1.5rem;
+    flex: 0 0 auto;
+}
+
+.option-label {
+    margin-left: 0.5rem;
 }
 
 .board-title {
@@ -137,18 +214,42 @@ watch(
     display: flex;
     flex-direction: column;
     gap: 0;
+    transition: all 0.3s ease;
+    flex: 1;
+    min-height: 0;
 }
 
-/* Future: Kanban view support */
+/* Kanban view support */
 .board-sections.kanban-view {
     flex-direction: row;
     gap: 1rem;
     overflow-x: auto;
+    overflow-y: hidden;
+    align-items: stretch;
 }
 
-.board-sections.kanban-view > * {
-    min-width: 300px;
-    max-width: 350px;
+/* Make draggable wrapper inherit flex layout in kanban view */
+.board-sections.kanban-view > :first-child {
+    display: flex;
+    flex-direction: row;
+    gap: 1rem;
+    height: 100%;
+    align-items: flex-start;
+}
+
+.board-sections.kanban-view :deep(.board-section) {
+    min-width: 340px;
+    max-width: 400px;
+    flex-shrink: 0;
+    max-height: calc(100vh - 225px);
+    display: flex;
+    flex-direction: column;
+}
+
+.board-sections.kanban-view :deep(.task-list) {
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
 }
 
 .empty-state {
@@ -163,6 +264,27 @@ watch(
 .add-section-btn {
     margin-top: 1rem;
     width: 100%;
+}
+
+/* Inline add-section tile for Kanban view */
+.add-section-card {
+    min-width: 300px;
+    max-width: 360px;
+    flex-shrink: 0;
+    height: 100%;
+    background: var(--p-content-hover-background);
+    border: 1px dashed var(--p-content-border-color);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.75rem;
+}
+
+.add-section-inline-btn {
+    width: 100%;
+    justify-content: center;
+    color: var(--p-text-color);
 }
 
 /* Draggable ghost styles for sections */

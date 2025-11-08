@@ -173,18 +173,22 @@ export const useTaskStore = defineStore('task', () => {
             tasks.value.find(t => t.id === id)
         ).filter(Boolean) as Task[];
 
-        // Update order_index for each task
+        // Update order_index and section_id for each task
         tasksInSection.forEach((task, index) => {
             const taskIndex = tasks.value.findIndex(t => t.id === task.id);
             if (taskIndex !== -1) {
-                tasks.value[taskIndex] = { ...task, order_index: index };
+                tasks.value[taskIndex] = {
+                    ...task,
+                    order_index: index,
+                    section_id: sectionId  // Update section_id in case task was moved
+                };
             }
         });
 
-        // Prepare the reorder payload
-        const reorderPayload: TaskReorderItem[] = reorderedTaskIds.map((id, index) => ({
-            id,
-            section_id: sectionId,
+        // Prepare the reorder payload - use the task's current section_id (which may have been updated)
+        const reorderPayload: TaskReorderItem[] = tasksInSection.map((task, index) => ({
+            id: task.id,
+            section_id: task.section_id,  // Use task's section_id which reflects any cross-section moves
             order_index: index,
         }));
 

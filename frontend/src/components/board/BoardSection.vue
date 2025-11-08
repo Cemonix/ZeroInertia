@@ -38,8 +38,9 @@
         <div v-if="!isCollapsed" class="task-list">
             <draggable
                 v-model="draggableTasks"
+                group="tasks"
                 item-key="id"
-                @end="handleDragEnd"
+                @change="handleDragChange"
                 handle=".task-card"
                 animation="200"
                 ghost-class="task-ghost"
@@ -179,7 +180,15 @@ const toggleCollapse = () => {
     isCollapsed.value = !isCollapsed.value;
 };
 
-async function handleDragEnd() {
+async function handleDragChange(event: any) {
+    // Handle task being added to this section from another section
+    if (event.added) {
+        const movedTask = event.added.element;
+        // Update the task's section_id immediately
+        movedTask.section_id = props.section.id;
+    }
+
+    // Recalculate order indices for all tasks in this section
     const taskIds = draggableTasks.value.map((task: Task) => task.id);
     try {
         await taskStore.reorderTasks(props.section.id, taskIds);
@@ -241,6 +250,11 @@ function handleDeleteSection() {
     padding: 1rem;
     margin-bottom: 1rem;
     border: 1px solid var(--p-content-border-color);
+    /* Make sections behave like full-height columns in Kanban */
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
 }
 
 .section-header {
@@ -294,6 +308,9 @@ function handleDeleteSection() {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
 }
 
 .new-task-container {
