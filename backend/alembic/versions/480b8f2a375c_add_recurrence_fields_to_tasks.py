@@ -7,8 +7,8 @@ Create Date: 2025-11-06 19:33:57.262197
 """
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
 
 # revision identifiers, used by Alembic.
@@ -24,12 +24,27 @@ def upgrade() -> None:
     op.add_column('tasks', sa.Column('recurrence_type', sa.String(length=50), nullable=True))
     op.add_column('tasks', sa.Column('recurrence_days', sa.ARRAY(sa.Integer()), nullable=True))
 
-    # Drop the foreign key constraint and column on recurring_task_id
-    op.drop_constraint('tasks_recurring_task_id_fkey', 'tasks', type_='foreignkey')
-    op.drop_column('tasks', 'recurring_task_id')
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+
+    # Drop the foreign key constraint on recurring_task_id if it exists under any known name
+    constraint_names = {'tasks_recurring_task_id_fkey', 'fk_tasks_recurring_task_id'}
+    existing_constraints = {
+        fk['name']
+        for fk in inspector.get_foreign_keys('tasks')
+        if fk.get('name')
+    }
+    for constraint_name in constraint_names & existing_constraints:
+        op.drop_constraint(constraint_name, 'tasks', type_='foreignkey')
+
+    # Drop the recurring_task_id column if present
+    task_columns = {column['name'] for column in inspector.get_columns('tasks')}
+    if 'recurring_task_id' in task_columns:
+        op.drop_column('tasks', 'recurring_task_id')
 
     # Drop the recurring_tasks table entirely (no longer needed)
-    op.drop_table('recurring_tasks')
+    if inspector.has_table('recurring_tasks'):
+        op.drop_table('recurring_tasks')
 
 
 def downgrade() -> None:

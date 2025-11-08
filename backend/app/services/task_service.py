@@ -28,6 +28,7 @@ async def create_task(
     recurrence_type: str | None = None,
     recurrence_days: list[int] | None = None,
     label_ids: list[UUID] | None = None,
+    reminder_minutes: int | None = None,
 ) -> Task:
     """Create a new task for a user."""
     # Get the max order_index for this section to append new task at the end
@@ -52,7 +53,8 @@ async def create_task(
         priority_id=priority_id,
         due_datetime=due_datetime,
         recurrence_type=recurrence_type,
-        recurrence_days=recurrence_days
+        recurrence_days=recurrence_days,
+        reminder_minutes=reminder_minutes,
     )
 
     db.add(new_task)
@@ -95,7 +97,7 @@ async def get_tasks(db: AsyncSession, user_id: UUID) -> Sequence[Task]:
     result = await db.execute(
         select(Task)
         .options(selectinload(Task.labels))  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
-        .where(Task.user_id == user_id, Task.archived == False)  # noqa: E712
+        .where(Task.user_id == user_id, Task.archived.is_(False))
         .order_by(Task.order_index)
     )
     return result.scalars().all()
@@ -113,7 +115,7 @@ async def get_tasks_by_project(
         .where(
             Task.user_id == user_id,
             Task.project_id == project_id,
-            Task.archived == False  # noqa: E712
+            Task.archived.is_(False)
         )
         .order_by(Task.order_index)
     )
@@ -130,7 +132,7 @@ async def get_archived_tasks(
         .options(selectinload(Task.labels))  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
         .where(
             Task.user_id == user_id,
-            Task.archived == True  # noqa: E712
+            Task.archived.is_(True)
         )
         .order_by(Task.order_index)
     )
@@ -186,8 +188,9 @@ async def _handle_recurring_task_completion(
     saved_section_id = task.section_id
     saved_priority_id = task.priority_id
     saved_due_datetime = task.due_datetime
-    saved_recurrence_type = cast(str, task.recurrence_type)  # Safe: checked before calling this function
+    saved_recurrence_type = cast(str, task.recurrence_type)
     saved_recurrence_days = task.recurrence_days
+    saved_reminder_minutes = task.reminder_minutes
     task_labels = cast(Sequence[Label], task.labels)
     saved_label_ids = [label.id for label in task_labels] if task_labels else None
 
@@ -216,6 +219,7 @@ async def _handle_recurring_task_completion(
         recurrence_type=saved_recurrence_type,
         recurrence_days=saved_recurrence_days,
         label_ids=saved_label_ids,
+        reminder_minutes=saved_reminder_minutes,
     )
 
 
@@ -325,7 +329,11 @@ async def snooze_task(
         raise ValueError("Task does not have a due date to snooze")
 
     now = datetime.now(timezone.utc)
-    base_date = task.due_datetime if task.due_datetime > now else now
+    base_date = (
+        task.due_datetime
+        if task.due_datetime > now
+        else task.due_datetime.combine(now.date(), task.due_datetime.time(), tzinfo=timezone.utc)
+    )
 
     if task.recurrence_type:
         next_due = _calculate_next_due_date(
@@ -355,9 +363,9 @@ async def archive_completed_tasks(
     result = await db.execute(
         update(Task)
         .where(
-            Task.completed == True,  # noqa: E712
+            Task.completed.is_(True),
             Task.completed_at < cutoff,
-            Task.archived == False  # noqa: E712
+            Task.archived.is_(False)
         )
         .values(archived=True, archived_at=datetime.now(timezone.utc))
     )

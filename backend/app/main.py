@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
-from app.api.v1 import auth, checklist, label, note, priority, project, section, streak, task
+from app.api.v1 import auth, checklist, label, note, notification, priority, project, section, streak, task
 from app.core.database import engine
 from app.core.logging import logger, setup_logging
 from app.core.scheduler import setup_scheduler
@@ -79,6 +79,7 @@ app.include_router(priority.router, prefix="/api/v1/priorities", tags=["prioriti
 app.include_router(streak.router, prefix="/api/v1/streaks", tags=["streaks"])
 app.include_router(label.router, prefix="/api/v1/labels", tags=["labels"])
 app.include_router(note.router, prefix="/api/v1/notes", tags=["notes"])
+app.include_router(notification.router, prefix="/api/v1/notifications", tags=["notifications"])
 
 
 if __name__ == "__main__":

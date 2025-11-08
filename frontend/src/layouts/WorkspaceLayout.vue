@@ -52,6 +52,7 @@
                 <slot />
             </section>
         </div>
+        <NotificationToggle v-model:visible="showNotificationSettings" />
     </main>
 </template>
 
@@ -60,6 +61,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { useStreakStore } from "@/stores/streak";
+import NotificationToggle from "@/components/common/NotificationToggle.vue";
 
 const props = withDefaults(defineProps<{
     showStreak?: boolean;
@@ -74,6 +76,7 @@ const router = useRouter();
 const userMenu = ref();
 const isSidebarCollapsed = ref(false);
 const isDarkMode = ref(false);
+const showNotificationSettings = ref(false);
 
 const getUserInitials = (fullName: string | null, email: string): string => {
     if (fullName && fullName.trim()) {
@@ -98,6 +101,13 @@ const userMenuItems = computed(() => [
         class: "user-info",
     },
     { separator: true },
+    {
+        label: "Notifications",
+        icon: "fa fa-bell",
+        command: () => {
+            showNotificationSettings.value = true;
+        },
+    },
     {
         label: "Logout",
         icon: "fa fa-sign-out-alt",

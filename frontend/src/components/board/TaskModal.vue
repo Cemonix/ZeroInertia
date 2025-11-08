@@ -61,6 +61,16 @@
                     :showTime="true"
                     hourFormat="24"
                 />
+                <Button
+                    outlined
+                    size="small"
+                    @click="showReminderPicker = true"
+                    :disabled="!dueDateTime"
+                    :title="!dueDateTime ? 'Set a due date first' : ''"
+                >
+                    <FontAwesomeIcon icon="bell" class="button-icon" />
+                    <span>{{ reminderButtonText }}</span>
+                </Button>
                 <Button outlined size="small" @click="showRecurrencePicker = true">
                     <FontAwesomeIcon icon="repeat" class="button-icon" />
                     <span>{{ recurrenceButtonText }}</span>
@@ -214,6 +224,34 @@
                 </div>
             </Popover>
 
+            <!-- Reminder Picker Popover -->
+            <Popover
+                v-model:visible="showReminderPicker"
+                title="Reminder"
+                width="360px"
+            >
+                <div class="reminder-picker">
+                    <div class="reminder-field">
+                        <label for="reminder-time">Notify me</label>
+                        <Select
+                            id="reminder-time"
+                            v-model="reminderMinutes"
+                            :options="REMINDER_OPTIONS"
+                            optionLabel="label"
+                            optionValue="value"
+                            placeholder="Select reminder time"
+                            size="small"
+                            showClear
+                            variant="outlined"
+                        />
+                    </div>
+                    <div class="reminder-actions">
+                        <Button text size="small" @click="clearReminder">Clear</Button>
+                        <Button size="small" @click="showReminderPicker = false">Done</Button>
+                    </div>
+                </div>
+            </Popover>
+
             <!-- Footer Actions -->
             <div class="task-modal-footer">
                 <Button label="Cancel" text @click="handleClose" />
@@ -271,15 +309,30 @@ const newChecklistTitle = ref("");
 const showLabelPicker = ref(false);
 const selectedLabelIds = ref<string[]>([]);
 const showRecurrencePicker = ref(false);
+const showReminderPicker = ref(false);
 
 // Recurrence state (stored directly on task now)
 const recurrenceType = ref<TaskRecurrenceType | null>(null);
 const recurrenceDaysOfWeek = ref<number[]>([]); // JS convention: 0=Sunday
 
+// Reminder state
+const reminderMinutes = ref<number | null>(null);
+
 const RECURRENCE_OPTIONS: { label: string; value: TaskRecurrenceType }[] = [
     { label: "Daily", value: "daily" },
     { label: "Every Other Day", value: "alternate_days" },
     { label: "Specific Days", value: "weekly" },
+];
+
+const REMINDER_OPTIONS: { label: string; value: number }[] = [
+    { label: "At time of event", value: 0 },
+    { label: "5 minutes before", value: 5 },
+    { label: "10 minutes before", value: 10 },
+    { label: "15 minutes before", value: 15 },
+    { label: "30 minutes before", value: 30 },
+    { label: "1 hour before", value: 60 },
+    { label: "2 hours before", value: 120 },
+    { label: "1 day before", value: 1440 },
 ];
 
 // Computed properties for display
@@ -343,6 +396,18 @@ const recurrenceButtonText = computed(() => {
     return "Repeat";
 });
 
+const reminderButtonText = computed(() => {
+    if (reminderMinutes.value === null) {
+        return "Reminder";
+    }
+
+    const minutes = reminderMinutes.value;
+    if (minutes === 0) return "At time";
+    if (minutes < 60) return `${minutes}m before`;
+    if (minutes < 1440) return `${minutes / 60}h before`;
+    return `${minutes / 1440}d before`;
+});
+
 // Watch for modal visibility changes and load task data
 watch(
     () => taskStore.isTaskModalVisible,
@@ -380,6 +445,9 @@ watch(
                     resetRecurrence();
                 }
 
+                // Load reminder
+                reminderMinutes.value = currentTask.reminder_minutes ?? null;
+
                 await loadChecklists(currentTask.id);
             } else {
                 // Creating new task
@@ -390,7 +458,18 @@ watch(
             checklistStore.clearChecklists();
             showLabelPicker.value = false;
             showRecurrencePicker.value = false;
+            showReminderPicker.value = false;
             resetForm();
+        }
+    }
+);
+
+// Clear reminder when due date is removed
+watch(
+    () => dueDateTimeString.value,
+    (newValue) => {
+        if (!newValue) {
+            reminderMinutes.value = null;
         }
     }
 );
@@ -441,6 +520,11 @@ function resetRecurrence() {
 function clearRecurrence() {
     resetRecurrence();
     showRecurrencePicker.value = false;
+}
+
+function clearReminder() {
+    reminderMinutes.value = null;
+    showReminderPicker.value = false;
 }
 
 function getRecurrencePayload(): { type: TaskRecurrenceType | null; days: number[] | null } {
@@ -507,6 +591,7 @@ async function saveTask() {
                 label_ids: selectedLabelIds.value,
                 recurrence_type: recurrencePayload.type,
                 recurrence_days: recurrencePayload.days,
+                reminder_minutes: reminderMinutes.value,
             });
         } else {
             await taskStore.createTask({
@@ -519,6 +604,7 @@ async function saveTask() {
                 label_ids: selectedLabelIds.value,
                 recurrence_type: recurrencePayload.type,
                 recurrence_days: recurrencePayload.days,
+                reminder_minutes: reminderMinutes.value,
             });
         }
 
@@ -547,6 +633,8 @@ function resetForm() {
     selectedLabelIds.value = [];
     showLabelPicker.value = false;
     showRecurrencePicker.value = false;
+    showReminderPicker.value = false;
+    reminderMinutes.value = null;
     resetRecurrence();
 }
 
@@ -837,6 +925,31 @@ onMounted(async () => {
 }
 
 .recurrence-actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding-top: 0.5rem;
+}
+
+.reminder-picker {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.reminder-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.reminder-field label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--p-text-color);
+}
+
+.reminder-actions {
     display: flex;
     justify-content: space-between;
     gap: 0.5rem;

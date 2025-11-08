@@ -23,6 +23,7 @@ export interface Task {
     section_id: string;
     priority_id: string | null;
     due_datetime: string | null;
+    reminder_minutes: number | null; // Minutes before due_datetime to send notification
     recurrence_type: string | null; // daily | alternate_days | weekly
     recurrence_days: number[] | null; // For weekly: 0=Mon, 6=Sun (Python weekday convention)
     created_at: string;
@@ -39,6 +40,7 @@ export interface TaskCreateInput {
     section_id: string;
     priority_id?: string | null;
     due_datetime?: string | null;
+    reminder_minutes?: number | null;
     recurrence_type?: string | null;
     recurrence_days?: number[] | null;
     label_ids?: string[] | null;
@@ -51,6 +53,7 @@ export interface TaskUpdateInput {
     order_index?: number;
     priority_id?: string | null;
     due_datetime?: string | null;
+    reminder_minutes?: number | null;
     recurrence_type?: string | null;
     recurrence_days?: number[] | null;
     label_ids?: string[] | null;

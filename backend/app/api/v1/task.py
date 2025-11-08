@@ -33,6 +33,7 @@ async def create_task(
             recurrence_type=task_data.recurrence_type,
             recurrence_days=task_data.recurrence_days,
             label_ids=task_data.label_ids,
+            reminder_minutes=task_data.reminder_minutes,
         )
     except ValueError as exc:
         # Check if this is a "not found" error (from foreign key constraint)

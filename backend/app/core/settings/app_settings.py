@@ -39,6 +39,9 @@ class AppSettings(BaseSettings):
     redis_password: str = Field(default="", alias="REDIS_PASSWORD")
     redis_db: int = Field(default=0, alias="REDIS_DB")
 
+    # Firebase Push Notifications
+    firebase_service_account_path: str = Field(default="", alias="FIREBASE_SERVICE_ACCOUNT_PATH")
+
     # Server Configuration
     host: str = Field(default="0.0.0.0", alias="HOST")
     port: int = Field(default=8000, alias="PORT")
