@@ -2,14 +2,17 @@
 
 ## generate-sw.js
 
-Generates `public/firebase-messaging-sw.js` from the template file with environment variables injected.
+Generates `public/firebase-messaging-sw.js` from the template file with environment variables and Firebase version injected.
 
 ### How it works
 
-1. Reads `public/firebase-messaging-sw.template.js` (template with placeholders)
-2. Loads environment variables from `.env` using dotenv
-3. Replaces all `__VITE_FIREBASE_*__` placeholders with actual values
-4. Writes the result to `public/firebase-messaging-sw.js`
+1. Reads `package.json` to automatically detect the installed Firebase version
+2. Reads `public/firebase-messaging-sw.template.js` (template with placeholders)
+3. Loads environment variables from `.env` using dotenv
+4. Replaces all placeholders:
+   - `__FIREBASE_VERSION__` with the version from `package.json`
+   - `__VITE_FIREBASE_*__` with actual values from `.env`
+5. Writes the result to `public/firebase-messaging-sw.js`
 
 ### When it runs
 

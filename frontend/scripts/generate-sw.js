@@ -15,12 +15,18 @@ const __dirname = dirname(__filename);
 const envPath = join(__dirname, "../.env");
 dotenv.config({ path: envPath });
 
+// Read package.json to get Firebase version
+const packageJsonPath = join(__dirname, "../package.json");
+const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8"));
+const firebaseVersion = packageJson.dependencies.firebase?.replace(/[\^~]/, "") || "12.5.0";
+
 // Read template
 const templatePath = join(__dirname, "../public/firebase-messaging-sw.template.js");
 let template = readFileSync(templatePath, "utf-8");
 
 // Get environment variables
 const replacements = {
+    __FIREBASE_VERSION__: firebaseVersion,
     __VITE_FIREBASE_API_KEY__: process.env.VITE_FIREBASE_API_KEY || "",
     __VITE_FIREBASE_AUTH_DOMAIN__: process.env.VITE_FIREBASE_AUTH_DOMAIN || "",
     __VITE_FIREBASE_PROJECT_ID__: process.env.VITE_FIREBASE_PROJECT_ID || "",
@@ -57,4 +63,4 @@ for (const [placeholder, value] of Object.entries(replacements)) {
 const outputPath = join(__dirname, "../public/firebase-messaging-sw.js");
 writeFileSync(outputPath, template);
 
-console.log("Generated firebase-messaging-sw.js with environment variables");
+console.log(`✅ Generated firebase-messaging-sw.js (Firebase v${firebaseVersion})`);

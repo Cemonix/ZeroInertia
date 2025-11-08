@@ -4,11 +4,12 @@
 // The actual service worker is generated during build with environment variables
 
 // Import Firebase scripts (loaded from CDN)
+// Version is automatically set from package.json during build
 importScripts(
-    "https://www.gstatic.com/firebasejs/12.2.1/firebase-app-compat.js"
+    "https://www.gstatic.com/firebasejs/__FIREBASE_VERSION__/firebase-app-compat.js"
 );
 importScripts(
-    "https://www.gstatic.com/firebasejs/12.2.1/firebase-messaging-compat.js"
+    "https://www.gstatic.com/firebasejs/__FIREBASE_VERSION__/firebase-messaging-compat.js"
 );
 
 // Initialize Firebase in the service worker
