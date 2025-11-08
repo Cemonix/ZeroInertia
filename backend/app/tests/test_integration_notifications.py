@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.push_subscription import PushSubscription
 from app.models.user import User
+from app.services import notification_service
 
 # pyright: reportAny=false, reportPrivateUsage=false
 
@@ -287,11 +288,9 @@ class TestNotificationService:
         return subscription
 
     async def test_send_notification_to_user_success(
-        self, db_session: AsyncSession, test_user: User
+        self, db_session: AsyncSession, test_user: User, test_subscription: PushSubscription  # pyright: ignore[reportUnusedParameter]  # noqa: ARG002
     ) -> None:
         """Test sending notification to a user with valid subscription."""
-        from app.services import notification_service
-
         with patch.object(
             notification_service, "send_push_notification", new_callable=AsyncMock
         ) as mock_send:
@@ -308,8 +307,6 @@ class TestNotificationService:
         self, db_session: AsyncSession, test_user: User
     ) -> None:
         """Test sending notification to user with no subscriptions."""
-        from app.services import notification_service
-
         count = await notification_service.send_notification_to_user(
             db=db_session, user_id=test_user.id, title="Test", body="Test notification"
         )
@@ -320,8 +317,6 @@ class TestNotificationService:
         self, db_session: AsyncSession, test_user: User, test_subscription: PushSubscription
     ) -> None:
         """Test that invalid FCM tokens are cleaned up automatically."""
-        from app.services import notification_service
-
         with patch.object(
             notification_service, "send_push_notification", new_callable=AsyncMock
         ) as mock_send:
@@ -341,11 +336,9 @@ class TestNotificationService:
             assert result.scalar_one_or_none() is None
 
     async def test_send_task_reminder(
-        self, db_session: AsyncSession, test_user: User
+        self, db_session: AsyncSession, test_user: User, test_subscription: PushSubscription  # pyright: ignore[reportUnusedParameter]  # noqa: ARG002
     ) -> None:
         """Test sending task reminder notification."""
-        from app.services import notification_service
-
         task_id = uuid4()
 
         with patch.object(
@@ -379,8 +372,6 @@ class TestNotificationService:
         self, test_subscription: PushSubscription
     ) -> None:
         """Test that transient FCM errors trigger retry logic."""
-        from app.services import notification_service
-
         with patch("app.services.notification_service.asyncio.to_thread") as mock_to_thread:
             # First call fails with transient error, second succeeds
             error = firebase_exceptions.FirebaseError(
@@ -405,8 +396,6 @@ class TestNotificationService:
         self, test_subscription: PushSubscription
     ) -> None:
         """Test that notification fails after max retries."""
-        from app.services import notification_service
-
         with patch("app.services.notification_service.asyncio.to_thread") as mock_to_thread:
             # All attempts fail
             error = firebase_exceptions.FirebaseError(
@@ -432,8 +421,6 @@ class TestNotificationService:
         self, test_subscription: PushSubscription
     ) -> None:
         """Test that invalid token errors don't trigger retry."""
-        from app.services import notification_service
-
         with patch("app.services.notification_service.asyncio.to_thread") as mock_to_thread:
             # Simulate invalid token
             error = firebase_exceptions.FirebaseError(

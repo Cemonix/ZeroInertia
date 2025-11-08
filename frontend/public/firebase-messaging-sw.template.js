@@ -37,14 +37,15 @@ messaging.onBackgroundMessage((payload) => {
         payload
     );
 
-    // Extract notification data
-    const notificationTitle = payload.notification?.title || "Zero Inertia";
+    // Extract notification data from payload.data (data-only messages)
+    const data = payload.data || {};
+    const notificationTitle = data.title || payload.notification?.title || "Zero Inertia";
     const notificationOptions = {
-        body: payload.notification?.body || "",
-        icon: payload.notification?.icon || "/ZeroInertia.svg",
-        badge: payload.notification?.badge || "/ZeroInertia.svg",
-        data: payload.data || {},
-        tag: payload.data?.task_id || "default", // Prevents duplicate notifications for same task
+        body: data.body || payload.notification?.body || "",
+        icon: data.icon || payload.notification?.icon || "/ZeroInertia.svg",
+        badge: data.badge || payload.notification?.badge || "/ZeroInertia.svg",
+        data: data,
+        tag: data.task_id || "default", // Prevents duplicate notifications for same task
         requireInteraction: false, // Auto-dismiss after a while
     };
 

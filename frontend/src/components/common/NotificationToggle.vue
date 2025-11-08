@@ -45,6 +45,19 @@
                     />
                 </div>
 
+                <div v-if="permission === 'granted' && hasSubscriptions" class="test-section">
+                    <p class="test-description">Test your notification setup:</p>
+                    <Button
+                        @click="handleTestNotification"
+                        :disabled="isLoading"
+                        :loading="isLoading"
+                        severity="secondary"
+                        outlined
+                        label="Send Test Notification"
+                        icon="fa fa-bell"
+                    />
+                </div>
+
                 <div v-if="permission === 'denied'" class="denied-help">
                     <p>
                         <strong>Notifications blocked.</strong>
@@ -59,6 +72,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useToast } from 'primevue/usetoast';
+import apiClient from '@/services/apiClient';
 import {
     subscribeToNotifications,
     unsubscribeFromNotifications,
@@ -181,6 +195,35 @@ const handleDisableNotifications = async () => {
     }
 };
 
+const handleTestNotification = async () => {
+    if (isLoading.value) return;
+
+    isLoading.value = true;
+    try {
+        await apiClient.post('/api/v1/notifications/test', {
+            title: 'Test Notification',
+            body: 'This is a test notification from Zero Inertia!'
+        });
+
+        toast.add({
+            severity: 'success',
+            summary: 'Test Sent',
+            detail: 'Check your notifications!',
+            life: 3000,
+        });
+    } catch (error: any) {
+        console.error('Error sending test notification:', error);
+        toast.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: error?.response?.data?.detail || 'Failed to send test notification',
+            life: 5000,
+        });
+    } finally {
+        isLoading.value = false;
+    }
+};
+
 onMounted(async () => {
     isSupported.value = await isNotificationSupported();
     if (isSupported.value) {
@@ -249,5 +292,21 @@ onMounted(async () => {
     color: var(--p-red-900);
     font-size: 0.875rem;
     line-height: 1.5;
+}
+
+.test-section {
+    padding: 0.75rem;
+    background-color: var(--p-surface-100);
+    border: 1px dashed var(--p-surface-300);
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.test-description {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--p-text-muted-color);
 }
 </style>
