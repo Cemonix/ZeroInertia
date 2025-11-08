@@ -1,11 +1,12 @@
 from uuid import UUID
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, status
 from fastapi.routing import APIRouter
 from sqlalchemy.ext.asyncio.session import AsyncSession
 
 from app.api.v1.auth_deps import get_current_user
 from app.core.database import get_db
+from app.core.exceptions import ProjectNotFoundException
 from app.models.user import User
 from app.schemas.project import ProjectCreate, ProjectResponse, ProjectsReorder, ProjectUpdate
 from app.services import project_service
@@ -49,7 +50,7 @@ async def get_project(
     """Get a specific project by ID for the authenticated user."""
     project = await project_service.get_project_by_id(db=db, project_id=project_id, user_id=current_user.id)
     if not project:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+        raise ProjectNotFoundException(str(project_id))
     return ProjectResponse.model_validate(project)
 
 
@@ -60,14 +61,11 @@ async def reorder_projects(
     db: AsyncSession = Depends(get_db),
 ) -> None:
     """Batch update project order and parent relationships."""
-    try:
-        await project_service.reorder_projects(
-            db=db,
-            user_id=current_user.id,
-            projects_reorder=projects_reorder
-        )
-    except ValueError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="One or more projects not found") from None
+    await project_service.reorder_projects(
+        db=db,
+        user_id=current_user.id,
+        projects_reorder=projects_reorder
+    )
 
 
 @router.patch(
@@ -82,18 +80,15 @@ async def update_project(
     db: AsyncSession = Depends(get_db),
 ) -> ProjectResponse:
     """Update a specific project by ID for the authenticated user."""
-    try:
-        updated_project = await project_service.update_project(
-            db=db,
-            project_id=project_id,
-            user_id=current_user.id,
-            parent_id=project_data.parent_id,
-            title=project_data.title,
-            order_index=project_data.order_index,
-        )
-        return ProjectResponse.model_validate(updated_project)
-    except ValueError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found") from None
+    updated_project = await project_service.update_project(
+        db=db,
+        project_id=project_id,
+        user_id=current_user.id,
+        parent_id=project_data.parent_id,
+        title=project_data.title,
+        order_index=project_data.order_index,
+    )
+    return ProjectResponse.model_validate(updated_project)
 
 
 @router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -103,7 +98,4 @@ async def delete_project(
     db: AsyncSession = Depends(get_db),
 ) -> None:
     """Delete a specific project by ID for the authenticated user."""
-    try:
-        await project_service.delete_project(db=db, project_id=project_id, user_id=current_user.id)
-    except ValueError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found") from None
+    await project_service.delete_project(db=db, project_id=project_id, user_id=current_user.id)

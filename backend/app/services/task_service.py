@@ -8,10 +8,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy.sql import select, update
 
+from app.core.exceptions import (
+    InvalidOperationException,
+    InvalidReferenceException,
+    LabelNotFoundException,
+    PriorityNotFoundException,
+    ProjectNotFoundException,
+    SectionNotFoundException,
+    TaskNotFoundException,
+)
 from app.models.label import Label
 from app.models.task import Task
 from app.schemas.task import TaskReorder
 from app.services import streak_service
+
+# pyright: reportAttributeAccessIssue=false, reportUnknownMemberType=false, reportUnknownArgumentType=false
 
 DEFAULT_SNOOZE_INTERVAL = timedelta(days=1)
 
@@ -70,13 +81,13 @@ async def create_task(
         # Parse the error to provide helpful feedback
         error_msg = str(e.orig) if hasattr(e, 'orig') else str(e)
         if 'section_id' in error_msg:
-            raise ValueError("Section not found or does not belong to you") from e
+            raise SectionNotFoundException() from e
         elif 'project_id' in error_msg:
-            raise ValueError("Project not found or does not belong to you") from e
+            raise ProjectNotFoundException() from e
         elif 'priority_id' in error_msg:
-            raise ValueError("Priority not found") from e
+            raise PriorityNotFoundException() from e
         else:
-            raise ValueError("Invalid reference: one or more related entities not found") from e
+            raise InvalidReferenceException() from e
 
     await db.refresh(new_task)
     return new_task
@@ -86,7 +97,7 @@ async def get_task_by_id(db: AsyncSession, task_id: UUID, user_id: UUID) -> Task
     """Retrieve a task by its ID and user ID."""
     result = await db.execute(
         select(Task)
-        .options(selectinload(Task.labels))  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
+        .options(selectinload(Task.labels))
         .where(Task.id == task_id, Task.user_id == user_id)
     )
     return result.scalars().first()
@@ -96,7 +107,7 @@ async def get_tasks(db: AsyncSession, user_id: UUID) -> Sequence[Task]:
     """Retrieve all tasks for a specific user."""
     result = await db.execute(
         select(Task)
-        .options(selectinload(Task.labels))  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
+        .options(selectinload(Task.labels))
         .where(Task.user_id == user_id, Task.archived.is_(False))
         .order_by(Task.order_index)
     )
@@ -111,7 +122,7 @@ async def get_tasks_by_project(
     """Retrieve all tasks for a specific project and user."""
     result = await db.execute(
         select(Task)
-        .options(selectinload(Task.labels))  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
+        .options(selectinload(Task.labels))
         .where(
             Task.user_id == user_id,
             Task.project_id == project_id,
@@ -129,7 +140,7 @@ async def get_archived_tasks(
     """Retrieve all archived tasks for a specific user."""
     result = await db.execute(
         select(Task)
-        .options(selectinload(Task.labels))  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
+        .options(selectinload(Task.labels))
         .where(
             Task.user_id == user_id,
             Task.archived.is_(True)
@@ -150,24 +161,24 @@ async def _apply_task_updates(
     completed_value = cast(bool | None, updates.get("completed"))
 
     if "title" in updates:
-        task.title = updates["title"]  # pyright: ignore[reportAttributeAccessIssue]
+        task.title = updates["title"]
     if "description" in updates:
-        task.description = updates["description"]  # pyright: ignore[reportAttributeAccessIssue]
+        task.description = updates["description"]
     if "completed" in updates:
-        task.completed = updates["completed"]  # pyright: ignore[reportAttributeAccessIssue]
+        task.completed = updates["completed"]
         # Set completed_at timestamp when marking as complete
         if completed_value and was_incomplete:
             task.completed_at = datetime.now(timezone.utc)
     if "priority_id" in updates:
-        task.priority_id = updates["priority_id"]  # pyright: ignore[reportAttributeAccessIssue]
+        task.priority_id = updates["priority_id"]
     if "due_datetime" in updates:
-        task.due_datetime = updates["due_datetime"]  # pyright: ignore[reportAttributeAccessIssue]
+        task.due_datetime = updates["due_datetime"]
     if "reminder_minutes" in updates:
-        task.reminder_minutes = updates["reminder_minutes"]  # pyright: ignore[reportAttributeAccessIssue]
+        task.reminder_minutes = updates["reminder_minutes"]
     if "recurrence_type" in updates:
-        task.recurrence_type = updates["recurrence_type"]  # pyright: ignore[reportAttributeAccessIssue]
+        task.recurrence_type = updates["recurrence_type"]
     if "recurrence_days" in updates:
-        task.recurrence_days = updates["recurrence_days"]  # pyright: ignore[reportAttributeAccessIssue]
+        task.recurrence_days = updates["recurrence_days"]
     if "label_ids" in updates:
         label_ids = updates["label_ids"]
         if label_ids is not None:  # pyright: ignore[reportUnnecessaryComparison]
@@ -239,7 +250,7 @@ async def update_task(
     """
     task = await get_task_by_id(db, task_id, user_id)
     if task is None:
-        raise ValueError("Task not found")
+        raise TaskNotFoundException(str(task_id))
 
     # Track completion state for side effects
     was_incomplete = not task.completed
@@ -270,7 +281,7 @@ async def delete_task(db: AsyncSession, task_id: UUID, user_id: UUID) -> None:
     """Delete a task."""
     task = await get_task_by_id(db, task_id, user_id)
     if task is None:
-        raise ValueError("Task not found")
+        raise TaskNotFoundException(str(task_id))
 
     await db.delete(task)
     await db.commit()
@@ -289,7 +300,7 @@ async def reorder_tasks(db: AsyncSession, user_id: UUID, tasks_reorder: list[Tas
     tasks = {t.id: t for t in result.scalars().all()}
 
     if len(tasks) != len(task_ids):
-        raise ValueError("One or more tasks not found")
+        raise TaskNotFoundException()
 
     for task_data in tasks_reorder:
         task = tasks[task_data.id]
@@ -307,7 +318,7 @@ async def archive_task(
     """Archive a specific task."""
     task = await get_task_by_id(db, task_id, user_id)
     if task is None:
-        raise ValueError("Task not found")
+        raise TaskNotFoundException(str(task_id))
 
     task.archived = True
     task.archived_at = datetime.now(timezone.utc)
@@ -325,10 +336,10 @@ async def snooze_task(
     """Snooze a task by adjusting its due date and incrementing snooze count."""
     task = await get_task_by_id(db, task_id, user_id)
     if task is None:
-        raise ValueError("Task not found")
+        raise TaskNotFoundException(str(task_id))
 
     if task.due_datetime is None:
-        raise ValueError("Task does not have a due date to snooze")
+        raise InvalidOperationException("Task does not have a due date to snooze")
 
     now = datetime.now(timezone.utc)
     base_date = (
@@ -424,5 +435,5 @@ async def _get_labels_for_user(
     )
     labels = result.scalars().all()
     if len(labels) != len(unique_label_ids):
-        raise ValueError("One or more labels not found")
+        raise LabelNotFoundException()
     return labels

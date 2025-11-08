@@ -1,11 +1,12 @@
 from uuid import UUID
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, status
 from fastapi.routing import APIRouter
 from sqlalchemy.ext.asyncio.session import AsyncSession
 
 from app.api.v1.auth_deps import get_current_user
 from app.core.database import get_db
+from app.core.exceptions import TaskNotFoundException
 from app.models.user import User
 from app.schemas.task import TaskCreate, TaskReorder, TaskResponse, TaskUpdate
 from app.services import task_service
@@ -20,34 +21,20 @@ async def create_task(
     db: AsyncSession = Depends(get_db),
 ) -> TaskResponse:
     """Create a new task for the authenticated user."""
-    try:
-        new_task = await task_service.create_task(
-            db=db,
-            user_id=current_user.id,
-            title=task_data.title,
-            description=task_data.description,
-            project_id=task_data.project_id,
-            section_id=task_data.section_id,
-            priority_id=task_data.priority_id,
-            due_datetime=task_data.due_datetime,
-            recurrence_type=task_data.recurrence_type,
-            recurrence_days=task_data.recurrence_days,
-            label_ids=task_data.label_ids,
-            reminder_minutes=task_data.reminder_minutes,
-        )
-    except ValueError as exc:
-        # Check if this is a "not found" error (from foreign key constraint)
-        error_msg = str(exc).lower()
-        if "not found" in error_msg:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=str(exc)
-            ) from exc
-        # Other validation errors return 400
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(exc)
-        ) from exc
+    new_task = await task_service.create_task(
+        db=db,
+        user_id=current_user.id,
+        title=task_data.title,
+        description=task_data.description,
+        project_id=task_data.project_id,
+        section_id=task_data.section_id,
+        priority_id=task_data.priority_id,
+        due_datetime=task_data.due_datetime,
+        recurrence_type=task_data.recurrence_type,
+        recurrence_days=task_data.recurrence_days,
+        label_ids=task_data.label_ids,
+        reminder_minutes=task_data.reminder_minutes,
+    )
     return TaskResponse.model_validate(new_task)
 
 
@@ -86,7 +73,7 @@ async def get_task(
     """Get a specific task by ID for the authenticated user."""
     task = await task_service.get_task_by_id(db=db, task_id=task_id, user_id=current_user.id)
     if not task:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
+        raise TaskNotFoundException(str(task_id))
     return TaskResponse.model_validate(task)
 
 
@@ -102,22 +89,16 @@ async def update_task(
     db: AsyncSession = Depends(get_db),
 ) -> TaskResponse:
     """Update a specific task by ID for the authenticated user."""
-    try:
-        # Only pass fields that were explicitly set in the request
-        # This allows null values to clear fields (e.g., removing a due date)
-        update_fields = task_data.model_dump(exclude_unset=True)
-        updated_task = await task_service.update_task(
-            db=db,
-            task_id=task_id,
-            user_id=current_user.id,
-            **update_fields,  # pyright: ignore[reportAny]
-        )
-        return TaskResponse.model_validate(updated_task)
-    except ValueError as exc:
-        message = str(exc)
-        if message == "Task not found":
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=message) from exc
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=message) from exc
+    # Only pass fields that were explicitly set in the request
+    # This allows null values to clear fields (e.g., removing a due date)
+    update_fields = task_data.model_dump(exclude_unset=True)
+    updated_task = await task_service.update_task(
+        db=db,
+        task_id=task_id,
+        user_id=current_user.id,
+        **update_fields,  # pyright: ignore[reportAny]
+    )
+    return TaskResponse.model_validate(updated_task)
 
 
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -127,10 +108,7 @@ async def delete_task(
     db: AsyncSession = Depends(get_db),
 ) -> None:
     """Delete a specific task by ID for the authenticated user."""
-    try:
-        await task_service.delete_task(db=db, task_id=task_id, user_id=current_user.id)
-    except ValueError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found") from None
+    await task_service.delete_task(db=db, task_id=task_id, user_id=current_user.id)
 
 
 @router.post("/reorder", status_code=status.HTTP_204_NO_CONTENT)
@@ -140,14 +118,11 @@ async def reorder_tasks(
     db: AsyncSession = Depends(get_db),
 ) -> None:
     """Reorder tasks for the authenticated user."""
-    try:
-        await task_service.reorder_tasks(
-            db=db,
-            user_id=current_user.id,
-            tasks_reorder=tasks_reorder
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from None
+    await task_service.reorder_tasks(
+        db=db,
+        user_id=current_user.id,
+        tasks_reorder=tasks_reorder
+    )
 
 
 @router.post("/{task_id}/archive", status_code=status.HTTP_204_NO_CONTENT)
@@ -157,10 +132,7 @@ async def archive_task(
     db: AsyncSession = Depends(get_db),
 ) -> None:
     """Archive a specific task by ID for the authenticated user."""
-    try:
-        await task_service.archive_task(db=db, task_id=task_id, user_id=current_user.id)
-    except ValueError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found") from None
+    await task_service.archive_task(db=db, task_id=task_id, user_id=current_user.id)
 
 
 @router.post(
@@ -174,15 +146,9 @@ async def snooze_task(
     db: AsyncSession = Depends(get_db),
 ) -> TaskResponse:
     """Snooze a specific task by ID for the authenticated user."""
-    try:
-        snoozed_task = await task_service.snooze_task(
-            db=db,
-            task_id=task_id,
-            user_id=current_user.id,
-        )
-        return TaskResponse.model_validate(snoozed_task)
-    except ValueError as exc:
-        message = str(exc)
-        if message == "Task not found":
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=message) from exc
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=message) from exc
+    snoozed_task = await task_service.snooze_task(
+        db=db,
+        task_id=task_id,
+        user_id=current_user.id,
+    )
+    return TaskResponse.model_validate(snoozed_task)

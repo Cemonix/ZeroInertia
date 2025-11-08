@@ -4,6 +4,7 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import select
 
+from app.core.exceptions import SectionNotFoundException
 from app.models.section import Section
 from app.schemas.section import SectionReorder
 
@@ -59,7 +60,7 @@ async def update_section(
     """Update an existing section."""
     section = await get_section_by_id(db, section_id, user_id)
     if section is None:
-        raise ValueError("Section not found")
+        raise SectionNotFoundException(str(section_id))
 
     if title is not None:
         section.title = title
@@ -76,7 +77,7 @@ async def delete_section(db: AsyncSession, section_id: UUID, user_id: UUID) -> N
     """Delete a section."""
     section = await get_section_by_id(db, section_id, user_id)
     if section is None:
-        raise ValueError("Section not found")
+        raise SectionNotFoundException(str(section_id))
 
     await db.delete(section)
     await db.commit()
@@ -95,7 +96,7 @@ async def reorder_sections(db: AsyncSession, user_id: UUID, sections_reorder: li
     sections = {s.id: s for s in result.scalars().all()}
 
     if len(sections) != len(section_ids):
-        raise ValueError("One or more sections not found")
+        raise SectionNotFoundException()
 
     for section_data in sections_reorder:
         section = sections[section_data.id]

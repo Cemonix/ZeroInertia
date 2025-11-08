@@ -27,6 +27,9 @@ COPY ./app ./app
 COPY alembic.ini .
 COPY alembic ./alembic
 
+# Copy Firebase service account (required for push notifications)
+COPY firebase-service-account.json .
+
 # Create non-root user
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser

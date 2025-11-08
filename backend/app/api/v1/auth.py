@@ -4,7 +4,7 @@ from urllib.parse import urlencode
 from uuid import UUID
 
 from authlib.integrations.starlette_client import OAuth
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,6 +14,7 @@ from app.api.v1.auth_deps import (
     fetch_user_info,
 )
 from app.core.database import get_db
+from app.core.exceptions import InvalidTokenException, UnauthorizedException
 from app.core.settings.app_settings import AppSettings
 from app.schemas.user import UserResponse
 from app.services.jwt_service import JWTService
@@ -119,35 +120,23 @@ async def get_current_user(
     # Get JWT from cookie
     access_token = request.cookies.get("access_token")
     if not access_token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated"
-        )
+        raise UnauthorizedException("Access token missing")
 
     payload = JWTService.verify_token(access_token)
 
     user_id_str = payload.get("sub")
     if not user_id_str:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token payload"
-        )
+        raise UnauthorizedException("Invalid token payload")
 
     try:
         user_id = UUID(str(user_id_str))
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid user ID in token"
-        ) from None
+    except ValueError as e:
+        raise InvalidTokenException("Invalid user ID in token") from e
 
     # Get user from database
     user = await UserService.get_user_by_id(session, user_id)
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found"
-        )
+        raise UnauthorizedException("User not found")
 
     return UserResponse.model_validate(user)
 

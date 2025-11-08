@@ -1,11 +1,12 @@
 from uuid import UUID
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, status
 from fastapi.routing import APIRouter
 from sqlalchemy.ext.asyncio.session import AsyncSession
 
 from app.api.v1.auth_deps import get_current_user
 from app.core.database import get_db
+from app.core.exceptions import LabelNotFoundException
 from app.models.user import User
 from app.schemas.label import LabelCreate, LabelResponse, LabelUpdate
 from app.services import label_service
@@ -20,17 +21,14 @@ async def create_label(
     db: AsyncSession = Depends(get_db),
 ) -> LabelResponse:
     """Create a new label for the authenticated user."""
-    try:
-        new_label = await label_service.create_label(
-            db=db,
-            user_id=current_user.id,
-            name=label_data.name,
-            color=label_data.color,
-            description=label_data.description,
-            order_index=label_data.order_index,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    new_label = await label_service.create_label(
+        db=db,
+        user_id=current_user.id,
+        name=label_data.name,
+        color=label_data.color,
+        description=label_data.description,
+        order_index=label_data.order_index,
+    )
 
     return LabelResponse.model_validate(new_label)
 
@@ -54,7 +52,7 @@ async def get_label(
     """Get a specific label."""
     label = await label_service.get_label_by_id(db=db, label_id=label_id, user_id=current_user.id)
     if label is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Label not found")
+        raise LabelNotFoundException(str(label_id))
     return LabelResponse.model_validate(label)
 
 
@@ -66,21 +64,15 @@ async def update_label(
     db: AsyncSession = Depends(get_db),
 ) -> LabelResponse:
     """Update a label."""
-    try:
-        updated_label = await label_service.update_label(
-            db=db,
-            label_id=label_id,
-            user_id=current_user.id,
-            name=label_data.name,
-            color=label_data.color,
-            description=label_data.description,
-            order_index=label_data.order_index,
-        )
-    except ValueError as exc:
-        message = str(exc)
-        if message == "Label not found":
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=message) from exc
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=message) from exc
+    updated_label = await label_service.update_label(
+        db=db,
+        label_id=label_id,
+        user_id=current_user.id,
+        name=label_data.name,
+        color=label_data.color,
+        description=label_data.description,
+        order_index=label_data.order_index,
+    )
 
     return LabelResponse.model_validate(updated_label)
 
@@ -92,7 +84,4 @@ async def delete_label(
     db: AsyncSession = Depends(get_db),
 ) -> None:
     """Delete a label."""
-    try:
-        await label_service.delete_label(db=db, label_id=label_id, user_id=current_user.id)
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    await label_service.delete_label(db=db, label_id=label_id, user_id=current_user.id)

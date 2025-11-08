@@ -1,12 +1,13 @@
 from typing import cast
 from uuid import UUID
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, status
 from fastapi.routing import APIRouter
 from sqlalchemy.ext.asyncio.session import AsyncSession
 
 from app.api.v1.auth_deps import get_current_user
 from app.core.database import get_db
+from app.core.exceptions import NoteNotFoundException
 from app.models.user import User
 from app.schemas.note import NoteCreate, NoteReorder, NoteResponse, NoteUpdate
 from app.services import note_service
@@ -31,17 +32,14 @@ async def create_note(
     db: AsyncSession = Depends(get_db),
 ) -> NoteResponse:
     """Create a new note for the authenticated user."""
-    try:
-        note = await note_service.create_note(
-            db=db,
-            user_id=current_user.id,
-            title=note_data.title,
-            content=note_data.content,
-            parent_id=note_data.parent_id,
-            order_index=note_data.order_index,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    note = await note_service.create_note(
+        db=db,
+        user_id=current_user.id,
+        title=note_data.title,
+        content=note_data.content,
+        parent_id=note_data.parent_id,
+        order_index=note_data.order_index,
+    )
     return NoteResponse.model_validate(note)
 
 
@@ -54,7 +52,7 @@ async def get_note(
     """Return a single note for the authenticated user."""
     note = await note_service.get_note_by_id(db=db, note_id=note_id, user_id=current_user.id)
     if not note:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found")
+        raise NoteNotFoundException(str(note_id))
     return NoteResponse.model_validate(note)
 
 
@@ -69,20 +67,14 @@ async def update_note(
     payload = note_data.model_dump(exclude_unset=True)
     parent_id_set = "parent_id" in payload
     parent_id = cast(UUID | None, payload.pop("parent_id", None))
-    try:
-        note = await note_service.update_note(
-            db=db,
-            note_id=note_id,
-            user_id=current_user.id,
-            parent_id=parent_id,
-            parent_id_set=parent_id_set,
-            **payload,  # pyright: ignore[reportAny]
-        )
-    except ValueError as exc:
-        message = str(exc)
-        if message == "Note not found":
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=message) from exc
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=message) from exc
+    note = await note_service.update_note(
+        db=db,
+        note_id=note_id,
+        user_id=current_user.id,
+        parent_id=parent_id,
+        parent_id_set=parent_id_set,
+        **payload,  # pyright: ignore[reportAny]
+    )
     return NoteResponse.model_validate(note)
 
 
@@ -93,10 +85,7 @@ async def delete_note(
     db: AsyncSession = Depends(get_db),
 ) -> None:
     """Delete a note for the authenticated user."""
-    try:
-        await note_service.delete_note(db=db, note_id=note_id, user_id=current_user.id)
-    except ValueError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found") from None
+    await note_service.delete_note(db=db, note_id=note_id, user_id=current_user.id)
 
 
 @router.post("/reorder", status_code=status.HTTP_204_NO_CONTENT)
@@ -106,11 +95,8 @@ async def reorder_notes(
     db: AsyncSession = Depends(get_db),
 ) -> None:
     """Update parent and order indices for a set of notes."""
-    try:
-        await note_service.reorder_notes(
-            db=db,
-            user_id=current_user.id,
-            notes_reorder=notes_reorder,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    await note_service.reorder_notes(
+        db=db,
+        user_id=current_user.id,
+        notes_reorder=notes_reorder,
+    )

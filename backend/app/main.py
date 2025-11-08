@@ -5,8 +5,21 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
-from app.api.v1 import auth, checklist, label, note, notification, priority, project, section, streak, task
+from app.api.exception_handlers import app_exception_handler
+from app.api.v1 import (
+    auth,
+    checklist,
+    label,
+    note,
+    notification,
+    priority,
+    project,
+    section,
+    streak,
+    task,
+)
 from app.core.database import engine
+from app.core.exceptions import AppException
 from app.core.logging import logger, setup_logging
 from app.core.scheduler import setup_scheduler
 from app.core.seed import seed_database
@@ -50,6 +63,9 @@ app = FastAPI(
     redoc_url="/redoc",
     lifespan=lifespan,
 )
+
+# Register custom exception handlers
+app.add_exception_handler(AppException, app_exception_handler)
 
 # Session middleware (for OAuth state)
 app.add_middleware(SessionMiddleware, secret_key=app_settings.jwt_secret_key)
