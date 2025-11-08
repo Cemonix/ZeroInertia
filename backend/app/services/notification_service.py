@@ -54,12 +54,11 @@ def _send_fcm_message_sync(
     """
     # Prepare data payload with notification info
     # Using data-only messages ensures onBackgroundMessage is triggered on mobile
-    # FCM requires all data values to be strings
     notification_data = {
         "title": title,
         "body": body,
-        "icon": f"{frontend_url}/ZeroInertia.svg",
-        "badge": f"{frontend_url}/ZeroInertia.svg",
+        "icon": f"{frontend_url}/icon-192.png",
+        "badge": f"{frontend_url}/badge-96.png",
         **(data or {}),
     }
 
@@ -274,8 +273,8 @@ async def send_task_reminder(
     Returns:
         Number of successfully sent notifications
     """
-    title = "Task Reminder"
-    body = f"{task_title} is due {due_datetime}"
+    title = task_title  # Show task title prominently on mobile
+    body = f"Due {due_datetime}"
     data = {
         "type": "task_reminder",
         "task_id": str(task_id),
