@@ -46,7 +46,7 @@ messaging.onBackgroundMessage((payload) => {
         badge: data.badge || payload.notification?.badge || "/ZeroInertia.svg",
         data: data,
         tag: data.task_id || "default", // Prevents duplicate notifications for same task
-        requireInteraction: false, // Auto-dismiss after a while
+        requireInteraction: true,
     };
 
     // Show the notification
@@ -66,12 +66,7 @@ self.addEventListener("notificationclick", (event) => {
     const taskId = event.notification.data?.task_id;
     const notificationType = event.notification.data?.type;
 
-    // Determine URL to open
     let urlToOpen = "/";
-    if (notificationType === "task_reminder" && taskId) {
-        // TODO: Navigate to specific task when task detail pages are implemented
-        urlToOpen = `/home`;
-    }
 
     // Open or focus the app
     event.waitUntil(
