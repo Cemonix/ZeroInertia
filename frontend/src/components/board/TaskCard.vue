@@ -44,6 +44,10 @@
                     <FontAwesomeIcon icon="calendar" />
                     <span>{{ formattedDueDate }}</span>
                 </div>
+                <div v-if="reminderLabel" class="task-reminder">
+                    <FontAwesomeIcon icon="bell" />
+                    <span>{{ reminderLabel }}</span>
+                </div>
             </div>
         </div>
 
@@ -304,6 +308,24 @@ const taskMenuItems = computed<MenuItem[]>(() => {
 
     return items;
 });
+
+const formatReminderLabel = (minutes: number) => {
+    if (minutes === 0) return "Reminder at due time";
+    if (minutes < 60) return `${minutes}m before`;
+    if (minutes < 1440 && minutes % 60 === 0) return `${minutes / 60}h before`;
+    if (minutes >= 1440 && minutes % 1440 === 0) return `${minutes / 1440}d before`;
+    if (minutes < 1440) return `${minutes}m before`;
+    return `${(minutes / 1440).toFixed(1)}d before`;
+};
+
+const reminderLabel = computed(() => {
+    const minutes = props.task.reminder_minutes;
+    if (minutes === null || minutes === undefined) {
+        return null;
+    }
+
+    return formatReminderLabel(minutes);
+});
 </script>
 
 <style scoped>
@@ -412,15 +434,32 @@ const taskMenuItems = computed<MenuItem[]>(() => {
 }
 
 .task-actions {
-    opacity: 0;
     display: flex;
-    gap: 0.25rem;
+    gap: 0.5rem;
     flex-shrink: 0;
     align-items: center;
+}
+
+.task-menu-trigger {
+    opacity: 0;
     transition: opacity 0.2s;
 }
 
-.task-card:hover .task-actions {
+.task-card:hover .task-menu-trigger {
+    opacity: 1;
+}
+
+.reminder-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--p-primary-color);
+    font-size: 0.875rem;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+}
+
+.task-card:hover .reminder-indicator {
     opacity: 1;
 }
 
@@ -444,9 +483,19 @@ const taskMenuItems = computed<MenuItem[]>(() => {
     opacity: 0.6;
 }
 
-/* Ensure actions are visible on touch devices */
+.task-reminder {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.8rem;
+    color: var(--p-primary-color);
+    opacity: 0.75;
+    margin-top: 0.25rem;
+}
+
+/* Ensure menu trigger is visible on touch devices */
 @media (hover: none) {
-    .task-actions {
+    .task-menu-trigger {
         opacity: 1;
     }
 }

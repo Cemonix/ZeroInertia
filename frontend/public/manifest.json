@@ -1,0 +1,33 @@
+{
+  "name": "Zero Inertia",
+  "short_name": "ZeroInertia",
+  "description": "Personal productivity ecosystem - your second brain for tasks, time tracking, and progress visualization",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#3b82f6",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/ZeroInertia_logo.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "utilities"],
+  "shortcuts": [
+    {
+      "name": "Add Task",
+      "short_name": "New Task",
+      "description": "Create a new task",
+      "url": "/?action=new-task",
+      "icons": [
+        {
+          "src": "/ZeroInertia_logo.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ]
+}

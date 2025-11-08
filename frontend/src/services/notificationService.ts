@@ -1,0 +1,156 @@
+/**
+ * Push Notification Service
+ * Handles push notification subscriptions using Firebase Cloud Messaging
+ */
+import { getToken, onMessage, deleteToken } from "firebase/messaging";
+import { getMessagingInstance } from "@/config/firebase";
+import apiClient from "./apiClient";
+import { VAPID_PUBLIC_KEY } from "@/config/firebase";
+
+export interface PushSubscription {
+    id: string;
+    user_id: string;
+    endpoint: string;
+    user_agent: string | null;
+    created_at: string;
+    updated_at: string;
+}
+
+/**
+ * Request notification permission from the user
+ * @returns Permission state: 'granted', 'denied', or 'default'
+ */
+export async function requestNotificationPermission(): Promise<NotificationPermission> {
+    if (!("Notification" in window)) {
+        return "denied";
+    }
+
+    return await Notification.requestPermission();
+}
+
+/**
+ * Subscribe to push notifications
+ * Gets FCM token and sends it to the backend
+ * @throws Error if subscription fails
+ */
+export async function subscribeToNotifications(): Promise<void> {
+    try {
+        const messaging = await getMessagingInstance();
+
+        if (!messaging) {
+            throw new Error("Firebase Messaging is not supported in this browser");
+        }
+
+        const permission = await requestNotificationPermission();
+
+        if (permission !== "granted") {
+            throw new Error("Notification permission not granted");
+        }
+
+        const swRegistration = await navigator.serviceWorker.ready;
+
+        const token = await getToken(messaging, {
+            vapidKey: VAPID_PUBLIC_KEY,
+            serviceWorkerRegistration: swRegistration,
+        });
+
+        if (!token) {
+            throw new Error("Failed to get FCM token from Firebase");
+        }
+
+        await apiClient.post("/api/v1/notifications/subscribe", {
+            endpoint: token,
+            user_agent: navigator.userAgent,
+        });
+    } catch (error: any) {
+        if (error?.name === "AbortError" || error?.message?.includes("Registration failed")) {
+            const isBrave = (navigator as any).brave !== undefined;
+            if (isBrave) {
+                throw new Error(
+                    "Push notifications are blocked. In Brave, go to Settings → Privacy and security → " +
+                    "Use Google services for push messaging, then enable it and try again."
+                );
+            }
+            throw new Error(
+                "Push notifications are blocked by your browser or network. " +
+                "Check your browser settings or try disabling privacy shields/extensions."
+            );
+        }
+        throw error;
+    }
+}
+
+/**
+ * Unsubscribe from push notifications
+ * @throws Error if unsubscription fails
+ */
+export async function unsubscribeFromNotifications(): Promise<void> {
+    const messaging = await getMessagingInstance();
+
+    if (messaging) {
+        try {
+            await deleteToken(messaging);
+        } catch {
+            // Continue even if local token deletion fails
+        }
+    }
+
+    await apiClient.delete("/api/v1/notifications/subscriptions/all");
+}
+
+/**
+ * Get all push subscriptions for the current user
+ * @throws Error if fetching subscriptions fails
+ */
+export async function getUserSubscriptions(): Promise<PushSubscription[]> {
+    const response = await apiClient.get<PushSubscription[]>(
+        "/api/v1/notifications/subscriptions"
+    );
+    return response.data;
+}
+
+/**
+ * Setup foreground message listener
+ * Handles notifications when the app is open and in focus
+ */
+export async function setupForegroundMessageListener(
+    onMessageReceived: (payload: any) => void
+): Promise<void> {
+    const messaging = await getMessagingInstance();
+    if (!messaging) {
+        return;
+    }
+
+    onMessage(messaging, (payload) => {
+        onMessageReceived(payload);
+
+        if (payload.notification) {
+            new Notification(payload.notification.title || "Zero Inertia", {
+                body: payload.notification.body,
+                icon: payload.notification.icon || "/ZeroInertia.svg",
+                data: payload.data,
+            });
+        }
+    });
+}
+
+/**
+ * Check if push notifications are supported in this browser
+ */
+export async function isNotificationSupported(): Promise<boolean> {
+    if (!("Notification" in window)) {
+        return false;
+    }
+    const messaging = await getMessagingInstance();
+    return messaging !== null;
+}
+
+/**
+ * Get current notification permission status
+ */
+export function getNotificationPermission(): NotificationPermission {
+    if (!("Notification" in window)) {
+        return "denied";
+    }
+    return Notification.permission;
+}
