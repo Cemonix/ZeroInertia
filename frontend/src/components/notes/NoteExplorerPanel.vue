@@ -82,4 +82,29 @@ const createRootNote = async () => {
     overflow-y: auto;
     padding: 0.75rem 0.5rem;
 }
+
+/* Mobile responsive styles */
+@media (max-width: 768px) {
+    .panel-header {
+        padding: 0.75rem;
+    }
+
+    .panel-title {
+        font-size: 1rem;
+    }
+
+    .panel-body {
+        padding: 0.5rem 0.25rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .panel-header {
+        padding: 0.625rem 0.75rem;
+    }
+
+    .panel-title {
+        font-size: 0.9375rem;
+    }
+}
 </style>

@@ -318,4 +318,97 @@ const formatTimestamp = (isoString: string) => {
     margin: 0;
     color: var(--p-text-color);
 }
+
+/* Mobile responsive styles */
+@media (max-width: 768px) {
+    .editor-header {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 0.75rem 1rem;
+        gap: 0.75rem;
+    }
+
+    .title-group {
+        width: 100%;
+    }
+
+    .title-input {
+        font-size: 1.25rem;
+    }
+
+    .header-actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .view-toggle {
+        flex: 1;
+    }
+
+    .view-toggle :deep(.p-button) {
+        flex: 1;
+        padding: 0.375rem 0.5rem;
+        font-size: 0.8125rem;
+    }
+
+    .editor-pane {
+        padding: 0.75rem;
+    }
+
+    .timestamp {
+        font-size: 0.8125rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .editor-header {
+        padding: 0.625rem 0.75rem;
+        gap: 0.625rem;
+    }
+
+    .title-input {
+        font-size: 1.125rem;
+    }
+
+    /* Force edit mode on very small screens - split view is too cramped */
+    .editor-body--split {
+        flex-direction: column;
+    }
+
+    .editor-body--split .editor-pane {
+        flex: 1;
+        min-height: 300px;
+    }
+
+    .editor-pane {
+        padding: 0.5rem;
+    }
+
+    .editor-pane--input {
+        border-right: none;
+        border-bottom: 1px solid var(--p-content-border-color);
+    }
+
+    .view-toggle :deep(.p-button) {
+        padding: 0.3rem 0.4rem;
+        font-size: 0.75rem;
+    }
+
+    .markdown-preview {
+        font-size: 0.9375rem;
+    }
+
+    .note-placeholder {
+        padding: 1.5rem 1rem;
+    }
+
+    .note-placeholder h2 {
+        font-size: 1.25rem;
+    }
+
+    .note-placeholder p {
+        font-size: 0.875rem;
+        text-align: center;
+    }
+}
 </style>

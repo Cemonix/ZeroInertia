@@ -17,35 +17,28 @@
             </Button>
         </template>
         <template #default>
-            <TodayView
-                v-if="activeWorkspaceView === 'today'"
-            />
-            <Board
-                v-else-if="activeWorkspaceView === 'project'"
-                :project-id="selectedProjectId"
-            />
-            <LabelManager
-                v-else-if="activeWorkspaceView === 'labels'"
-            />
-            <TaskFilters
-                v-else-if="activeWorkspaceView === 'filters'"
-            />
-            <div
-                v-else
-                class="workspace-placeholder"
-            >
-                <h2>Workspace</h2>
-                <p>Select a view from the control panel.</p>
-            </div>
+            <Transition name="fade-slide" mode="out-in">
+                <div :key="viewKey">
+                    <TodayView v-if="activeWorkspaceView === 'today'" />
+                    <Board v-else-if="activeWorkspaceView === 'project'" :project-id="selectedProjectId" />
+                    <LabelManager v-else-if="activeWorkspaceView === 'labels'" />
+                    <TaskFilters v-else-if="activeWorkspaceView === 'filters'" />
+                    <div v-else class="workspace-placeholder">
+                        <h2>Workspace</h2>
+                        <p>Select a view from the control panel.</p>
+                    </div>
+                </div>
+            </Transition>
         </template>
     </WorkspaceLayout>
 </template>
 
 <script lang="ts" setup>
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useProjectStore } from '@/stores/project';
 import { storeToRefs } from 'pinia';
+import { useUiStore } from '@/stores/ui';
 import ProjectPanel from '@/components/sidebar/ProjectPanel.vue';
 import ControlPanel from '@/components/sidebar/ControlPanel.vue';
 import Board from '@/components/board/Board.vue';
@@ -55,10 +48,18 @@ import TodayView from '@/components/today/TodayView.vue';
 import WorkspaceLayout from '@/layouts/WorkspaceLayout.vue';
 
 const projectStore = useProjectStore();
+const uiStore = useUiStore();
 const router = useRouter();
 
 const { selectedProjectId } = storeToRefs(projectStore);
 const activeWorkspaceView = ref<'today' | 'labels' | 'filters' | 'project'>('today');
+
+// Unique key for transitions when switching views/projects
+const viewKey = computed(() => {
+    return activeWorkspaceView.value === 'project'
+        ? `project:${selectedProjectId.value ?? 'none'}`
+        : activeWorkspaceView.value;
+});
 
 const goToNotes = () => {
     if (router.currentRoute.value.path !== '/notes') {
@@ -73,17 +74,38 @@ watch(selectedProjectId, (newProjectId) => {
     } else if (!newProjectId && activeWorkspaceView.value === 'project') {
         activeWorkspaceView.value = 'today';
     }
+    // Close the mobile sidebar when a project is selected (board changes)
+    if (newProjectId) {
+        const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+        if (isMobile) uiStore.setSidebarCollapsed(true);
+    }
 }, { immediate: true });
 
 // Deselect project when switching away from project view, only if a project is selected
 watch(activeWorkspaceView, (newView) => {
+    // Deselect project when leaving project view
     if (newView !== 'project' && selectedProjectId.value !== null) {
         projectStore.selectProject(null);
     }
+    // Close the sidebar on mobile for any view change
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+    if (isMobile) uiStore.setSidebarCollapsed(true);
 });
 </script>
 
 <style scoped>
+/* Smooth fade/slide between workspace views */
+.fade-slide-enter-active,
+.fade-slide-leave-active {
+    transition: opacity 180ms ease, transform 240ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.fade-slide-enter-from,
+.fade-slide-leave-to {
+    opacity: 0;
+    transform: translateY(6px);
+}
+
 .notes-nav-btn {
     display: flex;
     align-items: center;

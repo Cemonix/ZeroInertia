@@ -42,8 +42,8 @@ messaging.onBackgroundMessage((payload) => {
     const notificationTitle = data.title || payload.notification?.title || "Zero Inertia";
     const notificationOptions = {
         body: data.body || payload.notification?.body || "",
-        icon: data.icon || payload.notification?.icon || "/ZeroInertia.svg",
-        badge: data.badge || payload.notification?.badge || "/ZeroInertia.svg",
+        icon: data.icon || payload.notification?.icon || "/icon-192.png",
+        badge: data.badge || payload.notification?.badge || "/badge-96.png",
         data: data,
         tag: data.task_id || "default", // Prevents duplicate notifications for same task
         requireInteraction: true,
