@@ -21,6 +21,7 @@ itsdangerous = "*"
 redis = "*"
 apscheduler = "*"
 httpx = "*"
+firebase-admin = "^7.1.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "*"

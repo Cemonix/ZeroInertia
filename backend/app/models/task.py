@@ -25,6 +25,10 @@ class Task(Base):
     order_index: Mapped[int] = mapped_column(default=0, nullable=False)
     snooze_count: Mapped[int] = mapped_column(default=0, nullable=False)  # Track how many times task was snoozed
 
+    # Reminder field - minutes before due_datetime to send notification
+    # Examples: 0 (at due time), 15, 30, 60 (1 hour), 1440 (1 day)
+    reminder_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
     # Recurrence fields
     recurrence_type: Mapped[str | None] = mapped_column(String(50), nullable=True)  # daily | weekly | alternate_days
     recurrence_days: Mapped[list[int] | None] = mapped_column(ARRAY(Integer), nullable=True)  # For weekly: 0=Mon, 6=Sun
