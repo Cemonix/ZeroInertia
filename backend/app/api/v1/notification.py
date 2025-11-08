@@ -94,18 +94,12 @@ async def send_test_notification(
     """
     Send a test notification immediately to the authenticated user.
     Useful for testing notification setup without waiting for scheduled reminders.
-
-    Note: If title is not provided, defaults to a sample task title format.
     """
-    # Use provided title/body, or default to task reminder format for testing
-    title = request.title if request.title else "Sample Task Name"
-    body = request.body if request.body else "Due in 30 minutes"
-
     count = await notification_service.send_notification_to_user(
         db=db,
         user_id=current_user.id,
-        title=title,
-        body=body,
+        title=request.title,
+        body=request.body,
         data={"type": "test"},
     )
 

@@ -237,7 +237,7 @@ watch(
     () => route.fullPath,
     () => {
         if (isMobileView.value && !isSidebarCollapsed.value) {
-            isSidebarCollapsed.value = true;
+            uiStore.setSidebarCollapsed(true);
         }
     }
 );
@@ -300,15 +300,6 @@ watch(
     }
     .sidebar-close-btn:hover {
         filter: brightness(0.95);
-    }
-
-    .sidebar-overlay {
-        display: block;
-        position: fixed;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.5);
-        z-index: 1099;
-        animation: fadeIn 0.3s ease;
     }
 
     .sidebar {
