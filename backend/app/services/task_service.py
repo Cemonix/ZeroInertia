@@ -305,6 +305,7 @@ async def reorder_tasks(db: AsyncSession, user_id: UUID, tasks_reorder: list[Tas
     for task_data in tasks_reorder:
         task = tasks[task_data.id]
         task.order_index = task_data.order_index
+        task.section_id = task_data.section_id
         db.add(task)
 
     await db.commit()
