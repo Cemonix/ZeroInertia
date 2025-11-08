@@ -248,7 +248,7 @@ class TestDatabaseOperations:
 
         # Query active tasks only
         result = await db_session.execute(
-            select(Task).where(Task.user_id == test_user.id, Task.archived == False)  # noqa: E712
+            select(Task).where(Task.user_id == test_user.id, Task.archived.is_(False))
         )
         active_tasks = result.scalars().all()
 
@@ -257,7 +257,7 @@ class TestDatabaseOperations:
 
         # Query archived tasks only
         result = await db_session.execute(
-            select(Task).where(Task.user_id == test_user.id, Task.archived == True)  # noqa: E712
+            select(Task).where(Task.user_id == test_user.id, Task.archived.is_(True))
         )
         archived_tasks = result.scalars().all()
 

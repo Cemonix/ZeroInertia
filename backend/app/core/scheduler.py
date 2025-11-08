@@ -75,8 +75,8 @@ async def send_task_reminders_job() -> None:
                     and_(
                         Task.due_datetime.isnot(None),
                         Task.reminder_minutes.isnot(None),
-                        Task.completed == False,  # noqa: E712
-                        Task.archived == False,  # noqa: E712
+                        Task.completed.is_(False),
+                        Task.archived.is_(False),
                     )
                 )
             )

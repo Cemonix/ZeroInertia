@@ -97,7 +97,7 @@ async def get_tasks(db: AsyncSession, user_id: UUID) -> Sequence[Task]:
     result = await db.execute(
         select(Task)
         .options(selectinload(Task.labels))  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
-        .where(Task.user_id == user_id, Task.archived == False)  # noqa: E712
+        .where(Task.user_id == user_id, Task.archived.is_(False))
         .order_by(Task.order_index)
     )
     return result.scalars().all()
@@ -115,7 +115,7 @@ async def get_tasks_by_project(
         .where(
             Task.user_id == user_id,
             Task.project_id == project_id,
-            Task.archived == False  # noqa: E712
+            Task.archived.is_(False)
         )
         .order_by(Task.order_index)
     )
@@ -132,7 +132,7 @@ async def get_archived_tasks(
         .options(selectinload(Task.labels))  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
         .where(
             Task.user_id == user_id,
-            Task.archived == True  # noqa: E712
+            Task.archived.is_(True)
         )
         .order_by(Task.order_index)
     )
@@ -363,9 +363,9 @@ async def archive_completed_tasks(
     result = await db.execute(
         update(Task)
         .where(
-            Task.completed == True,  # noqa: E712
+            Task.completed.is_(True),
             Task.completed_at < cutoff,
-            Task.archived == False  # noqa: E712
+            Task.archived.is_(False)
         )
         .values(archived=True, archived_at=datetime.now(timezone.utc))
     )
