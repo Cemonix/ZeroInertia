@@ -40,7 +40,7 @@
                         {{ label.name }}
                     </span>
                 </div>
-                <div v-if="task.due_datetime" class="task-due-date" :class="{ 'overdue': isOverdue, 'future': isFuture }">
+                <div v-if="task.due_datetime" class="task-due-date" :class="{ 'overdue': isOverdue, 'tomorrow': isTomorrow, 'future': isFuture }">
                     <FontAwesomeIcon icon="calendar" />
                     <span>{{ formattedDueDate }}</span>
                 </div>
@@ -203,14 +203,25 @@ const isOverdue = computed(() => {
     return new Date(props.task.due_datetime) < new Date();
 });
 
-const isFuture = computed(() => {
+const isTomorrow = computed(() => {
     if (!props.task.due_datetime || props.task.completed) return false;
 
     const dueDate = new Date(props.task.due_datetime);
     const now = new Date();
     const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    const dayAfterTomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2);
 
-    return dueDate >= tomorrow;
+    return dueDate >= tomorrow && dueDate < dayAfterTomorrow;
+});
+
+const isFuture = computed(() => {
+    if (!props.task.due_datetime || props.task.completed) return false;
+
+    const dueDate = new Date(props.task.due_datetime);
+    const now = new Date();
+    const dayAfterTomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2);
+
+    return dueDate >= dayAfterTomorrow;
 });
 
 const handleCardClick = (event: MouseEvent) => {
@@ -476,6 +487,11 @@ const reminderLabel = computed(() => {
 .task-due-date.overdue {
     color: var(--p-red-500);
     opacity: 1;
+}
+
+.task-due-date.tomorrow {
+    color: var(--p-orange-500);
+    opacity: 0.9;
 }
 
 .task-due-date.future {
