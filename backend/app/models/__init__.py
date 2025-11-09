@@ -1,6 +1,7 @@
 from app.models.base import Base
 from app.models.checklist import CheckList, CheckListItem
 from app.models.label import Label
+from app.models.media import Book, Game, Media, Movie, Show
 from app.models.note import Note
 from app.models.priority import Priority
 from app.models.project import Project
@@ -23,4 +24,9 @@ __all__ = [
     "Label",
     "Note",
     "PushSubscription",
+    "Media",
+    "Book",
+    "Movie",
+    "Game",
+    "Show",
 ]

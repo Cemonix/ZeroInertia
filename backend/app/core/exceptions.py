@@ -109,6 +109,14 @@ class PushSubscriptionNotFoundException(NotFoundException):
         super().__init__("No active push subscriptions found")
 
 
+class MediaNotFoundException(NotFoundException):
+    """Raised when a requested media item is not found."""
+
+    def __init__(self, media_id: str | None = None) -> None:
+        message = f"Media {media_id} not found" if media_id else "Media not found"
+        super().__init__(message)
+
+
 # 403 Forbidden Exceptions
 class ForbiddenException(AppException):
     """Base class for authorization/ownership errors (maps to HTTP 403)."""

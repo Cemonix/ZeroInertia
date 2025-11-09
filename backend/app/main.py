@@ -10,6 +10,7 @@ from app.api.v1 import (
     auth,
     checklist,
     label,
+    media,
     note,
     notification,
     priority,
@@ -96,6 +97,7 @@ app.include_router(streak.router, prefix="/api/v1/streaks", tags=["streaks"])
 app.include_router(label.router, prefix="/api/v1/labels", tags=["labels"])
 app.include_router(note.router, prefix="/api/v1/notes", tags=["notes"])
 app.include_router(notification.router, prefix="/api/v1/notifications", tags=["notifications"])
+app.include_router(media.router, prefix="/api/v1/media", tags=["media"])
 
 
 if __name__ == "__main__":
