@@ -320,7 +320,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, watch, computed, type Ref, onMounted } from "vue";
+import { ref, watch, computed, type Ref, onMounted, onBeforeUnmount } from "vue";
 import Textarea from "primevue/textarea";
 import Select from "primevue/select";
 import DateTimePicker from "@/components/common/DateTimePicker.vue";
@@ -410,6 +410,13 @@ function clearDetectedDate() {
     detectedDateText.value = '';
     dueDateTimeString.value = null;
 }
+
+// Cleanup timeout on unmount to prevent memory leak
+onBeforeUnmount(() => {
+    if (parseTimeout) {
+        clearTimeout(parseTimeout);
+    }
+});
 
 const RECURRENCE_OPTIONS: { label: string; value: TaskRecurrenceType }[] = [
     { label: "Daily", value: "daily" },

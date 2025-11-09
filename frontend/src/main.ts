@@ -108,7 +108,7 @@ app.use(PrimeVue, {
         modal: 1100,    // dialog, drawer
         overlay: 1000,  // select, autocomplete, etc.
         menu: 1000,     // overlay menus
-        tooltip: 1100   // tooltip
+        tooltip: 1200   // tooltip (above modals)
     }
 });
 app.use(ToastService);

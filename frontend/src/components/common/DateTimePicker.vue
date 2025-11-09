@@ -67,27 +67,34 @@ const emit = defineEmits<{
 const date = ref<Date | null>(null);
 const time = ref<string | null>(null); // HH:mm
 const timeInputId = `dtp-time-${Math.random().toString(36).slice(2, 8)}`;
+const syncing = ref(false); // Flag to prevent re-emission during sync
 
 // Keep internal state in sync when parent modelValue changes
 watch(() => props.modelValue, (val) => {
+    syncing.value = true;
     if (!val) {
         date.value = null;
         time.value = null;
+        syncing.value = false;
         return;
     }
     const dt = new Date(val);
     if (isNaN(dt.getTime())) {
         date.value = null;
         time.value = null;
+        syncing.value = false;
         return;
     }
     date.value = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
     const hh = String(dt.getHours()).padStart(2, '0');
     const mm = String(dt.getMinutes()).padStart(2, '0');
     time.value = `${hh}:${mm}`;
+    syncing.value = false;
 }, { immediate: true });
 
 function recomputeAndEmit() {
+    if (syncing.value) return; // Don't emit during sync
+
     if (!date.value || !time.value) {
         emit('update:modelValue', null);
         return;
