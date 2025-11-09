@@ -12,6 +12,10 @@
                 <div class="node-content">
                     <span class="node-label">{{ node.label }}</span>
                     <div class="node-actions">
+                        <span class="node-count" :aria-label="`Tasks in ${node.label}`" v-if="node.key">
+                            {{ getTaskCountForProject(String(node.key)) }}
+                        </span>
+
                         <Button
                             text
                             rounded
@@ -83,6 +87,9 @@ import Menu from 'primevue/menu';
 import { useConfirm } from 'primevue/useconfirm';
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
 import { storeToRefs } from 'pinia';
+import type { Task } from '@/models/task';
+import { taskService } from '@/services/taskService';
+import { useTaskStore } from '@/stores/task';
 
 const toast = useToast();
 const confirm = useConfirm();
@@ -92,6 +99,8 @@ const EXPANDED_KEYS_STORAGE_KEY = 'projectTree.expandedKeys';
 const projectStore = useProjectStore();
 const authStore = useAuthStore();
 const { selectedProject } = storeToRefs(projectStore);
+const taskStore = useTaskStore();
+const { tasks: taskStoreTasks } = storeToRefs(taskStore);
 const treeNodes: Ref<TreeNode[]> = ref([]);
 const expandedKeys: Ref<TreeExpandedKeys> = ref({});
 type ProjectMenu = ComponentPublicInstance & {
@@ -103,6 +112,37 @@ const isRenameDialogVisible = ref(false);
 const renameProjectTitle = ref('');
 const projectBeingRenamed = ref<TreeNode | null>(null);
 const originalProjectTitle = ref('');
+
+// Local task counts mapped by project id
+const taskCounts = ref<Record<string, number>>({});
+
+function recomputeCountsFromTasks(allTasks: Task[]) {
+    const counts: Record<string, number> = {};
+    for (const t of allTasks) {
+        // Count only active (not completed, not archived) tasks
+        if (!t.completed && !t.archived) {
+            counts[t.project_id] = (counts[t.project_id] ?? 0) + 1;
+        }
+    }
+    taskCounts.value = counts;
+}
+
+function applyPartialCountsFrom(tasks: Task[]) {
+    // Only update counts for the projects present in the given tasks list
+    const updated: Record<string, number> = { ...taskCounts.value };
+    const touched = new Set<string>();
+    for (const t of tasks) {
+        touched.add(t.project_id);
+    }
+    for (const pid of touched) {
+        updated[pid] = tasks.filter(t => t.project_id === pid && !t.completed && !t.archived).length;
+    }
+    taskCounts.value = updated;
+}
+
+function getTaskCountForProject(projectId: string): number {
+    return taskCounts.value[projectId] ?? 0;
+}
 
 // Watch for changes from backend and rebuild tree
 watchEffect(() => {
@@ -121,9 +161,26 @@ watch(
     async (isAuthenticated) => {
         if (isAuthenticated) {
             await projectStore.loadProjects();
+            // Load all tasks once to compute counts
+            try {
+                const allTasks = await taskService.getTasks();
+                recomputeCountsFromTasks(allTasks);
+            } catch (e) {
+                // Fail silently for counts to avoid blocking UI
+                taskCounts.value = {};
+            }
         }
     },
     { immediate: true }
+);
+
+// When tasks in the task store change (e.g., on a board), update counts for those projects
+watch(
+    taskStoreTasks,
+    (newTasks) => {
+        applyPartialCountsFrom(newTasks as Task[]);
+    },
+    { deep: true }
 );
 
 // Build tree structure from flat projects array
@@ -312,11 +369,46 @@ onMounted(async () => {
 .node-actions {
     display: flex;
     align-items: center;
+    position: relative;
+    min-width: 2rem;
+    justify-content: flex-end;
 }
 
 .node-content:hover .node-action,
 .node-content:focus-within .node-action {
     opacity: 1;
+}
+
+.node-count {
+    font-size: 0.85rem;
+    color: var(--p-text-muted-color);
+    text-align: right;
+    transition: opacity 0.2s ease;
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    z-index: 1;
+}
+
+.node-content:hover .node-count,
+.node-content:focus-within .node-count {
+    opacity: 0;
+}
+
+.node-action {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    z-index: 2;
+}
+
+.node-content:hover .node-action,
+.node-content:focus-within .node-action {
+    pointer-events: auto;
 }
 
 .rename-project-form {

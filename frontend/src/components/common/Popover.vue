@@ -94,7 +94,7 @@ onUnmounted(() => {
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1200;
+    z-index: 1150;
     padding: 1rem;
 }
 

@@ -8,9 +8,9 @@
         :pt="{
             root: {
                 style: { maxWidth: '95vw', maxHeight: '90vh' },
-                class: 'task-modal-dialog'
+                class: 'task-modal-dialog',
             },
-            content: { style: { padding: '0' } }
+            content: { style: { padding: '0' } },
         }"
     >
         <div class="task-modal-content">
@@ -50,31 +50,30 @@
                                 icon="flag"
                                 :style="{ color: selectedPriority?.color }"
                             />
-                            <span>{{ slotProps.value ? selectedPriority?.name : 'Priority' }}</span>
+                            <span>{{
+                                slotProps.value
+                                    ? selectedPriority?.name
+                                    : "Priority"
+                            }}</span>
                         </div>
                     </template>
                 </Select>
-                <DatePicker
-                    v-model="dueDateTime"
-                    placeholder="Due Date"
-                    size="small"
-                    showIcon
-                    showClear
-                    iconDisplay="input"
-                    :showTime="true"
-                    hourFormat="24"
-                />
+                <DateTimePicker v-model="dueDateTimeString" />
                 <Button
                     outlined
                     size="small"
                     @click="showReminderPicker = true"
-                    :disabled="!dueDateTime"
-                    :title="!dueDateTime ? 'Set a due date first' : ''"
+                    :disabled="!dueDateTimeString"
+                    :title="!dueDateTimeString ? 'Set a due date first' : ''"
                 >
                     <FontAwesomeIcon icon="bell" class="button-icon" />
                     <span>{{ reminderButtonText }}</span>
                 </Button>
-                <Button outlined size="small" @click="showRecurrencePicker = true">
+                <Button
+                    outlined
+                    size="small"
+                    @click="showRecurrencePicker = true"
+                >
                     <FontAwesomeIcon icon="repeat" class="button-icon" />
                     <span>{{ recurrenceButtonText }}</span>
                 </Button>
@@ -89,7 +88,10 @@
                     :key="label.id"
                     class="label-chip"
                 >
-                    <span class="label-chip-swatch" :style="{ backgroundColor: label.color }" />
+                    <span
+                        class="label-chip-swatch"
+                        :style="{ backgroundColor: label.color }"
+                    />
                     {{ label.name }}
                 </span>
             </div>
@@ -104,6 +106,18 @@
                         @keyup.enter="saveTask"
                         autofocus
                     />
+                    <div v-if="detectedDateText" class="date-detection-hint">
+                        <FontAwesomeIcon icon="calendar" />
+                        <span>Detected: <strong>{{ detectedDateText }}</strong></span>
+                        <button
+                            type="button"
+                            class="clear-detection-btn"
+                            @click="clearDetectedDate"
+                            title="Clear detected date"
+                        >
+                            <FontAwesomeIcon icon="times" />
+                        </button>
+                    </div>
                 </div>
                 <div class="form-field">
                     <label for="description">Description</label>
@@ -111,9 +125,16 @@
                 </div>
 
                 <!-- Checklists Section -->
-                <div v-if="currentTaskId && taskChecklists.length > 0" class="checklists-section">
+                <div
+                    v-if="currentTaskId && taskChecklists.length > 0"
+                    class="checklists-section"
+                >
                     <!-- Display existing checklists -->
-                    <div v-for="checklist in taskChecklists" :key="checklist.id" class="checklist-wrapper">
+                    <div
+                        v-for="checklist in taskChecklists"
+                        :key="checklist.id"
+                        class="checklist-wrapper"
+                    >
                         <CheckList :checklist-id="checklist.id" />
                     </div>
                 </div>
@@ -154,10 +175,16 @@
                         <FontAwesomeIcon icon="spinner" class="spinner" />
                         <span>Loading labels...</span>
                     </div>
-                    <div v-else-if="!labelStore.sortedLabels.length" class="label-picker-empty">
+                    <div
+                        v-else-if="!labelStore.sortedLabels.length"
+                        class="label-picker-empty"
+                    >
                         <FontAwesomeIcon icon="tag" class="label-picker-icon" />
                         <span>No labels yet.</span>
-                        <p>Use the Labels workspace in the sidebar to create one.</p>
+                        <p>
+                            Use the Labels workspace in the sidebar to create
+                            one.
+                        </p>
                     </div>
                     <div v-else class="label-picker-list">
                         <label
@@ -171,9 +198,17 @@
                                 v-model="selectedLabelIds"
                                 :value="label.id"
                             />
-                            <span class="label-picker-swatch" :style="{ backgroundColor: label.color }" />
-                            <span class="label-picker-name">{{ label.name }}</span>
-                            <span v-if="label.description" class="label-picker-description">
+                            <span
+                                class="label-picker-swatch"
+                                :style="{ backgroundColor: label.color }"
+                            />
+                            <span class="label-picker-name">{{
+                                label.name
+                            }}</span>
+                            <span
+                                v-if="label.description"
+                                class="label-picker-description"
+                            >
                                 {{ label.description }}
                             </span>
                         </label>
@@ -209,11 +244,17 @@
                         <label>Days of the week</label>
                         <div class="weekday-selector">
                             <button
-                                v-for="(dayLabel, dayIndex) in JS_WEEKDAY_LABELS"
+                                v-for="(
+                                    dayLabel, dayIndex
+                                ) in JS_WEEKDAY_LABELS"
                                 :key="dayLabel"
                                 type="button"
                                 class="weekday-chip"
-                                :class="{ active: recurrenceDaysOfWeek.includes(dayIndex) }"
+                                :class="{
+                                    active: recurrenceDaysOfWeek.includes(
+                                        dayIndex
+                                    ),
+                                }"
                                 @click="toggleWeekday(dayIndex)"
                             >
                                 {{ dayLabel }}
@@ -221,8 +262,14 @@
                         </div>
                     </div>
                     <div class="recurrence-actions">
-                        <Button text size="small" @click="clearRecurrence">Clear</Button>
-                        <Button size="small" @click="showRecurrencePicker = false">Done</Button>
+                        <Button text size="small" @click="clearRecurrence"
+                            >Clear</Button
+                        >
+                        <Button
+                            size="small"
+                            @click="showRecurrencePicker = false"
+                            >Done</Button
+                        >
                     </div>
                 </div>
             </Popover>
@@ -249,8 +296,12 @@
                         />
                     </div>
                     <div class="reminder-actions">
-                        <Button text size="small" @click="clearReminder">Clear</Button>
-                        <Button size="small" @click="showReminderPicker = false">Done</Button>
+                        <Button text size="small" @click="clearReminder"
+                            >Clear</Button
+                        >
+                        <Button size="small" @click="showReminderPicker = false"
+                            >Done</Button
+                        >
                     </div>
                 </div>
             </Popover>
@@ -269,10 +320,10 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, watch, computed, type Ref, onMounted } from "vue";
+import { ref, watch, computed, type Ref, onMounted, onBeforeUnmount } from "vue";
 import Textarea from "primevue/textarea";
 import Select from "primevue/select";
-import DatePicker from "primevue/datepicker";
+import DateTimePicker from "@/components/common/DateTimePicker.vue";
 import { useTaskStore } from "@/stores/task";
 import { useChecklistStore } from "@/stores/checklist";
 import { usePriorityStore } from "@/stores/priority";
@@ -285,8 +336,9 @@ import type { TaskRecurrenceType } from "@/models/task";
 import {
     jsDaysToPythonDays,
     pythonDaysToJsDays,
-    JS_WEEKDAY_LABELS
+    JS_WEEKDAY_LABELS,
 } from "@/utils/recurrenceUtils";
+import { useNaturalLanguageParsing } from "@/composables/useNaturalLanguageParsing";
 
 const toast = useToast();
 
@@ -321,6 +373,51 @@ const recurrenceDaysOfWeek = ref<number[]>([]); // JS convention: 0=Sunday
 // Reminder state
 const reminderMinutes = ref<number | null>(null);
 
+// Natural language parsing state
+const detectedDateText = ref<string>("");
+const { parseTaskDate } = useNaturalLanguageParsing();
+let parseTimeout: ReturnType<typeof setTimeout> | null = null;
+
+// Watch title and parse natural language dates with debouncing
+watch(title, (newTitle) => {
+    // Clear previous timeout
+    if (parseTimeout) {
+        clearTimeout(parseTimeout);
+    }
+
+    // Debounce parsing by 300ms to avoid parsing on every keystroke
+    parseTimeout = setTimeout(() => {
+        if (!newTitle || newTitle.trim() === '') {
+            detectedDateText.value = '';
+            return;
+        }
+
+        const result = parseTaskDate(newTitle);
+
+        if (result.date && result.matchedText) {
+            // Date detected - show the hint and update due date
+            detectedDateText.value = result.matchedText;
+            dueDateTimeString.value = result.date.toISOString();
+        } else {
+            // No date detected - clear the hint
+            detectedDateText.value = '';
+        }
+    }, 300);
+});
+
+// Clear detected date manually
+function clearDetectedDate() {
+    detectedDateText.value = '';
+    dueDateTimeString.value = null;
+}
+
+// Cleanup timeout on unmount to prevent memory leak
+onBeforeUnmount(() => {
+    if (parseTimeout) {
+        clearTimeout(parseTimeout);
+    }
+});
+
 const RECURRENCE_OPTIONS: { label: string; value: TaskRecurrenceType }[] = [
     { label: "Daily", value: "daily" },
     { label: "Every Other Day", value: "alternate_days" },
@@ -344,16 +441,7 @@ const selectedPriority = computed(() => {
     return priorityStore.getPriorityById(priorityId.value);
 });
 
-// Convert between Date object (for DatePicker) and ISO string (for backend)
-const dueDateTime = computed({
-    get: () => {
-        if (!dueDateTimeString.value) return null;
-        return new Date(dueDateTimeString.value);
-    },
-    set: (value: Date | null) => {
-        dueDateTimeString.value = value ? value.toISOString() : null;
-    }
-});
+// DateTime composition handled inside DateTimePicker
 
 // Computed properties
 const currentTaskId = computed(() => taskStore.getCurrentTask?.id || null);
@@ -364,7 +452,7 @@ const taskChecklists = computed(() => {
 
 const selectedLabels = computed<Label[]>(() => {
     return selectedLabelIds.value
-        .map(id => labelStore.getLabelById(id))
+        .map((id) => labelStore.getLabelById(id))
         .filter((label): label is Label => Boolean(label));
 });
 
@@ -391,7 +479,7 @@ const recurrenceButtonText = computed(() => {
     if (recurrenceType.value === "weekly") {
         const selectedDays = recurrenceDaysOfWeek.value
             .sort((a, b) => a - b)
-            .map(day => JS_WEEKDAY_LABELS[day]);
+            .map((day) => JS_WEEKDAY_LABELS[day]);
         const daysLabel = selectedDays.length ? selectedDays.join(" ") : "Days";
         return `Weekly · ${daysLabel}`;
     }
@@ -421,7 +509,11 @@ watch(
                 try {
                     await labelStore.loadLabels();
                 } catch (error) {
-                    toast.add({ severity: "error", summary: "Error", detail: "Failed to load labels" });
+                    toast.add({
+                        severity: "error",
+                        summary: "Error",
+                        detail: "Failed to load labels",
+                    });
                 }
             }
             if (currentTask) {
@@ -430,17 +522,26 @@ watch(
                 description.value = currentTask.description;
                 taskCompleted.value = currentTask.completed;
                 priorityId.value = currentTask.priority_id;
+                // Populate ISO string directly; child DateTimePicker will parse it
                 dueDateTimeString.value = currentTask.due_datetime;
                 selectedLabelIds.value =
                     currentTask.label_ids?.slice() ??
-                    (currentTask.labels ? currentTask.labels.map(label => label.id) : []);
+                    (currentTask.labels
+                        ? currentTask.labels.map((label) => label.id)
+                        : []);
 
                 // Load recurrence from task fields (convert Python days to JS convention)
                 if (currentTask.recurrence_type) {
-                    const recurrence = currentTask.recurrence_type as TaskRecurrenceType;
+                    const recurrence =
+                        currentTask.recurrence_type as TaskRecurrenceType;
                     recurrenceType.value = recurrence;
-                    if (recurrence === "weekly" && currentTask.recurrence_days) {
-                        recurrenceDaysOfWeek.value = pythonDaysToJsDays(currentTask.recurrence_days);
+                    if (
+                        recurrence === "weekly" &&
+                        currentTask.recurrence_days
+                    ) {
+                        recurrenceDaysOfWeek.value = pythonDaysToJsDays(
+                            currentTask.recurrence_days
+                        );
                     } else {
                         recurrenceDaysOfWeek.value = [];
                     }
@@ -477,16 +578,24 @@ watch(
     }
 );
 
+// Date/time clearing handled inside DateTimePicker
+
 async function loadChecklists(taskId: string) {
     try {
         await checklistStore.loadChecklistsForTask(taskId);
         // Load details (items) for each checklist
         const checklists = checklistStore.getChecklistsByTask(taskId);
         await Promise.all(
-            checklists.map(checklist => checklistStore.loadChecklistDetails(checklist.id))
+            checklists.map((checklist) =>
+                checklistStore.loadChecklistDetails(checklist.id)
+            )
         );
     } catch (error) {
-        toast.add({ severity: "error", summary: "Error", detail: "Failed to load checklists" });
+        toast.add({
+            severity: "error",
+            summary: "Error",
+            detail: "Failed to load checklists",
+        });
     }
 }
 
@@ -496,22 +605,31 @@ async function addChecklist() {
     try {
         const newChecklist = await checklistStore.createChecklist({
             task_id: currentTaskId.value,
-            title: newChecklistTitle.value.trim()
+            title: newChecklistTitle.value.trim(),
         });
         // Load the checklist details to get items array
         await checklistStore.loadChecklistDetails(newChecklist.id);
         newChecklistTitle.value = "";
         showAddChecklist.value = false;
     } catch (error) {
-        toast.add({ severity: "error", summary: "Error", detail: "Failed to create checklist" });
+        toast.add({
+            severity: "error",
+            summary: "Error",
+            detail: "Failed to create checklist",
+        });
     }
 }
 
 function toggleWeekday(dayIndex: number) {
     if (recurrenceDaysOfWeek.value.includes(dayIndex)) {
-        recurrenceDaysOfWeek.value = recurrenceDaysOfWeek.value.filter(day => day !== dayIndex);
+        recurrenceDaysOfWeek.value = recurrenceDaysOfWeek.value.filter(
+            (day) => day !== dayIndex
+        );
     } else {
-        recurrenceDaysOfWeek.value = [...recurrenceDaysOfWeek.value, dayIndex].sort((a, b) => a - b);
+        recurrenceDaysOfWeek.value = [
+            ...recurrenceDaysOfWeek.value,
+            dayIndex,
+        ].sort((a, b) => a - b);
     }
 }
 
@@ -530,7 +648,10 @@ function clearReminder() {
     showReminderPicker.value = false;
 }
 
-function getRecurrencePayload(): { type: TaskRecurrenceType | null; days: number[] | null } {
+function getRecurrencePayload(): {
+    type: TaskRecurrenceType | null;
+    days: number[] | null;
+} {
     if (!recurrenceType.value) {
         return { type: null, days: null };
     }
@@ -555,7 +676,10 @@ function getRecurrencePayload(): { type: TaskRecurrenceType | null; days: number
 async function saveTask() {
     if (title.value.trim() === "") return;
 
-    let recurrencePayload: { type: TaskRecurrenceType | null; days: number[] | null };
+    let recurrencePayload: {
+        type: TaskRecurrenceType | null;
+        days: number[] | null;
+    };
     try {
         recurrencePayload = getRecurrencePayload();
     } catch (validationError) {
@@ -576,7 +700,7 @@ async function saveTask() {
         toast.add({
             severity: "warn",
             summary: "Task",
-            detail: "Select a section before creating a task."
+            detail: "Select a section before creating a task.",
         });
         return;
     }
@@ -613,7 +737,8 @@ async function saveTask() {
 
         taskStore.setTaskModalVisible(false);
     } catch (error) {
-        const detail = error instanceof Error ? error.message : "Failed to save task";
+        const detail =
+            error instanceof Error ? error.message : "Failed to save task";
         toast.add({ severity: "error", summary: "Error", detail });
     } finally {
         isLoading.value = false;
@@ -649,7 +774,11 @@ onMounted(async () => {
         try {
             await labelStore.loadLabels();
         } catch (error) {
-            toast.add({ severity: "error", summary: "Error", detail: "Failed to load labels" });
+            toast.add({
+                severity: "error",
+                summary: "Error",
+                detail: "Failed to load labels",
+            });
         }
     }
 });
@@ -668,6 +797,10 @@ onMounted(async () => {
     padding: 1rem 1.5rem;
     border-top: 1px solid var(--p-gray-200);
     flex-wrap: wrap;
+}
+
+.datepicker-with-time {
+    position: relative;
 }
 
 .task-main {
@@ -1101,6 +1234,65 @@ onMounted(async () => {
     }
     to {
         transform: rotate(360deg);
+    }
+}
+
+/* Natural language date detection hint */
+.date-detection-hint {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.375rem;
+    padding: 0.5rem 0.625rem;
+    background: var(--p-content-background);
+    border: 1px solid var(--p-content-border-color);
+    border-radius: 6px;
+    font-size: 0.8125rem;
+    color: var(--p-text-color);
+    animation: slideDown 0.2s ease-out;
+}
+
+.date-detection-hint svg {
+    color: var(--p-text-muted-color);
+    font-size: 0.875rem;
+}
+
+.date-detection-hint strong {
+    color: var(--p-text-color);
+    font-weight: 500;
+}
+
+.clear-detection-btn {
+    margin-left: auto;
+    background: none;
+    border: none;
+    padding: 0.25rem;
+    cursor: pointer;
+    color: var(--p-text-muted-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: all 0.15s ease;
+}
+
+.clear-detection-btn:hover {
+    background: var(--p-highlight-background);
+    color: var(--p-highlight-color);
+}
+
+.clear-detection-btn svg {
+    font-size: 0.75rem;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
     }
 }
 </style>
