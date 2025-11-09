@@ -42,41 +42,77 @@
                     </div>
                     <div class="field">
                         <label>Search</label>
-                        <InputText v-model.trim="search" placeholder="Title or notes" />
+                        <InputText
+                            v-model.trim="search"
+                            placeholder="Title or notes"
+                        />
                     </div>
                     <div class="field">
                         <label>Rating range</label>
-                        <Slider v-model="ratingRange" range :min="0" :max="100" />
+                        <Slider
+                            v-model="ratingRange"
+                            range
+                            :min="0"
+                            :max="100"
+                        />
                         <div class="range-labels">
                             <span>{{ ratingRange[0] }}</span>
                             <span>{{ ratingRange[1] }}</span>
                         </div>
                     </div>
                     <div class="actions">
-                        <Button @click="applyFilters" :disabled="loading">Apply</Button>
-                        <Button text @click="clearFilters" :disabled="!hasActiveFilters">Clear</Button>
+                        <Button @click="applyFilters" :disabled="loading"
+                            >Apply</Button
+                        >
+                        <Button
+                            text
+                            @click="clearFilters"
+                            :disabled="!hasActiveFilters"
+                            >Clear</Button
+                        >
                     </div>
                 </div>
             </div>
         </template>
         <template #navbar-left>
-            <Button class="home-nav-btn" text rounded @click="goHome" aria-label="Return to home">
+            <Button
+                class="home-nav-btn"
+                text
+                rounded
+                @click="goHome"
+                aria-label="Return to home"
+            >
                 <font-awesome-icon icon="house" />
                 <span class="home-nav-label">Home</span>
             </Button>
-            <Button class="notes-nav-btn" text rounded @click="goToNotes" aria-label="Go to notes">
+            <Button
+                class="notes-nav-btn"
+                text
+                rounded
+                @click="goToNotes"
+                aria-label="Go to notes"
+            >
                 <font-awesome-icon icon="pen" />
                 <span class="notes-nav-label">Notes</span>
             </Button>
         </template>
         <div class="media-view">
             <div class="toolbar">
-                <Button @click="openCreate" aria-label="Add media">Add Media</Button>
-                <span class="muted" v-if="hasActiveFilters">Filters active</span>
+                <Button @click="openCreate" aria-label="Add media"
+                    >Add Media</Button
+                >
+                <span class="muted" v-if="hasActiveFilters"
+                    >Filters active</span
+                >
             </div>
-            <div v-if="!loading && filteredItems.length === 0" class="empty-state-centered">
+            <div
+                v-if="!loading && filteredItems.length === 0"
+                class="empty-state-centered"
+            >
                 <h3 class="empty-state-title">No Media To Display</h3>
-                <p class="empty-state-subtitle">Add your first item to get started.</p>
+                <p class="empty-state-subtitle">
+                    Add your first item to get started.
+                </p>
             </div>
             <MediaTable
                 v-else
@@ -88,43 +124,74 @@
                 @delete="onDelete"
             />
         </div>
-        <MediaForm v-model:visible="formVisible" :item="editingItem" @saved="reload" />
+        <MediaForm
+            v-model:visible="formVisible"
+            :item="editingItem"
+            @saved="reload"
+        />
     </WorkspaceLayout>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue';
-import { useRouter } from 'vue-router';
-import WorkspaceLayout from '@/layouts/WorkspaceLayout.vue';
-import MediaTable from '@/components/media/MediaTable.vue';
-import MediaForm from '@/components/media/MediaForm.vue';
-import Slider from 'primevue/slider';
-import MultiSelect from 'primevue/multiselect';
-import InputText from 'primevue/inputtext';
-import { MEDIA_STATUSES, MEDIA_TYPES, type MediaType } from '@/models/media';
-import { useMediaStore } from '@/stores/media';
-import { useAuthStore } from '@/stores/auth';
-import { storeToRefs } from 'pinia';
+import { onMounted, ref, watch } from "vue";
+import { useRouter } from "vue-router";
+import WorkspaceLayout from "@/layouts/WorkspaceLayout.vue";
+import MediaTable from "@/components/media/MediaTable.vue";
+import MediaForm from "@/components/media/MediaForm.vue";
+import Slider from "primevue/slider";
+import MultiSelect from "primevue/multiselect";
+import InputText from "primevue/inputtext";
+import { MEDIA_STATUSES, MEDIA_TYPES, type MediaType } from "@/models/media";
+import { useMediaStore } from "@/stores/media";
+import { useAuthStore } from "@/stores/auth";
+import { storeToRefs } from "pinia";
 
 const authStore = useAuthStore();
 const mediaStore = useMediaStore();
 const router = useRouter();
 
-const { filteredItems, loading, formVisible, editingItem, selectedStatuses, ratingMin, ratingMax, search, hasActiveFilters, activeCategory } = storeToRefs(mediaStore);
+const {
+    filteredItems,
+    loading,
+    formVisible,
+    editingItem,
+    selectedStatuses,
+    ratingMin,
+    ratingMax,
+    search,
+    hasActiveFilters,
+    activeCategory,
+} = storeToRefs(mediaStore);
 
 const ratingRange = ref<[number, number]>([ratingMin.value, ratingMax.value]);
-watch([ratingMin, ratingMax], () => { ratingRange.value = [ratingMin.value, ratingMax.value]; });
-watch(ratingRange, ([min, max]) => { ratingMin.value = min; ratingMax.value = max; });
+watch([ratingMin, ratingMax], () => {
+    ratingRange.value = [ratingMin.value, ratingMax.value];
+});
+watch(ratingRange, ([min, max]) => {
+    ratingMin.value = min;
+    ratingMax.value = max;
+});
 
-const goHome = () => { if (router.currentRoute.value.path !== '/home') router.push('/home'); };
-const goToNotes = () => { if (router.currentRoute.value.path !== '/notes') router.push('/notes'); };
+const goHome = () => {
+    if (router.currentRoute.value.path !== "/home") router.push("/home");
+};
+const goToNotes = () => {
+    if (router.currentRoute.value.path !== "/notes") router.push("/notes");
+};
 
-const reload = async () => { await mediaStore.load(); };
+const reload = async () => {
+    await mediaStore.load();
+};
 
-const applyFilters = async () => { await reload(); };
-const clearFilters = async () => { mediaStore.clearFilters(); await reload(); };
+const applyFilters = async () => {
+    await reload();
+};
+const clearFilters = async () => {
+    mediaStore.clearFilters();
+    await reload();
+};
 
-const setCategory = (category: 'all' | MediaType) => {
+const setCategory = (category: "all" | MediaType) => {
     mediaStore.setActiveCategory(category);
 };
 
@@ -144,9 +211,12 @@ onMounted(async () => {
     }
 });
 
-watch(() => authStore.isAuthenticated, async (isAuth) => {
-    if (isAuth) await reload();
-});
+watch(
+    () => authStore.isAuthenticated,
+    async (isAuth) => {
+        if (isAuth) await reload();
+    }
+);
 </script>
 
 <style scoped>
@@ -175,15 +245,64 @@ watch(() => authStore.isAuthenticated, async (isAuth) => {
     padding: 1rem 1rem 0.75rem 1rem;
     border-bottom: 1px solid var(--p-content-border-color);
 }
-.panel-title { font-size: 1.125rem; font-weight: 600; margin: 0; }
-.panel-content { display: flex; flex-direction: column; gap: 0.75rem; padding: 1rem; }
-.field { display: flex; flex-direction: column; gap: 0.5rem; }
-.actions { display: flex; gap: 0.5rem; align-items: center; }
-.range-labels { display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--p-text-muted-color); }
-.toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
-.muted { color: var(--p-text-muted-color); font-size: 0.9rem; }
-.notes-nav-btn { display: inline-flex; align-items: center; gap: 0.4rem; color: var(--p-text-color); }
-.notes-nav-btn:hover { background-color: var(--p-content-hover-background); color: var(--p-primary-color); }
+.panel-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin: 0;
+}
+.panel-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1rem;
+}
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+.range-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: var(--p-text-muted-color);
+}
+.toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+.muted {
+    color: var(--p-text-muted-color);
+    font-size: 0.9rem;
+}
+.notes-nav-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--p-text-color);
+}
+.notes-nav-btn:hover {
+    background-color: var(--p-content-hover-background);
+    color: var(--p-primary-color);
+}
+/* Match notes button style for Home button */
+.home-nav-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--p-text-color);
+}
+.home-nav-btn:hover {
+    background-color: var(--p-content-hover-background);
+    color: var(--p-primary-color);
+}
 
 /* Centered empty state */
 .empty-state-centered {
@@ -201,5 +320,7 @@ watch(() => authStore.isAuthenticated, async (isAuth) => {
     font-weight: 700;
     color: var(--p-text-color);
 }
-.empty-state-subtitle { margin: 0; }
+.empty-state-subtitle {
+    margin: 0;
+}
 </style>
