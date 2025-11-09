@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import HomeView from "@/views/HomeView.vue";
 import NotesView from "@/views/NotesView.vue";
+import MediaView from "@/views/MediaView.vue";
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
@@ -21,6 +22,14 @@ const router = createRouter({
             component: NotesView,
             meta: {
                 title: "Notes | Zero Inertia",
+            },
+        },
+        {
+            path: "/media",
+            name: "media",
+            component: MediaView,
+            meta: {
+                title: "Media | Zero Inertia",
             },
         },
     ],
