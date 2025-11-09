@@ -15,6 +15,16 @@
                 <font-awesome-icon icon="pen" />
                 <span class="notes-nav-label">Notes</span>
             </Button>
+            <Button
+                class="media-nav-btn"
+                text
+                rounded
+                @click="goToMedia"
+                aria-label="Go to media"
+            >
+                <font-awesome-icon icon="table-columns" />
+                <span class="media-nav-label">Media</span>
+            </Button>
         </template>
         <template #default>
             <Transition name="fade-slide" mode="out-in">
@@ -67,6 +77,12 @@ const goToNotes = () => {
     }
 };
 
+const goToMedia = () => {
+    if (router.currentRoute.value.path !== '/media') {
+        router.push('/media');
+    }
+};
+
 // Add guards to prevent circular triggering between watchers
 watch(selectedProjectId, (newProjectId) => {
     if (newProjectId && activeWorkspaceView.value !== 'project') {
@@ -115,6 +131,19 @@ watch(activeWorkspaceView, (newView) => {
 }
 
 .notes-nav-btn:hover {
+    background-color: var(--p-content-hover-background);
+    color: var(--p-primary-color);
+}
+
+.media-nav-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--p-text-color);
+    transition: all 0.2s ease;
+}
+
+.media-nav-btn:hover {
     background-color: var(--p-content-hover-background);
     color: var(--p-primary-color);
 }
