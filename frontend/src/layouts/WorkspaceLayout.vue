@@ -36,6 +36,17 @@
                     </div>
                     <Button
                         class="theme-toggle-btn"
+                        size="medium"
+                        shape="circle"
+                        rounded
+                        @click="showShortcuts = true"
+                        aria-label="Keyboard shortcuts"
+                        :title="'Keyboard shortcuts'"
+                    >
+                        <FontAwesomeIcon icon="keyboard" />
+                    </Button>
+                    <Button
+                        class="theme-toggle-btn"
                         :class="{ 'dark-mode-btn': isDarkMode }"
                         size="medium"
                         shape="circle"
@@ -64,6 +75,7 @@
             </section>
         </div>
         <NotificationToggle v-model:visible="showNotificationSettings" />
+        <ShortcutsHelp v-model:visible="showShortcuts" />
     </main>
 </template>
 
@@ -75,6 +87,7 @@ import { useUiStore } from "@/stores/ui";
 import { useAuthStore } from "@/stores/auth";
 import { useStreakStore } from "@/stores/streak";
 import NotificationToggle from "@/components/common/NotificationToggle.vue";
+import ShortcutsHelp from "@/components/common/ShortcutsHelp.vue";
 
 const props = withDefaults(defineProps<{
     showStreak?: boolean;
@@ -92,6 +105,7 @@ const uiStore = useUiStore();
 const { isSidebarCollapsed } = storeToRefs(uiStore);
 const isDarkMode = ref(false);
 const showNotificationSettings = ref(false);
+const showShortcuts = ref(false);
 const isMobileView = ref(false);
 
 const getUserInitials = (fullName: string | null, email: string): string => {
