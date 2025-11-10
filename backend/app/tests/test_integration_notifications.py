@@ -168,7 +168,7 @@ class TestNotificationEndpoints:
         )
 
         assert response.status_code == 404
-        assert "not found" in response.json()["detail"].lower()
+        assert "no active push subscriptions found" in response.json()["detail"].lower()
 
     async def test_delete_all_subscriptions(
         self, authenticated_client: AsyncClient, db_session: AsyncSession, test_user: User
@@ -362,8 +362,8 @@ class TestNotificationService:
             body_arg = call_args[2]
             data_arg = call_args[3] if len(call_args) > 3 else None
 
-            assert title_arg == "Task Reminder"
-            assert "Complete project" in body_arg
+            assert title_arg == "Complete project"
+            assert "in 15 minutes" in body_arg  # Check the due datetime is in the body
             assert data_arg is not None
             assert data_arg["task_id"] == str(task_id)
             assert data_arg["type"] == "task_reminder"

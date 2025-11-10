@@ -352,3 +352,174 @@ class TestProjectEdgeCases:
         response = await authenticated_client.delete(f"/api/v1/projects/{fake_id}")
 
         assert response.status_code == 404
+
+
+class TestProjectCircularReferences:
+    """Test circular reference detection in project hierarchies."""
+
+    async def test_project_cannot_be_its_own_parent(
+        self, authenticated_client: AsyncClient
+    ) -> None:
+        """Test that a project cannot be set as its own parent."""
+        # Create a project
+        response = await authenticated_client.post(
+            "/api/v1/projects",
+            json={"title": "Project A"},
+        )
+        assert response.status_code == 201
+        project_a_id = response.json()["id"]
+
+        # Try to set project as its own parent
+        update_response = await authenticated_client.patch(
+            f"/api/v1/projects/{project_a_id}",
+            json={"parent_id": project_a_id},
+        )
+        assert update_response.status_code == 400
+        assert "circular reference" in update_response.json()["detail"].lower()
+
+    async def test_direct_circular_reference_detection(
+        self, authenticated_client: AsyncClient
+    ) -> None:
+        """Test detection of direct circular reference (A -> B -> A)."""
+        # Create Project A
+        response_a = await authenticated_client.post(
+            "/api/v1/projects",
+            json={"title": "Project A"},
+        )
+        project_a_id = response_a.json()["id"]
+
+        # Create Project B with A as parent
+        response_b = await authenticated_client.post(
+            "/api/v1/projects",
+            json={"title": "Project B", "parent_id": project_a_id},
+        )
+        assert response_b.status_code == 201
+        project_b_id = response_b.json()["id"]
+
+        # Try to set A's parent as B (creates A -> B -> A loop)
+        update_response = await authenticated_client.patch(
+            f"/api/v1/projects/{project_a_id}",
+            json={"parent_id": project_b_id},
+        )
+        assert update_response.status_code == 400
+        assert "circular reference" in update_response.json()["detail"].lower()
+
+    async def test_deep_circular_reference_detection(
+        self, authenticated_client: AsyncClient
+    ) -> None:
+        """Test detection of deep circular reference (A -> B -> C -> A)."""
+        # Create Project A
+        response_a = await authenticated_client.post(
+            "/api/v1/projects",
+            json={"title": "Project A"},
+        )
+        project_a_id = response_a.json()["id"]
+
+        # Create Project B with A as parent
+        response_b = await authenticated_client.post(
+            "/api/v1/projects",
+            json={"title": "Project B", "parent_id": project_a_id},
+        )
+        project_b_id = response_b.json()["id"]
+
+        # Create Project C with B as parent
+        response_c = await authenticated_client.post(
+            "/api/v1/projects",
+            json={"title": "Project C", "parent_id": project_b_id},
+        )
+        assert response_c.status_code == 201
+        project_c_id = response_c.json()["id"]
+
+        # Try to set A's parent as C (creates A -> B -> C -> A loop)
+        update_response = await authenticated_client.patch(
+            f"/api/v1/projects/{project_a_id}",
+            json={"parent_id": project_c_id},
+        )
+        assert update_response.status_code == 400
+        assert "circular reference" in update_response.json()["detail"].lower()
+
+    async def test_circular_reference_in_reorder(
+        self, authenticated_client: AsyncClient
+    ) -> None:
+        """Test that circular references are detected during reorder operations."""
+        # Create Project A and B
+        response_a = await authenticated_client.post(
+            "/api/v1/projects",
+            json={"title": "Project A"},
+        )
+        project_a_id = response_a.json()["id"]
+
+        response_b = await authenticated_client.post(
+            "/api/v1/projects",
+            json={"title": "Project B", "parent_id": project_a_id},
+        )
+        project_b_id = response_b.json()["id"]
+
+        # Try to reorder with circular reference (A -> B and B -> A simultaneously)
+        reorder_response = await authenticated_client.patch(
+            "/api/v1/projects/reorder",
+            json=[
+                {"id": project_a_id, "parent_id": project_b_id, "order_index": 0},
+                {"id": project_b_id, "parent_id": project_a_id, "order_index": 1},
+            ],
+        )
+        assert reorder_response.status_code == 400
+        assert "circular reference" in reorder_response.json()["detail"].lower()
+
+    async def test_valid_parent_change_allowed(
+        self, authenticated_client: AsyncClient
+    ) -> None:
+        """Test that valid parent changes are allowed."""
+        # Create Projects A, B, C in separate hierarchies
+        response_a = await authenticated_client.post(
+            "/api/v1/projects",
+            json={"title": "Project A"},
+        )
+        project_a_id = response_a.json()["id"]
+
+        response_b = await authenticated_client.post(
+            "/api/v1/projects",
+            json={"title": "Project B"},
+        )
+        project_b_id = response_b.json()["id"]
+
+        response_c = await authenticated_client.post(
+            "/api/v1/projects",
+            json={"title": "Project C", "parent_id": project_b_id},
+        )
+        assert response_c.status_code == 201
+        project_c_id = response_c.json()["id"]
+
+        # Move C from B to A (valid operation, no circular reference)
+        update_response = await authenticated_client.patch(
+            f"/api/v1/projects/{project_c_id}",
+            json={"parent_id": project_a_id},
+        )
+        assert update_response.status_code == 200
+        assert update_response.json()["parent_id"] == project_a_id
+
+    async def test_removing_parent_allowed(
+        self, authenticated_client: AsyncClient
+    ) -> None:
+        """Test that removing a parent (setting to null) is allowed."""
+        # Create Project A
+        response_a = await authenticated_client.post(
+            "/api/v1/projects",
+            json={"title": "Project A"},
+        )
+        project_a_id = response_a.json()["id"]
+
+        # Create Project B with A as parent
+        response_b = await authenticated_client.post(
+            "/api/v1/projects",
+            json={"title": "Project B", "parent_id": project_a_id},
+        )
+        project_b_id = response_b.json()["id"]
+
+        # Remove parent from B (set to null)
+        update_response = await authenticated_client.patch(
+            f"/api/v1/projects/{project_b_id}",
+            json={"parent_id": None},
+        )
+        assert update_response.status_code == 200
+        assert update_response.json()["parent_id"] is None

@@ -66,7 +66,7 @@ class TestAuthEndpoints:
         response = await client.get("/api/v1/auth/me")
 
         assert response.status_code == 401
-        assert "not authenticated" in response.json()["detail"].lower()
+        assert "access token missing" in response.json()["detail"].lower()
 
     async def test_is_authenticated_with_valid_token(self, client: AsyncClient, test_user_token: str) -> None:
         """Test is_authenticated endpoint with valid token."""

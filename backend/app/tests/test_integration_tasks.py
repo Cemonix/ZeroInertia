@@ -905,3 +905,98 @@ class TestRecurringTasks:
         # The task is archived, so it should either be 404 or rejected
         # (depends on implementation - archived tasks shouldn't be modifiable)
         assert uncomplete_response.status_code in [200, 404]
+
+    async def test_complete_recurring_task_with_labels_preserves_labels(
+        self,
+        authenticated_client: AsyncClient,
+        test_project: Project,
+        test_section: Section,
+    ) -> None:
+        """Test that completing a recurring task with labels preserves the labels in the new instance.
+
+        This test specifically targets the greenlet error that occurs when accessing
+        task.labels relationship in production after a commit.
+        """
+        # Create labels for the task
+        label1_response = await authenticated_client.post(
+            "/api/v1/labels",
+            json={
+                "name": "urgent",
+                "color": "#ff0000",
+                "description": "Urgent tasks",
+            },
+        )
+        assert label1_response.status_code == 201
+        label1 = label1_response.json()
+
+        label2_response = await authenticated_client.post(
+            "/api/v1/labels",
+            json={
+                "name": "work",
+                "color": "#0000ff",
+                "description": "Work-related tasks",
+            },
+        )
+        assert label2_response.status_code == 201
+        label2 = label2_response.json()
+
+        # Create a daily recurring task with labels
+        create_response = await authenticated_client.post(
+            "/api/v1/tasks",
+            json={
+                "title": "Daily Report",
+                "description": "Send daily status report",
+                "project_id": str(test_project.id),
+                "section_id": str(test_section.id),
+                "due_datetime": "2025-01-15T17:00:00Z",
+                "recurrence_type": "daily",
+                "label_ids": [label1["id"], label2["id"]],
+            },
+        )
+
+        assert create_response.status_code == 201
+        original_task = create_response.json()
+        original_task_id = original_task["id"]
+
+        # Verify the original task has the labels
+        assert len(original_task["labels"]) == 2
+        label_names = {label["name"] for label in original_task["labels"]}
+        assert label_names == {"urgent", "work"}
+
+        # Complete the recurring task - this is where the greenlet error occurs
+        complete_response = await authenticated_client.patch(
+            f"/api/v1/tasks/{original_task_id}",
+            json={"completed": True},
+        )
+
+        # Should succeed
+        assert complete_response.status_code == 200
+        completed_task = complete_response.json()
+        assert completed_task["completed"] is True
+        assert completed_task["archived"] is True
+
+        # Get all active tasks - should find the new recurring instance
+        list_response = await authenticated_client.get(
+            f"/api/v1/tasks?project_id={test_project.id}"
+        )
+        assert list_response.status_code == 200
+        active_tasks = list_response.json()
+
+        # Find the new recurring task instance
+        recurring_tasks = [
+            task for task in active_tasks
+            if task["title"] == "Daily Report" and task["recurrence_type"] == "daily"
+        ]
+        assert len(recurring_tasks) == 1
+        new_task = recurring_tasks[0]
+
+        # Verify the new task preserved the labels from the original
+        assert new_task["id"] != original_task_id
+        assert new_task["completed"] is False
+        assert new_task["archived"] is False
+        assert len(new_task["labels"]) == 2
+        new_label_names = {label["name"] for label in new_task["labels"]}
+        assert new_label_names == {"urgent", "work"}
+
+        # Verify due date moved forward by one day
+        assert new_task["due_datetime"] == "2025-01-16T17:00:00Z"

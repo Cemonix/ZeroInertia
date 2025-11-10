@@ -52,6 +52,12 @@ async def create_task(
     max_order = result.scalar()
     next_order_index = (max_order + 1) if max_order is not None else 0
 
+    # Fetch labels before creating the task (if provided)
+    labels = []
+    if label_ids is not None:
+        labels = await _get_labels_for_user(db=db, user_id=user_id, label_ids=label_ids)
+
+    # Create task with all relationships set during construction
     new_task = Task(
         user_id=user_id,
         title=title,
@@ -66,13 +72,10 @@ async def create_task(
         recurrence_type=recurrence_type,
         recurrence_days=recurrence_days,
         reminder_minutes=reminder_minutes,
+        labels=list(labels),  # Set labels during construction
     )
 
     db.add(new_task)
-
-    if label_ids is not None:
-        labels = await _get_labels_for_user(db=db, user_id=user_id, label_ids=label_ids)
-        new_task.labels = list(labels)
 
     try:
         await db.commit()
@@ -182,10 +185,14 @@ async def _apply_task_updates(
     if "label_ids" in updates:
         label_ids = updates["label_ids"]
         if label_ids is not None:  # pyright: ignore[reportUnnecessaryComparison]
+            # Fetch new labels and replace the entire collection
             labels = await _get_labels_for_user(db=db, user_id=user_id, label_ids=label_ids)  # pyright: ignore[reportArgumentType]
-            task.labels = list(labels)
+            # Clear existing labels and add new ones
+            task.labels.clear()
+            task.labels.extend(labels)
         else:
-            task.labels = []
+            # Clear all labels
+            task.labels.clear()
 
 
 async def _handle_recurring_task_completion(
@@ -195,6 +202,10 @@ async def _handle_recurring_task_completion(
 ) -> None:
     """Archive completed recurring task and create new instance for next occurrence."""
     # Save task info before archiving (we know recurrence_type is not None at this point)
+    # Access labels while task is still in session to avoid greenlet errors
+    task_labels = cast(Sequence[Label], task.labels)
+    saved_label_ids = [label.id for label in task_labels] if task_labels else None
+
     saved_title = task.title
     saved_description = task.description
     saved_project_id = task.project_id
@@ -204,8 +215,6 @@ async def _handle_recurring_task_completion(
     saved_recurrence_type = cast(str, task.recurrence_type)
     saved_recurrence_days = task.recurrence_days
     saved_reminder_minutes = task.reminder_minutes
-    task_labels = cast(Sequence[Label], task.labels)
-    saved_label_ids = [label.id for label in task_labels] if task_labels else None
 
     # Archive the task and clear recurrence fields
     task.archived = True
