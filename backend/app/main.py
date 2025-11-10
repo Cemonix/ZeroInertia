@@ -1,8 +1,9 @@
 from contextlib import asynccontextmanager
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.api.exception_handlers import app_exception_handler
@@ -25,6 +26,7 @@ from app.core.logging import logger, setup_logging
 from app.core.scheduler import setup_scheduler
 from app.core.seed import seed_database
 from app.core.settings.app_settings import get_app_settings
+from app.middleware.csrf import CSRFMiddleware
 
 # Load settings
 app_settings = get_app_settings()
@@ -80,6 +82,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# CSRF protection middleware
+# Exempt auth callback and health probes
+app.add_middleware(
+    CSRFMiddleware,
+    exempt_paths={
+        "/health",
+        "/csrf",  # CSRF token endpoint
+        "/api/v1/auth/google/login",
+        "/api/v1/auth/google/callback",
+        "/docs",
+        "/redoc",
+        "/openapi.json",
+    },
+)
+
 # Health check endpoint
 @app.get("/health")
 async def health_check():
@@ -98,6 +115,38 @@ app.include_router(label.router, prefix="/api/v1/labels", tags=["labels"])
 app.include_router(note.router, prefix="/api/v1/notes", tags=["notes"])
 app.include_router(notification.router, prefix="/api/v1/notifications", tags=["notifications"])
 app.include_router(media.router, prefix="/api/v1/media", tags=["media"])
+
+
+@app.get("/csrf")
+async def get_csrf(request: Request):
+    """Issue or return CSRF token for the client.
+
+    - Returns JSON {"csrf_token": token}
+    - Sets a matching `csrf_token` cookie if missing.
+    """
+    import secrets
+
+    token = request.cookies.get("csrf_token")
+    new_token_generated = False
+
+    if not token:
+        token = secrets.token_urlsafe(32)
+        new_token_generated = True
+
+    response = JSONResponse({"csrf_token": token})
+
+    if new_token_generated:
+        secure = app_settings.environment == "production"
+        response.set_cookie(
+            key="csrf_token",
+            value=token,
+            max_age=app_settings.jwt_expire_minutes * 60,
+            secure=secure,
+            httponly=False,
+            samesite="lax",
+        )
+
+    return response
 
 
 if __name__ == "__main__":

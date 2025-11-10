@@ -260,7 +260,7 @@ onMounted(async () => {
     align-items: center;
     gap: 0.75rem;
     padding: 0.75rem;
-    background-color: var(--p-surface-50);
+    background-color: var(--p-content-hover-background);
     border-radius: 6px;
 }
 
@@ -296,8 +296,8 @@ onMounted(async () => {
 
 .test-section {
     padding: 0.75rem;
-    background-color: var(--p-surface-100);
-    border: 1px dashed var(--p-surface-300);
+    background-color: var(--p-content-hover-background);
+    border: 1px dashed var(--p-content-border-color);
     border-radius: 6px;
     display: flex;
     flex-direction: column;

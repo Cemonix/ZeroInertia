@@ -14,6 +14,7 @@ const router = createRouter({
             alias: "/",
             meta: {
                 title: "Zero Inertia",
+                requiresAuth: true,
             },
         },
         {
@@ -22,6 +23,7 @@ const router = createRouter({
             component: NotesView,
             meta: {
                 title: "Notes | Zero Inertia",
+                requiresAuth: true,
             },
         },
         {
@@ -30,6 +32,7 @@ const router = createRouter({
             component: MediaView,
             meta: {
                 title: "Media | Zero Inertia",
+                requiresAuth: true,
             },
         },
     ],
@@ -47,6 +50,16 @@ router.beforeEach(async (to, _, next) => {
     // Only initialize auth state if we need to check authentication
     if ((requiresAuth || requiresGuest) && !authStore.isInitialized) {
         await authStore.initialize();
+    }
+
+    if (requiresAuth && !authStore.isAuthenticated) {
+        window.location.href = "/api/v1/auth/google/login";
+        return;
+    }
+
+    if (requiresGuest && authStore.isAuthenticated) {
+        next({ name: "home" });
+        return;
     }
 
     next();

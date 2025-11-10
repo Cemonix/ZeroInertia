@@ -20,7 +20,11 @@
                 </SelectButton>
             </div>
 
-            <div class="board-sections" :class="{ 'kanban-view': viewMode === 'kanban' }">
+            <div
+                ref="boardSectionsRef"
+                class="board-sections"
+                :class="{ 'kanban-view': viewMode === 'kanban' }"
+            >
                 <draggable
                     v-model="draggableSections"
                     item-key="id"
@@ -30,7 +34,7 @@
                     animation="200"
                     ghost-class="section-ghost"
                 >
-                    <template #item="{element}">
+                    <template #item="{ element }">
                         <div v-if="element" :key="element.id">
                             <BoardSection
                                 class="drag-handle"
@@ -77,7 +81,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { ref, watch, onMounted, onBeforeUnmount } from "vue";
 import draggable from "vuedraggable";
 import BoardSection from "./BoardSection.vue";
 import SectionCreateModal from "./SectionCreateModal.vue";
@@ -107,15 +111,17 @@ const labelStore = useLabelStore();
 const isSectionCreateVisible = ref(false);
 
 // View mode state
-const VIEW_MODE_STORAGE_KEY = 'board.viewMode';
+const VIEW_MODE_STORAGE_KEY = "board.viewMode";
 
-type ViewMode = 'list' | 'kanban';
-const savedViewMode = localStorage.getItem(VIEW_MODE_STORAGE_KEY) as ViewMode | null;
+type ViewMode = "list" | "kanban";
+const savedViewMode = localStorage.getItem(
+    VIEW_MODE_STORAGE_KEY
+) as ViewMode | null;
 
-const viewMode = ref<ViewMode>(savedViewMode || 'list');
+const viewMode = ref<ViewMode>(savedViewMode || "list");
 const viewModeOptions = [
-    { label: 'List', value: 'list', icon: 'list' },
-    { label: 'Kanban', value: 'kanban', icon: 'table-columns' }
+    { label: "List", value: "list", icon: "list" },
+    { label: "Kanban", value: "kanban", icon: "table-columns" },
 ];
 
 // Save view mode preference to localStorage
@@ -128,22 +134,32 @@ const draggableSections = ref<Section[]>([]);
 const isDragging = ref(false);
 
 // Watch sections from store and sync to local draggable array
-watch(() => sectionStore.sortedSections, (newSections) => {
-    if (!isDragging.value) {
-        draggableSections.value = [...newSections];
-    }
-}, { immediate: true });
+watch(
+    () => sectionStore.sortedSections,
+    (newSections) => {
+        if (!isDragging.value) {
+            draggableSections.value = [...newSections];
+        }
+    },
+    { immediate: true }
+);
 
 function handleDragStart() {
     isDragging.value = true;
 }
 
 async function handleDragEnd() {
-    const sectionIds = draggableSections.value.map((section: Section) => section.id);
+    const sectionIds = draggableSections.value.map(
+        (section: Section) => section.id
+    );
     try {
         await sectionStore.reorderSections(sectionIds);
     } catch (error) {
-        toast.add({ severity: "error", summary: "Error", detail: "Failed to reorder sections" });
+        toast.add({
+            severity: "error",
+            summary: "Error",
+            detail: "Failed to reorder sections",
+        });
     } finally {
         isDragging.value = false;
     }
@@ -160,18 +176,98 @@ const loadSections = async () => {
             sectionStore.loadSectionsForProject(props.projectId),
             taskStore.loadTasksForProject(props.projectId),
             // Load labels at board level to prevent duplicate requests from individual cards
-            labelStore.labels.length === 0 ? labelStore.loadLabels() : Promise.resolve(),
+            labelStore.labels.length === 0
+                ? labelStore.loadLabels()
+                : Promise.resolve(),
         ]);
     } catch (error) {
-        toast.add({ severity: "error", summary: "Error", detail: "Failed to load sections and tasks" });
+        toast.add({
+            severity: "error",
+            summary: "Error",
+            detail: "Failed to load sections and tasks",
+        });
     }
 };
 
 watch(
     () => props.projectId,
-    () => { loadSections(); },
+    () => {
+        loadSections();
+    },
     { immediate: true }
 );
+
+// Horizontal drag-to-scroll for Kanban view
+const boardSectionsRef = ref<HTMLElement | null>(null);
+const isPanning = ref(false);
+let panStartX = 0;
+let panScrollLeft = 0;
+
+function tryStartPan(e: MouseEvent) {
+    if (viewMode.value !== "kanban") return;
+    const container = boardSectionsRef.value;
+    if (!container) return;
+    // Middle mouse button OR Alt + Left click to pan
+    const isMiddle = e.button === 1;
+    const isAltLeft = e.button === 0 && (e.altKey || e.metaKey || e.ctrlKey);
+    if (!isMiddle && !isAltLeft) return;
+
+    isPanning.value = true;
+    panStartX = e.clientX;
+    panScrollLeft = container.scrollLeft;
+    container.classList.add("is-panning");
+    container.style.cursor = "grabbing";
+    e.preventDefault();
+}
+
+function onPanMove(e: MouseEvent) {
+    if (!isPanning.value) return;
+    const container = boardSectionsRef.value;
+    if (!container) return;
+    const dx = e.clientX - panStartX;
+    container.scrollLeft = panScrollLeft - dx;
+}
+
+function endPan() {
+    if (!isPanning.value) return;
+    const container = boardSectionsRef.value;
+    isPanning.value = false;
+    if (container) {
+        container.classList.remove("is-panning");
+        container.style.cursor = "";
+    }
+}
+
+function onWheelHorizontal(e: WheelEvent) {
+    if (viewMode.value !== "kanban") return;
+    const container = boardSectionsRef.value;
+    if (!container) return;
+    if (!e.shiftKey) return; // Only convert when Shift is held to avoid interfering with vertical scroll in task lists
+    if (container.scrollWidth <= container.clientWidth) return;
+    container.scrollLeft += e.deltaY;
+    e.preventDefault();
+}
+
+onMounted(() => {
+    const container = boardSectionsRef.value;
+    if (!container) return;
+    container.addEventListener("mousedown", tryStartPan);
+    window.addEventListener("mousemove", onPanMove);
+    window.addEventListener("mouseup", endPan);
+    container.addEventListener("mouseleave", endPan);
+    container.addEventListener("wheel", onWheelHorizontal, { passive: false });
+});
+
+onBeforeUnmount(() => {
+    const container = boardSectionsRef.value;
+    if (container) {
+        container.removeEventListener("mousedown", tryStartPan);
+        container.removeEventListener("mouseleave", endPan);
+        container.removeEventListener("wheel", onWheelHorizontal as any);
+    }
+    window.removeEventListener("mousemove", onPanMove);
+    window.removeEventListener("mouseup", endPan);
+});
 </script>
 
 <style scoped>
@@ -226,6 +322,10 @@ watch(
     overflow-x: auto;
     overflow-y: hidden;
     align-items: stretch;
+}
+
+.board-sections.kanban-view.is-panning {
+    cursor: grabbing;
 }
 
 /* Make draggable wrapper inherit flex layout in kanban view */

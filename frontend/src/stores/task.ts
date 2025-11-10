@@ -98,10 +98,13 @@ export const useTaskStore = defineStore('task', () => {
         loading.value = true;
         error.value = null;
         try {
-            tasks.value = await taskService.getTasks(projectId);
+            const projectTasks = await taskService.getTasks(projectId);
+            // Merge project tasks into the store without dropping tasks from other projects
+            const others = tasks.value.filter(t => t.project_id !== projectId);
+            tasks.value = [...others, ...projectTasks];
         } catch (err) {
             error.value = err instanceof Error ? err.message : 'Failed to load tasks';
-            tasks.value = [];
+            // Don't clear all tasks on failure; keep existing cache to avoid UI flicker
         } finally {
             loading.value = false;
         }

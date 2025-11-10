@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { ref, computed, readonly } from "vue";
 import type { User } from "@/models/auth";
 import { AuthService } from "@/services/authService";
+import { clearCsrfCache, prefetchCsrfToken } from "@/services/apiClient";
 
 export const useAuthStore = defineStore("auth", () => {
     const user = ref<User | null>(null);
@@ -24,6 +25,9 @@ export const useAuthStore = defineStore("auth", () => {
         try {
             if (await AuthService.isAuthenticated()) {
                 const userData = await AuthService.getCurrentUser();
+                // Rotate happened server-side during login; refresh CSRF cache client-side
+                clearCsrfCache();
+                await prefetchCsrfToken();
                 setUser(userData);
             } else {
                 clearUser();
@@ -54,6 +58,8 @@ export const useAuthStore = defineStore("auth", () => {
         } catch (err) {
             error.value = err instanceof Error ? err.message : 'Failed to logout';
         } finally {
+            // Clear CSRF cache as cookie is deleted server-side
+            clearCsrfCache();
             clearUser();
             isLoading.value = false;
         }

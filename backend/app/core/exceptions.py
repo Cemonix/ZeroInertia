@@ -152,6 +152,13 @@ class InvalidReferenceException(BadRequestException):
         super().__init__(message)
 
 
+class CircularReferenceException(BadRequestException):
+    """Raised when attempting to create a circular reference in hierarchical data."""
+
+    def __init__(self, message: str = "Circular reference detected: this operation would create an infinite loop") -> None:
+        super().__init__(message)
+
+
 # 401 Unauthorized Exceptions
 class UnauthorizedException(AppException):
     """Base class for authentication errors (maps to HTTP 401)."""
