@@ -1,4 +1,5 @@
 """Authentication routes using Google OAuth with redirect flow."""
+import secrets
 from typing import cast
 from urllib.parse import urlencode
 from uuid import UUID
@@ -97,6 +98,18 @@ async def google_callback(
             domain=None  # Current domain only
         )
 
+        # Rotate CSRF token on login (double submit cookie pattern)
+        csrf_token = secrets.token_urlsafe(32)
+        response.set_cookie(
+            key="csrf_token",
+            value=csrf_token,
+            max_age=settings.jwt_expire_minutes * 60,
+            httponly=False,  # must be readable by frontend
+            secure=settings.environment == "production",
+            samesite="lax",
+            domain=None,
+        )
+
         return response
 
     except HTTPException:
@@ -166,5 +179,6 @@ async def logout():
     """Logout user by clearing the JWT cookie."""
     response = JSONResponse({"message": "Successfully logged out"})
     response.delete_cookie(key="access_token")
+    # Also clear CSRF token on logout
+    response.delete_cookie(key="csrf_token")
     return response
-
