@@ -34,7 +34,7 @@
                     animation="200"
                     ghost-class="section-ghost"
                 >
-                    <template #item="{element}">
+                    <template #item="{ element }">
                         <div v-if="element" :key="element.id">
                             <BoardSection
                                 class="drag-handle"
@@ -78,7 +78,7 @@
     />
 
     <TaskModal v-if="projectId" :projectId="projectId" />
- </template>
+</template>
 
 <script setup lang="ts">
 import { ref, watch, onMounted, onBeforeUnmount } from "vue";
@@ -111,15 +111,17 @@ const labelStore = useLabelStore();
 const isSectionCreateVisible = ref(false);
 
 // View mode state
-const VIEW_MODE_STORAGE_KEY = 'board.viewMode';
+const VIEW_MODE_STORAGE_KEY = "board.viewMode";
 
-type ViewMode = 'list' | 'kanban';
-const savedViewMode = localStorage.getItem(VIEW_MODE_STORAGE_KEY) as ViewMode | null;
+type ViewMode = "list" | "kanban";
+const savedViewMode = localStorage.getItem(
+    VIEW_MODE_STORAGE_KEY
+) as ViewMode | null;
 
-const viewMode = ref<ViewMode>(savedViewMode || 'list');
+const viewMode = ref<ViewMode>(savedViewMode || "list");
 const viewModeOptions = [
-    { label: 'List', value: 'list', icon: 'list' },
-    { label: 'Kanban', value: 'kanban', icon: 'table-columns' }
+    { label: "List", value: "list", icon: "list" },
+    { label: "Kanban", value: "kanban", icon: "table-columns" },
 ];
 
 // Save view mode preference to localStorage
@@ -132,22 +134,32 @@ const draggableSections = ref<Section[]>([]);
 const isDragging = ref(false);
 
 // Watch sections from store and sync to local draggable array
-watch(() => sectionStore.sortedSections, (newSections) => {
-    if (!isDragging.value) {
-        draggableSections.value = [...newSections];
-    }
-}, { immediate: true });
+watch(
+    () => sectionStore.sortedSections,
+    (newSections) => {
+        if (!isDragging.value) {
+            draggableSections.value = [...newSections];
+        }
+    },
+    { immediate: true }
+);
 
 function handleDragStart() {
     isDragging.value = true;
 }
 
 async function handleDragEnd() {
-    const sectionIds = draggableSections.value.map((section: Section) => section.id);
+    const sectionIds = draggableSections.value.map(
+        (section: Section) => section.id
+    );
     try {
         await sectionStore.reorderSections(sectionIds);
     } catch (error) {
-        toast.add({ severity: "error", summary: "Error", detail: "Failed to reorder sections" });
+        toast.add({
+            severity: "error",
+            summary: "Error",
+            detail: "Failed to reorder sections",
+        });
     } finally {
         isDragging.value = false;
     }
@@ -164,16 +176,24 @@ const loadSections = async () => {
             sectionStore.loadSectionsForProject(props.projectId),
             taskStore.loadTasksForProject(props.projectId),
             // Load labels at board level to prevent duplicate requests from individual cards
-            labelStore.labels.length === 0 ? labelStore.loadLabels() : Promise.resolve(),
+            labelStore.labels.length === 0
+                ? labelStore.loadLabels()
+                : Promise.resolve(),
         ]);
     } catch (error) {
-        toast.add({ severity: "error", summary: "Error", detail: "Failed to load sections and tasks" });
+        toast.add({
+            severity: "error",
+            summary: "Error",
+            detail: "Failed to load sections and tasks",
+        });
     }
 };
 
 watch(
     () => props.projectId,
-    () => { loadSections(); },
+    () => {
+        loadSections();
+    },
     { immediate: true }
 );
 
@@ -184,7 +204,7 @@ let panStartX = 0;
 let panScrollLeft = 0;
 
 function tryStartPan(e: MouseEvent) {
-    if (viewMode.value !== 'kanban') return;
+    if (viewMode.value !== "kanban") return;
     const container = boardSectionsRef.value;
     if (!container) return;
     // Middle mouse button OR Alt + Left click to pan
@@ -195,8 +215,8 @@ function tryStartPan(e: MouseEvent) {
     isPanning.value = true;
     panStartX = e.clientX;
     panScrollLeft = container.scrollLeft;
-    container.classList.add('is-panning');
-    container.style.cursor = 'grabbing';
+    container.classList.add("is-panning");
+    container.style.cursor = "grabbing";
     e.preventDefault();
 }
 
@@ -213,13 +233,13 @@ function endPan() {
     const container = boardSectionsRef.value;
     isPanning.value = false;
     if (container) {
-        container.classList.remove('is-panning');
-        container.style.cursor = '';
+        container.classList.remove("is-panning");
+        container.style.cursor = "";
     }
 }
 
 function onWheelHorizontal(e: WheelEvent) {
-    if (viewMode.value !== 'kanban') return;
+    if (viewMode.value !== "kanban") return;
     const container = boardSectionsRef.value;
     if (!container) return;
     if (!e.shiftKey) return; // Only convert when Shift is held to avoid interfering with vertical scroll in task lists
@@ -231,22 +251,22 @@ function onWheelHorizontal(e: WheelEvent) {
 onMounted(() => {
     const container = boardSectionsRef.value;
     if (!container) return;
-    container.addEventListener('mousedown', tryStartPan);
-    window.addEventListener('mousemove', onPanMove);
-    window.addEventListener('mouseup', endPan);
-    container.addEventListener('mouseleave', endPan);
-    container.addEventListener('wheel', onWheelHorizontal, { passive: false });
+    container.addEventListener("mousedown", tryStartPan);
+    window.addEventListener("mousemove", onPanMove);
+    window.addEventListener("mouseup", endPan);
+    container.addEventListener("mouseleave", endPan);
+    container.addEventListener("wheel", onWheelHorizontal, { passive: false });
 });
 
 onBeforeUnmount(() => {
     const container = boardSectionsRef.value;
     if (container) {
-        container.removeEventListener('mousedown', tryStartPan);
-        container.removeEventListener('mouseleave', endPan);
-        container.removeEventListener('wheel', onWheelHorizontal as any);
+        container.removeEventListener("mousedown", tryStartPan);
+        container.removeEventListener("mouseleave", endPan);
+        container.removeEventListener("wheel", onWheelHorizontal as any);
     }
-    window.removeEventListener('mousemove', onPanMove);
-    window.removeEventListener('mouseup', endPan);
+    window.removeEventListener("mousemove", onPanMove);
+    window.removeEventListener("mouseup", endPan);
 });
 </script>
 

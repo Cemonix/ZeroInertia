@@ -54,12 +54,16 @@ async function ensureCsrfToken(): Promise<string | null> {
         return csrfTokenCache;
     }
 
-    // Otherwise, fetch from backend endpoint (CORS allowed origin)
+    // Otherwise, fetch from backend endpoint (CORS allowed origin) without axios interceptors
     try {
-        const res = await axios.get(`${env.API_BASE_URL}/csrf`, {
-            withCredentials: true,
+        const response = await fetch(`${env.API_BASE_URL}/csrf`, {
+            method: 'GET',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
         });
-        const token = (res.data && res.data.csrf_token) || null;
+        if (!response.ok) return null;
+        const data = await response.json().catch(() => null) as { csrf_token?: string } | null;
+        const token = (data && data.csrf_token) || null;
         csrfTokenCache = token;
         return csrfTokenCache;
     } catch {

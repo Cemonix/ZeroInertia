@@ -88,6 +88,7 @@ app.add_middleware(
     CSRFMiddleware,
     exempt_paths={
         "/health",
+        "/csrf",  # CSRF token endpoint
         "/api/v1/auth/google/login",
         "/api/v1/auth/google/callback",
         "/docs",
@@ -123,14 +124,19 @@ async def get_csrf(request: Request):
     - Returns JSON {"csrf_token": token}
     - Sets a matching `csrf_token` cookie if missing.
     """
-    token = request.cookies.get("csrf_token")
-    response = JSONResponse({"csrf_token": token or ""})
-    if not token:
-        import secrets
+    import secrets
 
+    token = request.cookies.get("csrf_token")
+    new_token_generated = False
+
+    if not token:
         token = secrets.token_urlsafe(32)
+        new_token_generated = True
+
+    response = JSONResponse({"csrf_token": token})
+
+    if new_token_generated:
         secure = app_settings.environment == "production"
-        response = JSONResponse({"csrf_token": token})
         response.set_cookie(
             key="csrf_token",
             value=token,
@@ -139,6 +145,7 @@ async def get_csrf(request: Request):
             httponly=False,
             samesite="lax",
         )
+
     return response
 
 

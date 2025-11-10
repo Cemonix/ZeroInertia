@@ -16,13 +16,17 @@
                             <span class="join">+</span>
                             <span class="kbd">Scroll</span>
                         </span>
-                        <span class="desc">Scroll horizontally across columns</span>
+                        <span class="desc"
+                            >Scroll horizontally across columns</span
+                        >
                     </li>
                     <li>
                         <span class="keys">
                             <span class="kbd">Middle Drag</span>
                         </span>
-                        <span class="desc">Click and drag to pan horizontally</span>
+                        <span class="desc"
+                            >Click and drag to pan horizontally</span
+                        >
                     </li>
                     <li>
                         <span class="keys">
@@ -30,7 +34,9 @@
                             <span class="join">+</span>
                             <span class="kbd">Left Drag</span>
                         </span>
-                        <span class="desc">Pan horizontally (Cmd/Ctrl also works)</span>
+                        <span class="desc"
+                            >Pan horizontally (Cmd/Ctrl also works)</span
+                        >
                     </li>
                 </ul>
             </section>
@@ -68,18 +74,17 @@
             </section>
         </div>
     </Dialog>
-    
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed } from "vue";
 
 const props = defineProps<{ visible: boolean }>();
-const emit = defineEmits<{ (e: 'update:visible', value: boolean): void }>();
+const emit = defineEmits<{ (e: "update:visible", value: boolean): void }>();
 
 const isVisible = computed({
     get: () => props.visible,
-    set: (v: boolean) => emit('update:visible', v),
+    set: (v: boolean) => emit("update:visible", v),
 });
 </script>
 
@@ -141,9 +146,9 @@ const isVisible = computed({
     background: var(--p-content-background);
     border: 1px solid var(--p-content-border-color);
     box-shadow: inset 0 -1px 0 0 var(--p-content-border-color);
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+        "Liberation Mono", "Courier New", monospace;
     font-size: 0.85rem;
     color: var(--p-text-color);
 }
 </style>
-
