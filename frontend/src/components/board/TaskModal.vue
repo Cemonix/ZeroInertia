@@ -104,16 +104,17 @@
                         id="title"
                         v-model="title"
                         @keyup.enter="saveTask"
+                        placeholder="Task name (use @ for dates, e.g., 'Meeting @tomorrow 3pm')"
                         autofocus
                     />
                     <div v-if="detectedDateText" class="date-detection-hint">
                         <FontAwesomeIcon icon="calendar" />
-                        <span>Detected: <strong>{{ detectedDateText }}</strong></span>
+                        <span>Due date set: <strong>{{ detectedDateText }}</strong></span>
                         <button
                             type="button"
                             class="clear-detection-btn"
                             @click="clearDetectedDate"
-                            title="Clear detected date"
+                            title="Clear due date"
                         >
                             <FontAwesomeIcon icon="times" />
                         </button>
@@ -375,10 +376,11 @@ const reminderMinutes = ref<number | null>(null);
 
 // Natural language parsing state
 const detectedDateText = ref<string>("");
+const cleanedTitleBeforeSave = ref<string>(""); // Store cleaned title for saving
 const { parseTaskDate } = useNaturalLanguageParsing();
 let parseTimeout: ReturnType<typeof setTimeout> | null = null;
 
-// Watch title and parse natural language dates with debouncing
+// Watch title and parse natural language dates with @ trigger
 watch(title, (newTitle) => {
     // Clear previous timeout
     if (parseTimeout) {
@@ -389,18 +391,44 @@ watch(title, (newTitle) => {
     parseTimeout = setTimeout(() => {
         if (!newTitle || newTitle.trim() === '') {
             detectedDateText.value = '';
+            dueDateTimeString.value = null;
+            cleanedTitleBeforeSave.value = '';
             return;
         }
 
-        const result = parseTaskDate(newTitle);
+        // Only parse if there's an @ symbol (manual trigger)
+        const atIndex = newTitle.lastIndexOf('@');
+        if (atIndex === -1) {
+            // No @ found - clear any previous detection
+            detectedDateText.value = '';
+            cleanedTitleBeforeSave.value = '';
+            return;
+        }
+
+        // Extract the part after @ for parsing
+        const beforeAt = newTitle.substring(0, atIndex).trim();
+        const afterAt = newTitle.substring(atIndex + 1).trim();
+
+        if (!afterAt) {
+            // @ exists but nothing after it yet
+            detectedDateText.value = '';
+            cleanedTitleBeforeSave.value = '';
+            return;
+        }
+
+        // Parse the text after @
+        const result = parseTaskDate(afterAt);
 
         if (result.date && result.matchedText) {
             // Date detected - show the hint and update due date
+            // DON'T modify the title yet - wait until save
             detectedDateText.value = result.matchedText;
             dueDateTimeString.value = result.date.toISOString();
+            cleanedTitleBeforeSave.value = beforeAt; // Store for later use
         } else {
-            // No date detected - clear the hint
+            // No valid date found after @
             detectedDateText.value = '';
+            cleanedTitleBeforeSave.value = '';
         }
     }, 300);
 });
@@ -409,6 +437,7 @@ watch(title, (newTitle) => {
 function clearDetectedDate() {
     detectedDateText.value = '';
     dueDateTimeString.value = null;
+    cleanedTitleBeforeSave.value = '';
 }
 
 // Cleanup timeout on unmount to prevent memory leak
@@ -676,6 +705,9 @@ function getRecurrencePayload(): {
 async function saveTask() {
     if (title.value.trim() === "") return;
 
+    // Use cleaned title if date was detected, otherwise use original title
+    const finalTitle = cleanedTitleBeforeSave.value || title.value;
+
     let recurrencePayload: {
         type: TaskRecurrenceType | null;
         days: number[] | null;
@@ -710,7 +742,7 @@ async function saveTask() {
     try {
         if (currentTask) {
             await taskStore.updateTask(currentTask.id, {
-                title: title.value,
+                title: finalTitle,
                 description: description.value,
                 completed: taskCompleted.value,
                 priority_id: priorityId.value,
@@ -724,7 +756,7 @@ async function saveTask() {
             await taskStore.createTask({
                 project_id: props.projectId,
                 section_id: sectionIdForCreate as string,
-                title: title.value,
+                title: finalTitle,
                 description: description.value,
                 priority_id: priorityId.value,
                 due_datetime: dueDateTimeString.value,
