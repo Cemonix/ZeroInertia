@@ -20,7 +20,11 @@
                 </SelectButton>
             </div>
 
-            <div class="board-sections" :class="{ 'kanban-view': viewMode === 'kanban' }">
+            <div
+                ref="boardSectionsRef"
+                class="board-sections"
+                :class="{ 'kanban-view': viewMode === 'kanban' }"
+            >
                 <draggable
                     v-model="draggableSections"
                     item-key="id"
@@ -74,10 +78,10 @@
     />
 
     <TaskModal v-if="projectId" :projectId="projectId" />
-</template>
+ </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { ref, watch, onMounted, onBeforeUnmount } from "vue";
 import draggable from "vuedraggable";
 import BoardSection from "./BoardSection.vue";
 import SectionCreateModal from "./SectionCreateModal.vue";
@@ -172,6 +176,78 @@ watch(
     () => { loadSections(); },
     { immediate: true }
 );
+
+// Horizontal drag-to-scroll for Kanban view
+const boardSectionsRef = ref<HTMLElement | null>(null);
+const isPanning = ref(false);
+let panStartX = 0;
+let panScrollLeft = 0;
+
+function tryStartPan(e: MouseEvent) {
+    if (viewMode.value !== 'kanban') return;
+    const container = boardSectionsRef.value;
+    if (!container) return;
+    // Middle mouse button OR Alt + Left click to pan
+    const isMiddle = e.button === 1;
+    const isAltLeft = e.button === 0 && (e.altKey || e.metaKey || e.ctrlKey);
+    if (!isMiddle && !isAltLeft) return;
+
+    isPanning.value = true;
+    panStartX = e.clientX;
+    panScrollLeft = container.scrollLeft;
+    container.classList.add('is-panning');
+    container.style.cursor = 'grabbing';
+    e.preventDefault();
+}
+
+function onPanMove(e: MouseEvent) {
+    if (!isPanning.value) return;
+    const container = boardSectionsRef.value;
+    if (!container) return;
+    const dx = e.clientX - panStartX;
+    container.scrollLeft = panScrollLeft - dx;
+}
+
+function endPan() {
+    if (!isPanning.value) return;
+    const container = boardSectionsRef.value;
+    isPanning.value = false;
+    if (container) {
+        container.classList.remove('is-panning');
+        container.style.cursor = '';
+    }
+}
+
+function onWheelHorizontal(e: WheelEvent) {
+    if (viewMode.value !== 'kanban') return;
+    const container = boardSectionsRef.value;
+    if (!container) return;
+    if (!e.shiftKey) return; // Only convert when Shift is held to avoid interfering with vertical scroll in task lists
+    if (container.scrollWidth <= container.clientWidth) return;
+    container.scrollLeft += e.deltaY;
+    e.preventDefault();
+}
+
+onMounted(() => {
+    const container = boardSectionsRef.value;
+    if (!container) return;
+    container.addEventListener('mousedown', tryStartPan);
+    window.addEventListener('mousemove', onPanMove);
+    window.addEventListener('mouseup', endPan);
+    container.addEventListener('mouseleave', endPan);
+    container.addEventListener('wheel', onWheelHorizontal, { passive: false });
+});
+
+onBeforeUnmount(() => {
+    const container = boardSectionsRef.value;
+    if (container) {
+        container.removeEventListener('mousedown', tryStartPan);
+        container.removeEventListener('mouseleave', endPan);
+        container.removeEventListener('wheel', onWheelHorizontal as any);
+    }
+    window.removeEventListener('mousemove', onPanMove);
+    window.removeEventListener('mouseup', endPan);
+});
 </script>
 
 <style scoped>
@@ -226,6 +302,10 @@ watch(
     overflow-x: auto;
     overflow-y: hidden;
     align-items: stretch;
+}
+
+.board-sections.kanban-view.is-panning {
+    cursor: grabbing;
 }
 
 /* Make draggable wrapper inherit flex layout in kanban view */
