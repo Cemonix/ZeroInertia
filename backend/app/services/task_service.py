@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, cast
 from uuid import UUID
 
-from sqlalchemy import func
+from sqlalchemy import bindparam, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -258,7 +258,7 @@ async def get_active_task_counts_by_project(
         .group_by(Task.project_id)
     )
     rows = result.all()
-    return {str(project_id): count for project_id, count in rows}
+    return {str(project_id): count for project_id, count in rows}  # pyright: ignore[reportAny]
 
 
 async def _apply_task_updates(
@@ -420,17 +420,26 @@ async def reorder_tasks(db: AsyncSession, user_id: UUID, tasks_reorder: list[Tas
     if len(existing_task_ids) != len(task_ids):
         raise TaskNotFoundException()
 
-    # Use bulk update - executes in a single UPDATE statement per batch
-    await db.execute(
-        update(Task),
+    # Bulk update using executemany with bindparams
+    # Ensures each row is updated by id and scoped by user_id
+    _ = await db.execute(
+        update(Task)
+        .where(
+            Task.id == bindparam("id"),
+            Task.user_id == user_id,
+        )
+        .values(
+            order_index=bindparam("order_index"),
+            section_id=bindparam("section_id"),
+        ),
         [
             {
-                "id": str(task_data.id),
+                "id": task_data.id,
                 "order_index": task_data.order_index,
-                "section_id": str(task_data.section_id)
+                "section_id": task_data.section_id,
             }
             for task_data in tasks_reorder
-        ]
+        ],
     )
 
     await db.commit()
