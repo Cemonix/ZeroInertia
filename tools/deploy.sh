@@ -64,13 +64,17 @@ if [ "$SKIP_BACKUP" = false ]; then
     log_info "Creating database backup..."
     mkdir -p "$BACKUP_DIR"
 
+    # Load database credentials from .env file
+    source "$ENV_FILE"
+
     # Backup PostgreSQL
     if docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" ps postgres | grep -q "Up"; then
-        docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec -T postgres pg_dump \
-            -U "$POSTGRES_USER" "$POSTGRES_DB" > "$BACKUP_DIR/db_backup_$TIMESTAMP.sql" 2>/dev/null || {
+        if docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec -T postgres pg_dump \
+            -U "$DB_USER" "$DB_NAME" > "$BACKUP_DIR/db_backup_$TIMESTAMP.sql" 2>/dev/null; then
+            log_success "Database backed up to $BACKUP_DIR/db_backup_$TIMESTAMP.sql"
+        else
             log_warning "Database backup failed, but continuing deployment..."
-        }
-        log_success "Database backed up to $BACKUP_DIR/db_backup_$TIMESTAMP.sql"
+        fi
     else
         log_warning "PostgreSQL container not running, skipping backup"
     fi
@@ -128,9 +132,4 @@ docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" ps
 echo ""
 log_success "🚀 Deployment completed successfully!"
 log_info "Application is running at: https://zeroinertia.cemonix.dev"
-echo ""
-log_info "Useful commands:"
-echo "  - View logs: docker compose --env-file $ENV_FILE -f $COMPOSE_FILE logs -f [service]"
-echo "  - Restart service: docker compose --env-file $ENV_FILE -f $COMPOSE_FILE restart [service]"
-echo "  - Stop all: docker compose --env-file $ENV_FILE -f $COMPOSE_FILE down"
 echo ""
