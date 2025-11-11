@@ -1,13 +1,17 @@
 import type { Project, ProjectReorderItem } from "@/models/project";
+import type { PaginatedResponse, PaginationParams } from "@/models/pagination";
+import { buildPaginationQuery, isPaginatedResponse, wrapAsSinglePage } from "@/models/pagination";
 import apiClient from "./apiClient";
 
 
 const API_URL = "/api/v1/projects";
 
 export const projectService = {
-    async getProjects(): Promise<Project[]> {
-        const response = await apiClient.get(API_URL);
-        return response.data;
+    async getProjects(pagination?: PaginationParams): Promise<PaginatedResponse<Project>> {
+        const response = await apiClient.get(API_URL, { params: buildPaginationQuery(pagination) });
+        const data = response.data as unknown;
+        if (isPaginatedResponse<Project>(data)) return data;
+        return wrapAsSinglePage((data as Project[]) ?? []);
     },
 
     async getProjectById(projectId: string): Promise<Project | null> {

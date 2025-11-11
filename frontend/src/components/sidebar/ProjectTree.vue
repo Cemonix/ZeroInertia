@@ -116,17 +116,6 @@ const originalProjectTitle = ref('');
 // Local task counts mapped by project id
 const taskCounts = ref<Record<string, number>>({});
 
-function recomputeCountsFromTasks(allTasks: Task[]) {
-    const counts: Record<string, number> = {};
-    for (const t of allTasks) {
-        // Count only active (not completed, not archived) tasks
-        if (!t.completed && !t.archived) {
-            counts[t.project_id] = (counts[t.project_id] ?? 0) + 1;
-        }
-    }
-    taskCounts.value = counts;
-}
-
 function applyPartialCountsFrom(tasks: Task[]) {
     // Only update counts for the projects present in the given tasks list
     const updated: Record<string, number> = { ...taskCounts.value };
@@ -161,10 +150,10 @@ watch(
     async (isAuthenticated) => {
         if (isAuthenticated) {
             await projectStore.loadProjects();
-            // Load all tasks once to compute counts
+            // Fetch counts from backend to avoid heavy client-side aggregation
             try {
-                const allTasks = await taskService.getTasks();
-                recomputeCountsFromTasks(allTasks);
+                const counts = await taskService.getTaskCountsByProject();
+                taskCounts.value = counts;
             } catch (e) {
                 // Fail silently for counts to avoid blocking UI
                 taskCounts.value = {};

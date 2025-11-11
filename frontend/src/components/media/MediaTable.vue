@@ -4,9 +4,6 @@
             :value="items"
             :loading="loading"
             dataKey="id"
-            paginator
-            :rows="10"
-            :rowsPerPageOptions="[10, 20, 50]"
             responsiveLayout="scroll"
             size="small"
         >

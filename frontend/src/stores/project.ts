@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import { ref, computed, watch } from "vue";
 import { projectService } from "@/services/projectService";
+import type { PaginationParams } from "@/models/pagination";
 import type { ProjectReorderItem } from "@/models/project";
 import type { Project } from "@/models/project";
 import { useToast } from "primevue/usetoast";
@@ -44,11 +45,12 @@ export const useProjectStore = defineStore("project", () => {
         }
     });
 
-    async function loadProjects() {
+    async function loadProjects(pagination: PaginationParams = { page: 1, page_size: 500 }) {
         loading.value = true;
         error.value = null;
         try {
-            projects.value = await projectService.getProjects();
+            const resp = await projectService.getProjects(pagination);
+            projects.value = resp.items;
         } catch (err) {
             error.value = err instanceof Error ? err.message : "Failed to load projects";
         } finally {

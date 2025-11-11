@@ -1,4 +1,6 @@
 import type { Note, NoteInput, NoteReorderItem, NoteUpdateInput } from "@/models/note";
+import type { PaginatedResponse, PaginationParams } from "@/models/pagination";
+import { buildPaginationQuery, isPaginatedResponse, wrapAsSinglePage } from "@/models/pagination";
 import apiClient from "./apiClient";
 
 const API_URL = "/api/v1/notes";
@@ -33,9 +35,13 @@ const serializeUpdatePayload = (payload: NoteUpdateInput) => {
 };
 
 export const noteService = {
-    async getNotes(): Promise<Note[]> {
-        const response = await apiClient.get<Note[]>(API_URL);
-        return response.data;
+    async getNotes(pagination?: PaginationParams): Promise<PaginatedResponse<Note>> {
+        const response = await apiClient.get(API_URL, {
+            params: buildPaginationQuery(pagination),
+        });
+        const data = response.data as unknown;
+        if (isPaginatedResponse<Note>(data)) return data;
+        return wrapAsSinglePage((data as Note[]) ?? []);
     },
 
     async getNoteById(noteId: string): Promise<Note> {

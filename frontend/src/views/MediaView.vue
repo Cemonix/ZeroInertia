@@ -123,6 +123,16 @@
                 @edit="openEdit"
                 @delete="onDelete"
             />
+            <div v-if="filteredItems.length > 0" class="pagination-bar">
+                <span class="count" v-if="total > 0">{{ filteredItems.length }} / {{ total }}</span>
+                <Button
+                    v-if="hasNext"
+                    :loading="loadingMore"
+                    :disabled="loadingMore"
+                    @click="loadMore"
+                    size="small"
+                >Load more</Button>
+            </div>
         </div>
         <MediaForm
             v-model:visible="formVisible"
@@ -153,6 +163,7 @@ const router = useRouter();
 const {
     filteredItems,
     loading,
+    loadingMore,
     formVisible,
     editingItem,
     selectedStatuses,
@@ -161,6 +172,8 @@ const {
     search,
     hasActiveFilters,
     activeCategory,
+    hasNext,
+    total,
 } = storeToRefs(mediaStore);
 
 const ratingRange = ref<[number, number]>([ratingMin.value, ratingMax.value]);
@@ -183,6 +196,10 @@ const reload = async () => {
     await mediaStore.load();
 };
 
+const loadMore = async () => {
+    await mediaStore.loadMore();
+};
+
 const applyFilters = async () => {
     await reload();
 };
@@ -193,6 +210,7 @@ const clearFilters = async () => {
 
 const setCategory = (category: "all" | MediaType) => {
     mediaStore.setActiveCategory(category);
+    void reload();
 };
 
 const openCreate = () => mediaStore.openCreateForm();
@@ -322,5 +340,17 @@ watch(
 }
 .empty-state-subtitle {
     margin: 0;
+}
+
+.pagination-bar {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+}
+.pagination-bar .count {
+    color: var(--p-text-muted-color);
+    font-size: 0.9rem;
 }
 </style>
