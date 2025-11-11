@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, cast
 from uuid import UUID
 
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -106,23 +107,78 @@ async def get_task_by_id(db: AsyncSession, task_id: UUID, user_id: UUID) -> Task
     return result.scalars().first()
 
 
-async def get_tasks(db: AsyncSession, user_id: UUID) -> Sequence[Task]:
-    """Retrieve all tasks for a specific user."""
+async def get_tasks(
+    db: AsyncSession,
+    user_id: UUID,
+    skip: int = 0,
+    limit: int = 50,
+) -> tuple[Sequence[Task], int]:
+    """
+    Retrieve tasks for a specific user with pagination.
+
+    Args:
+        db: Database session
+        user_id: User ID to filter tasks
+        skip: Number of records to skip (offset)
+        limit: Maximum number of records to return
+
+    Returns:
+        Tuple of (tasks, total_count)
+    """
+    # Count total tasks
+    count_result = await db.execute(
+        select(func.count(Task.id)).where(
+            Task.user_id == user_id,
+            Task.archived.is_(False),
+        )
+    )
+    total = count_result.scalar_one()
+
+    # Get paginated tasks
     result = await db.execute(
         select(Task)
         .options(selectinload(Task.labels))
         .where(Task.user_id == user_id, Task.archived.is_(False))
         .order_by(Task.order_index)
+        .offset(skip)
+        .limit(limit)
     )
-    return result.scalars().all()
+    tasks = result.scalars().all()
+
+    return tasks, total
 
 
 async def get_tasks_by_project(
     db: AsyncSession,
     user_id: UUID,
     project_id: UUID,
-) -> Sequence[Task]:
-    """Retrieve all tasks for a specific project and user."""
+    skip: int = 0,
+    limit: int = 50,
+) -> tuple[Sequence[Task], int]:
+    """
+    Retrieve tasks for a specific project with pagination.
+
+    Args:
+        db: Database session
+        user_id: User ID to filter tasks
+        project_id: Project ID to filter tasks
+        skip: Number of records to skip (offset)
+        limit: Maximum number of records to return
+
+    Returns:
+        Tuple of (tasks, total_count)
+    """
+    # Count total tasks
+    count_result = await db.execute(
+        select(func.count(Task.id)).where(
+            Task.user_id == user_id,
+            Task.project_id == project_id,
+            Task.archived.is_(False),
+        )
+    )
+    total = count_result.scalar_one()
+
+    # Get paginated tasks
     result = await db.execute(
         select(Task)
         .options(selectinload(Task.labels))
@@ -132,15 +188,42 @@ async def get_tasks_by_project(
             Task.archived.is_(False)
         )
         .order_by(Task.order_index)
+        .offset(skip)
+        .limit(limit)
     )
-    return result.scalars().all()
+    tasks = result.scalars().all()
+
+    return tasks, total
 
 
 async def get_archived_tasks(
     db: AsyncSession,
-    user_id: UUID
-) -> Sequence[Task]:
-    """Retrieve all archived tasks for a specific user."""
+    user_id: UUID,
+    skip: int = 0,
+    limit: int = 50,
+) -> tuple[Sequence[Task], int]:
+    """
+    Retrieve archived tasks for a specific user with pagination.
+
+    Args:
+        db: Database session
+        user_id: User ID to filter tasks
+        skip: Number of records to skip (offset)
+        limit: Maximum number of records to return
+
+    Returns:
+        Tuple of (tasks, total_count)
+    """
+    # Count total archived tasks
+    count_result = await db.execute(
+        select(func.count(Task.id)).where(
+            Task.user_id == user_id,
+            Task.archived.is_(True),
+        )
+    )
+    total = count_result.scalar_one()
+
+    # Get paginated archived tasks
     result = await db.execute(
         select(Task)
         .options(selectinload(Task.labels))
@@ -149,8 +232,33 @@ async def get_archived_tasks(
             Task.archived.is_(True)
         )
         .order_by(Task.order_index)
+        .offset(skip)
+        .limit(limit)
     )
-    return result.scalars().all()
+    tasks = result.scalars().all()
+
+    return tasks, total
+
+
+async def get_active_task_counts_by_project(
+    db: AsyncSession,
+    user_id: UUID,
+) -> dict[str, int]:
+    """Return a mapping of project_id -> active task count for the given user.
+
+    Active tasks are those that are not completed and not archived.
+    """
+    result = await db.execute(
+        select(Task.project_id, func.count(Task.id))
+        .where(
+            Task.user_id == user_id,
+            Task.completed.is_(False),
+            Task.archived.is_(False),
+        )
+        .group_by(Task.project_id)
+    )
+    rows = result.all()
+    return {str(project_id): count for project_id, count in rows}
 
 
 async def _apply_task_updates(
@@ -297,25 +405,33 @@ async def delete_task(db: AsyncSession, task_id: UUID, user_id: UUID) -> None:
 
 
 async def reorder_tasks(db: AsyncSession, user_id: UUID, tasks_reorder: list[TaskReorder]) -> None:
-    """Reorder tasks based on the provided list of task data."""
+    """Reorder tasks based on the provided list of task data using bulk update."""
     task_ids = [t.id for t in tasks_reorder]
 
+    # Verify all tasks exist and belong to the user
     result = await db.execute(
-        select(Task).where(
+        select(Task.id).where(
             Task.id.in_(task_ids),
             Task.user_id == user_id
         )
     )
-    tasks = {t.id: t for t in result.scalars().all()}
+    existing_task_ids = set(result.scalars().all())
 
-    if len(tasks) != len(task_ids):
+    if len(existing_task_ids) != len(task_ids):
         raise TaskNotFoundException()
 
-    for task_data in tasks_reorder:
-        task = tasks[task_data.id]
-        task.order_index = task_data.order_index
-        task.section_id = task_data.section_id
-        db.add(task)
+    # Use bulk update - executes in a single UPDATE statement per batch
+    await db.execute(
+        update(Task),
+        [
+            {
+                "id": str(task_data.id),
+                "order_index": task_data.order_index,
+                "section_id": str(task_data.section_id)
+            }
+            for task_data in tasks_reorder
+        ]
+    )
 
     await db.commit()
 

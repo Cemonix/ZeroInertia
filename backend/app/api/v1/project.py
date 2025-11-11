@@ -5,9 +5,11 @@ from fastapi.routing import APIRouter
 from sqlalchemy.ext.asyncio.session import AsyncSession
 
 from app.api.v1.auth_deps import get_current_user
+from app.api.v1.pagination_deps import get_pagination_params
 from app.core.database import get_db
 from app.core.exceptions import ProjectNotFoundException
 from app.models.user import User
+from app.schemas.pagination import PaginatedResponse, PaginationParams
 from app.schemas.project import ProjectCreate, ProjectResponse, ProjectsReorder, ProjectUpdate
 from app.services import project_service
 
@@ -31,14 +33,27 @@ async def create_project(
     return ProjectResponse.model_validate(new_project)
 
 
-@router.get("/", response_model=list[ProjectResponse], status_code=status.HTTP_200_OK)
+@router.get("/", response_model=PaginatedResponse[ProjectResponse], status_code=status.HTTP_200_OK)
 async def get_projects(
+    pagination: PaginationParams = Depends(get_pagination_params),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> list[ProjectResponse]:
-    """Get all projects for the authenticated user."""
-    projects = await project_service.get_projects(db=db, user_id=current_user.id)
-    return [ProjectResponse.model_validate(project) for project in projects]
+) -> PaginatedResponse[ProjectResponse]:
+    """Get projects for the authenticated user with pagination."""
+    projects, total = await project_service.get_projects(
+        db=db,
+        user_id=current_user.id,
+        skip=pagination.offset,
+        limit=pagination.limit,
+    )
+
+    project_responses = [ProjectResponse.model_validate(project) for project in projects]
+    return PaginatedResponse[ProjectResponse].create(
+        items=project_responses,
+        total=total,
+        page=pagination.page,
+        page_size=pagination.page_size,
+    )
 
 
 @router.get("/{project_id}", response_model=ProjectResponse, status_code=status.HTTP_200_OK)

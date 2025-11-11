@@ -2,6 +2,7 @@ from collections.abc import Sequence
 from typing import cast
 from uuid import UUID
 
+from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import select
 
@@ -53,12 +54,41 @@ async def get_project_by_id(db: AsyncSession, project_id: UUID, user_id: UUID) -
     return result.scalars().first()
 
 
-async def get_projects(db: AsyncSession, user_id: UUID) -> Sequence[Project]:
-    """Retrieve all projects for a specific user."""
-    result = await db.execute(
-        select(Project).where(Project.user_id == user_id).order_by(Project.created_at.desc())
+async def get_projects(
+    db: AsyncSession,
+    user_id: UUID,
+    skip: int = 0,
+    limit: int = 50,
+) -> tuple[Sequence[Project], int]:
+    """
+    Retrieve projects for a specific user with pagination.
+
+    Args:
+        db: Database session
+        user_id: User ID to filter projects
+        skip: Number of records to skip (offset)
+        limit: Maximum number of records to return
+
+    Returns:
+        Tuple of (projects, total_count)
+    """
+    # Count total projects
+    count_result = await db.execute(
+        select(func.count(Project.id)).where(Project.user_id == user_id)
     )
-    return result.scalars().all()
+    total = count_result.scalar_one()
+
+    # Get paginated projects
+    result = await db.execute(
+        select(Project)
+        .where(Project.user_id == user_id)
+        .order_by(Project.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+    )
+    projects = result.scalars().all()
+
+    return projects, total
 
 
 async def update_project(

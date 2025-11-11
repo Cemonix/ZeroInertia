@@ -125,7 +125,7 @@ async def create_or_update_user(session: AsyncSession, user_data: dict[str, str 
 
 async def get_current_user_id(request: Request) -> UUID:
     """Extract user ID from JWT cookie."""
-    access_token = request.cookies.get("access_token")
+    access_token = request.cookies.get("__Host-access_token") or request.cookies.get("access_token")
     if not access_token:
         raise UnauthorizedException("Not authenticated")
 

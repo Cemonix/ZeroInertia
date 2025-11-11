@@ -112,9 +112,11 @@ class TestTaskEndpoints:
 
         assert response.status_code == 200
         data = response.json()
-        assert isinstance(data, list)
-        assert len(data) >= 1  # pyright: ignore[reportUnknownArgumentType]
-        assert any(task["id"] == str(test_task.id) for task in data)  # pyright: ignore[reportUnknownArgumentType, reportUnknownVariableType]
+        assert isinstance(data, dict)
+        assert "items" in data
+        assert isinstance(data["items"], list)
+        assert len(data["items"]) >= 1  # pyright: ignore[reportUnknownArgumentType]
+        assert any(task["id"] == str(test_task.id) for task in data["items"])  # pyright: ignore[reportUnknownArgumentType, reportUnknownVariableType]
 
     async def test_get_tasks_filtered_by_project(
         self, authenticated_client: AsyncClient, test_project: Project
@@ -126,9 +128,11 @@ class TestTaskEndpoints:
 
         assert response.status_code == 200
         data = response.json()
-        assert isinstance(data, list)
+        assert isinstance(data, dict)
+        assert "items" in data
+        assert isinstance(data["items"], list)
         # All returned tasks should belong to the specified project
-        for task in data:  # pyright: ignore[reportUnknownVariableType]
+        for task in data["items"]:  # pyright: ignore[reportUnknownVariableType]
             assert task["project_id"] == str(test_project.id)
 
     async def test_get_single_task(self, authenticated_client: AsyncClient, test_task: Task) -> None:
@@ -184,7 +188,7 @@ class TestTaskEndpoints:
         # Verify archived task doesn't appear in regular list
         list_response = await authenticated_client.get("/api/v1/tasks")
         tasks = list_response.json()
-        assert not any(task["id"] == str(test_task.id) for task in tasks)
+        assert not any(task["id"] == str(test_task.id) for task in tasks["items"])
 
     async def test_get_archived_tasks(self, authenticated_client: AsyncClient, test_task: Task) -> None:
         """Test retrieving archived tasks."""
@@ -196,8 +200,10 @@ class TestTaskEndpoints:
 
         assert response.status_code == 200
         data = response.json()
-        assert isinstance(data, list)
-        assert any(task["id"] == str(test_task.id) for task in data)  # pyright: ignore[reportUnknownArgumentType, reportUnknownVariableType]
+        assert isinstance(data, dict)
+        assert "items" in data
+        assert isinstance(data["items"], list)
+        assert any(task["id"] == str(test_task.id) for task in data["items"])  # pyright: ignore[reportUnknownArgumentType, reportUnknownVariableType]
 
     async def test_delete_task(self, authenticated_client: AsyncClient, test_task: Task) -> None:
         """Test deleting a task."""
@@ -310,7 +316,8 @@ class TestTaskOrdering:
         response = await authenticated_client.get(
             f"/api/v1/tasks?project_id={test_project.id}"
         )
-        tasks = response.json()
+        data = response.json()
+        tasks = data["items"]
 
         # Verify tasks have sequential order indices
         assert len(tasks) == 3
@@ -563,7 +570,8 @@ class TestTaskSecurity:
         # Current authenticated user should not see other user's task
         response = await authenticated_client.get("/api/v1/tasks")
         assert response.status_code == 200
-        tasks = response.json()
+        data = response.json()
+        tasks = data["items"]
         task_ids = [task["id"] for task in tasks]
         assert str(other_task.id) not in task_ids
 
@@ -689,7 +697,8 @@ class TestRecurringTasks:
             f"/api/v1/tasks?project_id={test_project.id}"
         )
         assert list_response.status_code == 200
-        active_tasks = list_response.json()
+        data = list_response.json()
+        active_tasks = data["items"]
 
         # The archived task should not appear
         assert not any(task["id"] == original_task_id for task in active_tasks)
@@ -754,7 +763,8 @@ class TestRecurringTasks:
             f"/api/v1/tasks?project_id={test_project.id}"
         )
         assert list_response.status_code == 200
-        active_tasks = list_response.json()
+        data = list_response.json()
+        active_tasks = data["items"]
 
         # Should have a new recurring task instance
         recurring_tasks = [
@@ -812,7 +822,8 @@ class TestRecurringTasks:
         list_response = await authenticated_client.get(
             f"/api/v1/tasks?project_id={test_project.id}"
         )
-        active_tasks = list_response.json()
+        data = list_response.json()
+        active_tasks = data["items"]
 
         recurring_tasks = [
             task for task in active_tasks
@@ -882,7 +893,8 @@ class TestRecurringTasks:
         list_response = await authenticated_client.get(
             f"/api/v1/tasks?project_id={test_project.id}"
         )
-        active_tasks = list_response.json()
+        data = list_response.json()
+        active_tasks = data["items"]
         new_task = [
             task for task in active_tasks
             if task["title"] == "Daily Task" and task["recurrence_type"] == "daily"
@@ -980,7 +992,8 @@ class TestRecurringTasks:
             f"/api/v1/tasks?project_id={test_project.id}"
         )
         assert list_response.status_code == 200
-        active_tasks = list_response.json()
+        data = list_response.json()
+        active_tasks = data["items"]
 
         # Find the new recurring task instance
         recurring_tasks = [

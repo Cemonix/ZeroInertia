@@ -58,9 +58,11 @@ class TestProjectEndpoints:
 
         assert response.status_code == 200
         data = response.json()
-        assert isinstance(data, list)
-        assert len(data) >= 1  # pyright: ignore[reportUnknownArgumentType]
-        assert any(proj["id"] == str(test_project.id) for proj in data)  # pyright: ignore[reportUnknownArgumentType, reportUnknownVariableType]
+        assert isinstance(data, dict)
+        assert "items" in data
+        assert isinstance(data["items"], list)
+        assert len(data["items"]) >= 1  # pyright: ignore[reportUnknownArgumentType]
+        assert any(proj["id"] == str(test_project.id) for proj in data["items"])  # pyright: ignore[reportUnknownArgumentType, reportUnknownVariableType]
 
     async def test_get_single_project(self, authenticated_client: AsyncClient, test_project: Project) -> None:
         """Test retrieving a specific project by ID."""
@@ -213,7 +215,8 @@ class TestProjectOrdering:
 
         # Get all projects
         response = await authenticated_client.get("/api/v1/projects")
-        projects = response.json()
+        data = response.json()
+        projects = data["items"]
 
         # Verify projects have sequential order
         assert len(projects) >= 3

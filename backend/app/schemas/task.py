@@ -63,3 +63,10 @@ class TaskReorder(BaseModel):
     id: UUID
     section_id: UUID
     order_index: int
+
+
+class TaskCountsByProjectResponse(BaseModel):
+    """Response schema for active task counts grouped by project."""
+
+    # Map of project_id (UUID as string) to count of active tasks
+    counts: dict[str, int]

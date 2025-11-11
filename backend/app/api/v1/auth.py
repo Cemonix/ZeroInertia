@@ -6,8 +6,10 @@ from uuid import UUID
 
 from authlib.integrations.starlette_client import OAuth
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import RedirectResponse
+from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.responses import JSONResponse
 
 from app.api.v1.auth_deps import (
     create_or_update_user,
@@ -16,18 +18,24 @@ from app.api.v1.auth_deps import (
 )
 from app.core.database import get_db
 from app.core.exceptions import InvalidTokenException, UnauthorizedException
+from app.core.rate_limit import auth_aware_limit, get_rate_limiter
 from app.core.settings.app_settings import AppSettings
 from app.schemas.user import UserResponse
 from app.services.jwt_service import JWTService
 from app.services.redis_service import OAuthStateService
 from app.services.user_service import UserService
 
+# pyright: reportUnknownMemberType=false, reportUntypedFunctionDecorator=false
+
 # Load settings
 settings = AppSettings()
 
+# Initialize rate limiter
+limiter = get_rate_limiter()
+
 # Initialize OAuth
 oauth = OAuth()
-_ = cast(OAuth, oauth.register(  # pyright: ignore[reportUnknownMemberType]
+_ = cast(OAuth, oauth.register(
     name='google',
     client_id=settings.google_client_id,
     client_secret=settings.google_client_secret,
@@ -40,8 +48,9 @@ _ = cast(OAuth, oauth.register(  # pyright: ignore[reportUnknownMemberType]
 router = APIRouter()
 
 
+@limiter.limit("10/minute")
 @router.get("/google/login")
-async def google_login() -> RedirectResponse:
+async def google_login(request: Request) -> RedirectResponse:  # noqa: ARG001  # pyright: ignore[reportUnusedParameter]
     """Initiate Google OAuth login with redirect flow."""
     state = await OAuthStateService.generate_state()
 
@@ -61,6 +70,7 @@ async def google_login() -> RedirectResponse:
 
 @router.get("/google/callback")
 async def google_callback(
+    request: Request,  # noqa: ARG001  # pyright: ignore[reportUnusedParameter]
     code: str,
     state: str,
     session: AsyncSession = Depends(get_db),
@@ -88,14 +98,18 @@ async def google_callback(
         )
 
         # Set secure JWT cookie
+        # In production, use __Host- prefix (requires Secure + Path=/ and no Domain)
+        # In development (HTTP), browsers reject __Host- without Secure, so use a plain name
+        cookie_name = "__Host-access_token" if settings.environment == "production" else "access_token"
         response.set_cookie(
-            key="access_token",
+            key=cookie_name,
             value=jwt_token,
             max_age=settings.jwt_expire_minutes * 60,
             httponly=True,  # Prevents XSS
-            secure=settings.environment == "production",
-            samesite="lax",  # CSRF protection but allows OAuth redirects
-            domain=None  # Current domain only
+            secure=settings.environment == "production",  # Always enforce HTTPS in production
+            samesite="lax",  # Allows cookie on top-level GET navigations (needed for OAuth redirect)
+            domain=None,  # Current domain only
+            path="/"  # Required for __Host- prefix in production
         )
 
         # Rotate CSRF token on login (double submit cookie pattern)
@@ -112,18 +126,27 @@ async def google_callback(
 
         return response
 
-    except HTTPException:
+    except HTTPException as e:
+        logger.warning(
+            f"OAuth authentication failed: {e.detail} | " +
+            f"state={state} | status_code={e.status_code}"
+        )
         return RedirectResponse(
             url=f"{settings.cors_origins[0]}/auth/error?message=Authentication+failed",
             status_code=302
         )
     except Exception:
+        logger.exception(
+            f"Unexpected OAuth error | state={state} | " +
+            f"code_prefix={code[:10] if code else None}"
+        )
         return RedirectResponse(
             url=f"{settings.cors_origins[0]}/auth/error?message=System+error",
             status_code=302
         )
 
 
+@limiter.limit(auth_aware_limit)
 @router.get("/me")
 async def get_current_user(
     request: Request,
@@ -131,7 +154,7 @@ async def get_current_user(
 ) -> UserResponse:
     """Get the currently authenticated user from cookie."""
     # Get JWT from cookie
-    access_token = request.cookies.get("access_token")
+    access_token = request.cookies.get("__Host-access_token") or request.cookies.get("access_token")
     if not access_token:
         raise UnauthorizedException("Access token missing")
 
@@ -154,12 +177,13 @@ async def get_current_user(
     return UserResponse.model_validate(user)
 
 
+@limiter.limit(auth_aware_limit)
 @router.get("/is_authenticated")
 async def is_authenticated(
     request: Request
 ) -> JSONResponse:
     """Check if the user is authenticated."""
-    access_token = request.cookies.get("access_token")
+    access_token = request.cookies.get("__Host-access_token") or request.cookies.get("access_token")
     if not access_token:
         return JSONResponse({"is_authenticated": False})
 
@@ -174,11 +198,14 @@ async def is_authenticated(
         return JSONResponse({"is_authenticated": False})
 
 
+@limiter.limit(auth_aware_limit)
 @router.post("/logout")
-async def logout():
+async def logout(request: Request) -> JSONResponse:  # noqa: ARG001  # pyright: ignore[reportUnusedParameter]
     """Logout user by clearing the JWT cookie."""
     response = JSONResponse({"message": "Successfully logged out"})
-    response.delete_cookie(key="access_token")
+    # Delete both possible cookie names
+    response.delete_cookie(key="__Host-access_token", path="/")
+    response.delete_cookie(key="access_token", path="/")
     # Also clear CSRF token on logout
     response.delete_cookie(key="csrf_token")
     return response
