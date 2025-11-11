@@ -4,6 +4,7 @@ import type { TreeNode } from "primevue/treenode";
 import type { TreeSelectionKeys } from "primevue/tree";
 import type { Note, NoteInput, NoteReorderItem, NoteUpdateInput } from "@/models/note";
 import { noteService } from "@/services/noteService";
+import type { PaginationParams } from "@/models/pagination";
 
 interface NoteTreeNode extends TreeNode {
     key: string;
@@ -66,13 +67,13 @@ export const useNoteStore = defineStore("note", () => {
         }
     });
 
-    async function loadNotes() {
+    async function loadNotes(pagination: PaginationParams = { page: 1, page_size: 200 }) {
         loading.value = true;
         error.value = null;
         try {
             const existingId = selectedNoteId.value;
-            const fetched = await noteService.getNotes();
-            notes.value = fetched;
+            const resp = await noteService.getNotes(pagination);
+            notes.value = resp.items;
 
             if (existingId) {
                 const exists = notes.value.some((note) => note.id === existingId);

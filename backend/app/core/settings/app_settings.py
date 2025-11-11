@@ -48,6 +48,20 @@ class AppSettings(BaseSettings):
     reload: bool = Field(default=True, alias="RELOAD")
     log_level: str = Field(default="info", alias="LOG_LEVEL")
 
+    # Rate limiting (process-local by default)
+    rate_limit_anon_per_min: int = Field(default=60, alias="RATE_LIMIT_ANON_PER_MIN")
+    rate_limit_auth_per_min: int = Field(default=120, alias="RATE_LIMIT_AUTH_PER_MIN")
+    rate_limit_burst_multiplier: float = Field(default=1.0, alias="RATE_LIMIT_BURST_MULTIPLIER")
+    rate_limit_exempt_paths_csv: str = Field(
+        default="/health,/csrf,/docs,/redoc,/openapi.json",
+        alias="RATE_LIMIT_EXEMPT_PATHS",
+    )
+    rate_limit_storage_uri: str = Field(
+        default="",
+        alias="RATE_LIMIT_STORAGE_URI",
+        description="Optional SlowAPI storage URI (e.g., redis://:pass@host:6379/0). Empty uses in-memory.",
+    )
+
     model_config: ClassVar[SettingsConfigDict] = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
@@ -85,6 +99,10 @@ class AppSettings(BaseSettings):
     def cors_origins(self) -> list[str]:
         """Convert comma-separated CORS origins to list."""
         return [origin.strip() for origin in self.backend_cors_origins.split(",") if origin.strip()]
+
+    @property
+    def rate_limit_exempt_paths(self) -> set[str]:
+        return {p.strip() for p in self.rate_limit_exempt_paths_csv.split(',') if p.strip()}
 
 
 def get_app_settings() -> AppSettings:

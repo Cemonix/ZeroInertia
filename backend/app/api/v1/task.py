@@ -5,10 +5,18 @@ from fastapi.routing import APIRouter
 from sqlalchemy.ext.asyncio.session import AsyncSession
 
 from app.api.v1.auth_deps import get_current_user
+from app.api.v1.pagination_deps import get_pagination_params
 from app.core.database import get_db
 from app.core.exceptions import TaskNotFoundException
 from app.models.user import User
-from app.schemas.task import TaskCreate, TaskReorder, TaskResponse, TaskUpdate
+from app.schemas.pagination import PaginatedResponse, PaginationParams
+from app.schemas.task import (
+    TaskCountsByProjectResponse,
+    TaskCreate,
+    TaskReorder,
+    TaskResponse,
+    TaskUpdate,
+)
 from app.services import task_service
 
 router = APIRouter()
@@ -38,30 +46,74 @@ async def create_task(
     return TaskResponse.model_validate(new_task)
 
 
-@router.get("/", response_model=list[TaskResponse])
+@router.get("/", response_model=PaginatedResponse[TaskResponse])
 async def get_tasks(
     project_id: UUID | None = None,
+    pagination: PaginationParams = Depends(get_pagination_params),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> list[TaskResponse]:
-    """Get tasks for the authenticated user, optionally filtered by project_id."""
+) -> PaginatedResponse[TaskResponse]:
+    """
+    Get tasks for the authenticated user with pagination.
+
+    Optionally filtered by project_id.
+    """
     if project_id:
-        tasks = await task_service.get_tasks_by_project(
-            db=db, user_id=current_user.id, project_id=project_id
+        tasks, total = await task_service.get_tasks_by_project(
+            db=db,
+            user_id=current_user.id,
+            project_id=project_id,
+            skip=pagination.offset,
+            limit=pagination.limit,
         )
     else:
-        tasks = await task_service.get_tasks(db=db, user_id=current_user.id)
-    return [TaskResponse.model_validate(task) for task in tasks]
+        tasks, total = await task_service.get_tasks(
+            db=db,
+            user_id=current_user.id,
+            skip=pagination.offset,
+            limit=pagination.limit,
+        )
+
+    task_responses = [TaskResponse.model_validate(task) for task in tasks]
+    return PaginatedResponse[TaskResponse].create(
+        items=task_responses,
+        total=total,
+        page=pagination.page,
+        page_size=pagination.page_size,
+    )
 
 
-@router.get("/archived", response_model=list[TaskResponse])
-async def get_archived_tasks(
+@router.get("/counts", response_model=TaskCountsByProjectResponse, status_code=status.HTTP_200_OK)
+async def get_task_counts_by_project(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> list[TaskResponse]:
-    """Get all archived tasks for the authenticated user."""
-    tasks = await task_service.get_archived_tasks(db=db, user_id=current_user.id)
-    return [TaskResponse.model_validate(task) for task in tasks]
+) -> TaskCountsByProjectResponse:
+    """Get counts of active tasks grouped by project for the authenticated user."""
+    counts = await task_service.get_active_task_counts_by_project(db=db, user_id=current_user.id)
+    return TaskCountsByProjectResponse(counts=counts)
+
+
+@router.get("/archived", response_model=PaginatedResponse[TaskResponse])
+async def get_archived_tasks(
+    pagination: PaginationParams = Depends(get_pagination_params),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> PaginatedResponse[TaskResponse]:
+    """Get archived tasks for the authenticated user with pagination."""
+    tasks, total = await task_service.get_archived_tasks(
+        db=db,
+        user_id=current_user.id,
+        skip=pagination.offset,
+        limit=pagination.limit,
+    )
+
+    task_responses = [TaskResponse.model_validate(task) for task in tasks]
+    return PaginatedResponse[TaskResponse].create(
+        items=task_responses,
+        total=total,
+        page=pagination.page,
+        page_size=pagination.page_size,
+    )
 
 
 @router.get("/{task_id}", response_model=TaskResponse, status_code=status.HTTP_200_OK)

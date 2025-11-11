@@ -38,7 +38,10 @@ class TestAuthEndpoints:
         response = await authenticated_client.get("/api/v1/tasks")
 
         assert response.status_code == 200
-        assert isinstance(response.json(), list)
+        data = response.json()
+        assert isinstance(data, dict)
+        assert "items" in data
+        assert isinstance(data["items"], list)
 
     async def test_access_protected_endpoint_with_invalid_token(self, client: AsyncClient) -> None:
         """Test accessing protected endpoint with invalid token returns 307 redirect."""

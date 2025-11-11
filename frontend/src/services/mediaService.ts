@@ -1,9 +1,11 @@
 import apiClient from './apiClient';
 import type { MediaCreateInput, MediaItem, MediaQueryParams, MediaUpdateInput, MediaType } from '@/models/media';
+import type { PaginatedResponse, PaginationParams } from '@/models/pagination';
+import { isPaginatedResponse, wrapAsSinglePage } from '@/models/pagination';
 
 const API_URL = '/api/v1/media';
 
-const buildQueryParams = (params: MediaQueryParams = {}) => {
+const buildQueryParams = (params: MediaQueryParams & PaginationParams = {}) => {
     const query: Record<string, unknown> = {};
     if (params.types && params.types.length === 1) query.type = params.types[0];
     if (params.status && params.status.length === 1) query.status = params.status[0];
@@ -26,8 +28,12 @@ const buildQueryParams = (params: MediaQueryParams = {}) => {
     // TODO: Sorting and pagination (not yet implemented in backend)
     if (params.sort) query.sort = params.sort;
     if (params.order) query.order = params.order;
-    if (typeof params.skip === 'number') query.skip = params.skip;
-    if (typeof params.limit === 'number') query.limit = params.limit;
+    // Prefer page-based pagination per backend schema
+    if (typeof params.page === 'number') query.page = params.page;
+    if (typeof params.page_size === 'number') query.page_size = params.page_size;
+    // Back-compat for any older endpoints (unused once fully paginated)
+    if (typeof (params as any).skip === 'number') query.skip = (params as any).skip;
+    if (typeof (params as any).limit === 'number') query.limit = (params as any).limit;
     return query;
 };
 
@@ -135,9 +141,11 @@ const toShowUpdate = (p: MediaUpdateInput) => ({
 });
 
 export const mediaService = {
-    async list(params: MediaQueryParams = {}): Promise<MediaItem[]> {
+    async list(params: MediaQueryParams & PaginationParams = {}): Promise<PaginatedResponse<MediaItem>> {
         const response = await apiClient.get(`${API_URL}/`, { params: buildQueryParams(params) });
-        return response.data;
+        const data = response.data as unknown;
+        if (isPaginatedResponse<MediaItem>(data)) return data;
+        return wrapAsSinglePage((data as MediaItem[]) ?? []);
     },
 
     async getById(id: string, type: MediaType): Promise<MediaItem> {

@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import type { Task, TaskCreateInput, TaskUpdateInput, TaskReorderItem } from '@/models/task';
 import { taskService } from '@/services/taskService';
 import { playTaskCompletedSound } from '@/core/sound';
+import type { PaginationParams } from '@/models/pagination';
 
 export const useTaskStore = defineStore('task', () => {
     const tasks = ref<Task[]>([]);
@@ -94,11 +95,12 @@ export const useTaskStore = defineStore('task', () => {
         }
     }
 
-    async function loadTasksForProject(projectId: string) {
+    async function loadTasksForProject(projectId: string, pagination: PaginationParams = { page: 1, page_size: 500 }) {
         loading.value = true;
         error.value = null;
         try {
-            const projectTasks = await taskService.getTasks(projectId);
+            const resp = await taskService.getTasks(projectId, pagination);
+            const projectTasks = resp.items;
             // Merge project tasks into the store without dropping tasks from other projects
             const others = tasks.value.filter(t => t.project_id !== projectId);
             tasks.value = [...others, ...projectTasks];
@@ -110,11 +112,12 @@ export const useTaskStore = defineStore('task', () => {
         }
     }
 
-    async function loadAllTasks() {
+    async function loadAllTasks(pagination: PaginationParams = { page: 1, page_size: 500 }) {
         loading.value = true;
         error.value = null;
         try {
-            tasks.value = await taskService.getTasks();
+            const resp = await taskService.getTasks(undefined, pagination);
+            tasks.value = resp.items;
         } catch (err) {
             error.value = err instanceof Error ? err.message : 'Failed to load tasks';
             tasks.value = [];

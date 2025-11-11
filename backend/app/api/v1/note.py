@@ -6,23 +6,38 @@ from fastapi.routing import APIRouter
 from sqlalchemy.ext.asyncio.session import AsyncSession
 
 from app.api.v1.auth_deps import get_current_user
+from app.api.v1.pagination_deps import get_pagination_params
 from app.core.database import get_db
 from app.core.exceptions import NoteNotFoundException
 from app.models.user import User
 from app.schemas.note import NoteCreate, NoteReorder, NoteResponse, NoteUpdate
+from app.schemas.pagination import PaginatedResponse, PaginationParams
 from app.services import note_service
 
 router = APIRouter()
 
 
-@router.get("/", response_model=list[NoteResponse])
+@router.get("/", response_model=PaginatedResponse[NoteResponse])
 async def list_notes(
+    pagination: PaginationParams = Depends(get_pagination_params),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> list[NoteResponse]:
-    """Return all notes for the authenticated user."""
-    notes = await note_service.get_notes(db=db, user_id=current_user.id)
-    return [NoteResponse.model_validate(note) for note in notes]
+) -> PaginatedResponse[NoteResponse]:
+    """Return notes for the authenticated user with pagination."""
+    notes, total = await note_service.get_notes(
+        db=db,
+        user_id=current_user.id,
+        skip=pagination.offset,
+        limit=pagination.limit,
+    )
+
+    note_responses = [NoteResponse.model_validate(note) for note in notes]
+    return PaginatedResponse[NoteResponse].create(
+        items=note_responses,
+        total=total,
+        page=pagination.page,
+        page_size=pagination.page_size,
+    )
 
 
 @router.post("/", response_model=NoteResponse, status_code=status.HTTP_201_CREATED)

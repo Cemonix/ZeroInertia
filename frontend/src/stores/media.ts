@@ -13,6 +13,7 @@ import { mediaService } from '@/services/mediaService';
 export const useMediaStore = defineStore('media', () => {
     const items = ref<MediaItem[]>([]);
     const loading = ref(false);
+    const loadingMore = ref(false);
     const error = ref<string | null>(null);
     const formVisible = ref(false);
     const editingItem = ref<MediaItem | null>(null);
@@ -27,7 +28,13 @@ export const useMediaStore = defineStore('media', () => {
     // Category navigation state
     const activeCategory = ref<'all' | MediaType>('all');
 
-    const queryParams = computed<MediaQueryParams>(() => ({
+    // Pagination
+    const page = ref(1);
+    const pageSize = ref(20);
+    const total = ref(0);
+    const hasNext = ref(false);
+
+    const queryParams = computed<MediaQueryParams & { page: number; page_size: number }>(() => ({
         // backend accepts only a single type; when a single is selected we pass it for server-side filtering
         types: selectedTypes.value.length === 1 ? selectedTypes.value : undefined,
         status: selectedStatuses.value.length ? selectedStatuses.value : undefined,
@@ -36,6 +43,8 @@ export const useMediaStore = defineStore('media', () => {
         search: search.value || undefined,
         sort: 'updated_at',
         order: 'desc',
+        page: page.value,
+        page_size: pageSize.value,
     }));
 
     const hasActiveFilters = computed(() =>
@@ -78,12 +87,37 @@ export const useMediaStore = defineStore('media', () => {
         loading.value = true;
         error.value = null;
         try {
-            items.value = await mediaService.list(queryParams.value);
+            page.value = 1;
+            const resp = await mediaService.list(queryParams.value);
+            items.value = resp.items;
+            total.value = resp.total;
+            hasNext.value = resp.has_next;
         } catch (err) {
             error.value = err instanceof Error ? err.message : 'Failed to load media';
             items.value = [];
+            total.value = 0;
+            hasNext.value = false;
         } finally {
             loading.value = false;
+        }
+    }
+
+    async function loadMore() {
+        if (loadingMore.value || !hasNext.value) return;
+        loadingMore.value = true;
+        error.value = null;
+        try {
+            page.value = page.value + 1;
+            const resp = await mediaService.list(queryParams.value);
+            items.value = [...items.value, ...resp.items];
+            total.value = resp.total;
+            hasNext.value = resp.has_next;
+        } catch (err) {
+            error.value = err instanceof Error ? err.message : 'Failed to load more media';
+            // rollback page increase on failure
+            page.value = Math.max(1, page.value - 1);
+        } finally {
+            loadingMore.value = false;
         }
     }
 
@@ -169,6 +203,7 @@ export const useMediaStore = defineStore('media', () => {
         items,
         filteredItems,
         loading,
+        loadingMore,
         error,
         formVisible,
         editingItem,
@@ -181,8 +216,14 @@ export const useMediaStore = defineStore('media', () => {
         queryParams,
         hasActiveFilters,
         activeCategory,
+        // pagination
+        page,
+        pageSize,
+        total,
+        hasNext,
         // actions
         load,
+        loadMore,
         create,
         update,
         remove,

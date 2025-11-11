@@ -1,6 +1,7 @@
 from collections.abc import Sequence
 from uuid import UUID
 
+from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import select
 
@@ -353,30 +354,62 @@ async def get_all_media(
     rating_min: int | None = None,
     rating_max: int | None = None,
     search: str | None = None,
-) -> Sequence[Media]:
-    """Return all media items for the user with optional filters."""
-    query = select(Media).where(Media.user_id == user_id)
+    skip: int = 0,
+    limit: int = 50,
+) -> tuple[Sequence[Media], int]:
+    """
+    Return media items for the user with optional filters and pagination.
+
+    Args:
+        db: Database session
+        user_id: User ID to filter media
+        media_type: Optional filter by media type (book, game, movie, show)
+        status: Optional filter by status (planned, in_progress, completed)
+        rating_min: Optional minimum rating filter
+        rating_max: Optional maximum rating filter
+        search: Optional search term for title and notes
+        skip: Number of records to skip (offset)
+        limit: Maximum number of records to return
+
+    Returns:
+        Tuple of (media_items, total_count)
+    """
+    # Build base query for filtering
+    base_where_clause = [Media.user_id == user_id]
 
     if media_type:
-        query = query.where(Media.media_type == media_type)
+        base_where_clause.append(Media.media_type == media_type)
     if status:
-        query = query.where(Media.status == status)
+        base_where_clause.append(Media.status == status)
 
     # Rating filters
     if rating_min is not None:
-        query = query.where(Media.rating >= rating_min)
+        base_where_clause.append(Media.rating >= rating_min)
     if rating_max is not None:
-        query = query.where(Media.rating <= rating_max)
+        base_where_clause.append(Media.rating <= rating_max)
 
     # Search in title and notes (case-insensitive)
     if search:
         search_term = f"%{search.lower()}%"
-        query = query.where(
+        base_where_clause.append(
             (Media.title.ilike(search_term)) | (Media.notes.ilike(search_term))
         )
 
-    # Order by created_at descending (newest first)
-    query = query.order_by(Media.created_at.desc())
+    # Count total matching media items
+    count_query = select(func.count(Media.id)).where(*base_where_clause)
+    count_result = await db.execute(count_query)
+    total = count_result.scalar_one()
+
+    # Get paginated media items
+    query = (
+        select(Media)
+        .where(*base_where_clause)
+        .order_by(Media.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+    )
 
     result = await db.execute(query)
-    return result.scalars().all()
+    media_items = result.scalars().all()
+
+    return media_items, total

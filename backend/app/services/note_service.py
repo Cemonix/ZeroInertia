@@ -87,14 +87,38 @@ async def get_note_by_id(
 async def get_notes(
     db: AsyncSession,
     user_id: UUID,
-) -> Sequence[Note]:
-    """Return every note for the given user."""
+    skip: int = 0,
+    limit: int = 50,
+) -> tuple[Sequence[Note], int]:
+    """
+    Return notes for the given user with pagination.
+
+    Args:
+        db: Database session
+        user_id: User ID to filter notes
+        skip: Number of records to skip (offset)
+        limit: Maximum number of records to return
+
+    Returns:
+        Tuple of (notes, total_count)
+    """
+    # Count total notes
+    count_result = await db.execute(
+        select(func.count(Note.id)).where(Note.user_id == user_id)
+    )
+    total = count_result.scalar_one()
+
+    # Get paginated notes
     result = await db.execute(
         select(Note)
         .where(Note.user_id == user_id)
         .order_by(Note.parent_id, Note.order_index, Note.created_at)
+        .offset(skip)
+        .limit(limit)
     )
-    return result.scalars().all()
+    notes = result.scalars().all()
+
+    return notes, total
 
 
 async def update_note(

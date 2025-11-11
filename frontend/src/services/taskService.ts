@@ -1,12 +1,18 @@
 import type { Task, TaskCreateInput, TaskUpdateInput, TaskReorderItem } from "@/models/task";
+import type { PaginatedResponse, PaginationParams } from "@/models/pagination";
+import { buildPaginationQuery } from "@/models/pagination";
 import apiClient from "./apiClient";
 
 const API_URL = "/api/v1/tasks";
 
 export const taskService = {
-    async getTasks(project_id?: string): Promise<Task[]> {
-        const response = await apiClient.get(API_URL, {
-            ...(project_id && { params: { project_id } })
+    async getTasks(project_id?: string, pagination?: PaginationParams): Promise<PaginatedResponse<Task>> {
+        const params: Record<string, unknown> = {};
+        if (project_id) params.project_id = project_id;
+        const pageParams = buildPaginationQuery(pagination);
+        if (pageParams) Object.assign(params, pageParams);
+        const response = await apiClient.get<PaginatedResponse<Task>>(API_URL, {
+            params,
         });
         return response.data;
     },
@@ -41,5 +47,11 @@ export const taskService = {
     async snoozeTask(taskId: string): Promise<Task> {
         const response = await apiClient.post(`${API_URL}/${taskId}/snooze`);
         return response.data;
+    },
+
+    async getTaskCountsByProject(): Promise<Record<string, number>> {
+        const response = await apiClient.get(`${API_URL}/counts`);
+        const data = response.data as { counts?: Record<string, number> };
+        return data.counts ?? {};
     }
 }

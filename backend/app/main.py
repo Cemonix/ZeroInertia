@@ -4,6 +4,8 @@ import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIASGIMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.api.exception_handlers import app_exception_handler
@@ -23,6 +25,7 @@ from app.api.v1 import (
 from app.core.database import engine
 from app.core.exceptions import AppException
 from app.core.logging import logger, setup_logging
+from app.core.rate_limit import get_rate_limiter, rate_limit_exceeded_handler
 from app.core.scheduler import setup_scheduler
 from app.core.seed import seed_database
 from app.core.settings.app_settings import get_app_settings
@@ -62,16 +65,25 @@ app = FastAPI(
     title=app_settings.project_name,
     description="Intelligent to-do list application with AI integration",
     version="0.1.0",
-    docs_url="/docs",
-    redoc_url="/redoc",
+    docs_url="/docs" if app_settings.environment == "development" else None,
+    redoc_url="/redoc" if app_settings.environment == "development" else None,
     lifespan=lifespan,
 )
+# Rate limiting initialization
+limiter = get_rate_limiter()
+app.state.limiter = limiter
 
 # Register custom exception handlers
 app.add_exception_handler(AppException, app_exception_handler)
 
+# Register exception handler with monitoring
+app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
+
 # Session middleware (for OAuth state)
 app.add_middleware(SessionMiddleware, secret_key=app_settings.jwt_secret_key)
+
+# Rate limiting middleware
+app.add_middleware(SlowAPIASGIMiddleware)
 
 # CORS middleware
 app.add_middleware(
@@ -99,6 +111,7 @@ app.add_middleware(
 
 # Health check endpoint
 @app.get("/health")
+@limiter.exempt  # pyright: ignore[reportUnknownMemberType]
 async def health_check():
     """Health check endpoint."""
     return {"status": "healthy", "message": "Zero Inertia API is running"}
@@ -118,6 +131,7 @@ app.include_router(media.router, prefix="/api/v1/media", tags=["media"])
 
 
 @app.get("/csrf")
+@limiter.exempt  # pyright: ignore[reportUnknownMemberType]
 async def get_csrf(request: Request):
     """Issue or return CSRF token for the client.
 
