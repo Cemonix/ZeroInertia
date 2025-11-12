@@ -29,6 +29,11 @@ class Task(Base):
     # Examples: 0 (at due time), 15, 30, 60 (1 hour), 1440 (1 day)
     reminder_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
+    # Duration field - estimated time to complete task in minutes
+    # Examples: 15, 30, 60 (1 hour), 120 (2 hours)
+    # Used for calendar view and time-blocking
+    duration_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
     # Recurrence fields
     recurrence_type: Mapped[str | None] = mapped_column(String(50), nullable=True)  # daily | weekly | alternate_days
     recurrence_days: Mapped[list[int] | None] = mapped_column(ARRAY(Integer), nullable=True)  # For weekly: 0=Mon, 6=Sun

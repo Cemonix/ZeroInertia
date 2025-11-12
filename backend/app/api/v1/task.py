@@ -42,6 +42,7 @@ async def create_task(
         recurrence_days=task_data.recurrence_days,
         label_ids=task_data.label_ids,
         reminder_minutes=task_data.reminder_minutes,
+        duration_minutes=task_data.duration_minutes,
     )
     return TaskResponse.model_validate(new_task)
 

@@ -247,6 +247,7 @@ export const useTaskStore = defineStore('task', () => {
             section_id: task.section_id,
             priority_id: task.priority_id,
             due_datetime: task.due_datetime,
+            duration_minutes: task.duration_minutes ?? null,
             recurrence_type: task.recurrence_type,
             recurrence_days: task.recurrence_days,
             ...(labelIds !== null ? { label_ids: labelIds } : {}),

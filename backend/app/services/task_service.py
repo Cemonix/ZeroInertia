@@ -41,6 +41,7 @@ async def create_task(
     recurrence_days: list[int] | None = None,
     label_ids: list[UUID] | None = None,
     reminder_minutes: int | None = None,
+    duration_minutes: int | None = None,
 ) -> Task:
     """Create a new task for a user."""
     # Get the max order_index for this section to append new task at the end
@@ -73,6 +74,7 @@ async def create_task(
         recurrence_type=recurrence_type,
         recurrence_days=recurrence_days,
         reminder_minutes=reminder_minutes,
+        duration_minutes=duration_minutes,
         labels=list(labels),  # Set labels during construction
     )
 
@@ -286,6 +288,8 @@ async def _apply_task_updates(
         task.due_datetime = updates["due_datetime"]
     if "reminder_minutes" in updates:
         task.reminder_minutes = updates["reminder_minutes"]
+    if "duration_minutes" in updates:
+        task.duration_minutes = updates["duration_minutes"]
     if "recurrence_type" in updates:
         task.recurrence_type = updates["recurrence_type"]
     if "recurrence_days" in updates:
@@ -323,6 +327,7 @@ async def _handle_recurring_task_completion(
     saved_recurrence_type = cast(str, task.recurrence_type)
     saved_recurrence_days = task.recurrence_days
     saved_reminder_minutes = task.reminder_minutes
+    saved_duration_minutes = task.duration_minutes
 
     # Archive the task and clear recurrence fields
     task.archived = True
@@ -350,6 +355,7 @@ async def _handle_recurring_task_completion(
         recurrence_days=saved_recurrence_days,
         label_ids=saved_label_ids,
         reminder_minutes=saved_reminder_minutes,
+        duration_minutes=saved_duration_minutes,
     )
 
 

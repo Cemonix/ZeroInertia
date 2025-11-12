@@ -58,7 +58,7 @@
                         </div>
                     </template>
                 </Select>
-                <DateTimePicker v-model="dueDateTimeString" />
+                <DateTimePicker v-model="dueDateTimeString" v-model:duration="durationMinutes" />
                 <Button
                     outlined
                     size="small"
@@ -358,6 +358,7 @@ const description: Ref<string | null> = ref(null);
 const taskCompleted = ref(false);
 const priorityId: Ref<string | null> = ref(null);
 const dueDateTimeString: Ref<string | null> = ref(null);
+const durationMinutes: Ref<number | null> = ref(null);
 
 // UI state for popovers
 const showAddChecklist = ref(false);
@@ -422,9 +423,14 @@ watch(title, (newTitle) => {
         if (result.date && result.matchedText) {
             // Date detected - show the hint and update due date
             // DON'T modify the title yet - wait until save
-            detectedDateText.value = result.matchedText;
+            detectedDateText.value = result.matchedText + (result.matchedDurationText ? ` ${result.matchedDurationText}` : '');
             dueDateTimeString.value = result.date.toISOString();
             cleanedTitleBeforeSave.value = beforeAt; // Store for later use
+            // Also set duration (if parsed) and clamp to 24h max
+            if (typeof result.durationMinutes === 'number') {
+                const max = 24 * 60;
+                durationMinutes.value = Math.max(0, Math.min(max, result.durationMinutes));
+            }
         } else {
             // No valid date found after @
             detectedDateText.value = '';
@@ -438,6 +444,7 @@ function clearDetectedDate() {
     detectedDateText.value = '';
     dueDateTimeString.value = null;
     cleanedTitleBeforeSave.value = '';
+    durationMinutes.value = null;
 }
 
 // Cleanup timeout on unmount to prevent memory leak
@@ -553,6 +560,8 @@ watch(
                 priorityId.value = currentTask.priority_id;
                 // Populate ISO string directly; child DateTimePicker will parse it
                 dueDateTimeString.value = currentTask.due_datetime;
+                // Duration (minutes)
+                durationMinutes.value = currentTask.duration_minutes ?? null;
                 selectedLabelIds.value =
                     currentTask.label_ids?.slice() ??
                     (currentTask.labels
@@ -747,6 +756,7 @@ async function saveTask() {
                 completed: taskCompleted.value,
                 priority_id: priorityId.value,
                 due_datetime: dueDateTimeString.value,
+                duration_minutes: durationMinutes.value,
                 label_ids: selectedLabelIds.value,
                 recurrence_type: recurrencePayload.type,
                 recurrence_days: recurrencePayload.days,
@@ -760,6 +770,7 @@ async function saveTask() {
                 description: description.value,
                 priority_id: priorityId.value,
                 due_datetime: dueDateTimeString.value,
+                duration_minutes: durationMinutes.value,
                 label_ids: selectedLabelIds.value,
                 recurrence_type: recurrencePayload.type,
                 recurrence_days: recurrencePayload.days,
@@ -788,6 +799,7 @@ function resetForm() {
     taskCompleted.value = false;
     priorityId.value = null;
     dueDateTimeString.value = null;
+    durationMinutes.value = null;
     showAddChecklist.value = false;
     newChecklistTitle.value = "";
     selectedLabelIds.value = [];
