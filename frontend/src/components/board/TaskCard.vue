@@ -166,18 +166,53 @@ const formattedDueDate = computed(() => {
     if (!props.task.due_datetime) return null;
 
     const dueDate = new Date(props.task.due_datetime);
+    const duration = props.task.duration_minutes ?? null;
+    const endDate = duration && duration > 0
+        ? new Date(dueDate.getTime() + duration * 60_000)
+        : null;
+
+    const fmtTime = (d: Date) => d.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+    });
+    const fmtShortDate = (d: Date) => d.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+    });
+
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const taskDate = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
-
     const diffDays = Math.floor((taskDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
-    const timeStr = dueDate.toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: false
-    });
+    // If duration crosses day boundary, show full date for both ends
+    if (endDate) {
+        const sameDay = dueDate.getFullYear() === endDate.getFullYear() &&
+            dueDate.getMonth() === endDate.getMonth() &&
+            dueDate.getDate() === endDate.getDate();
+        const startTime = fmtTime(dueDate);
+        const endTime = fmtTime(endDate);
+        if (!sameDay) {
+            return `${fmtShortDate(dueDate)}, ${startTime} - ${fmtShortDate(endDate)}, ${endTime}`;
+        }
 
+        if (diffDays === 0) {
+            return `Today ${startTime} - ${endTime}`;
+        } else if (diffDays === 1) {
+            return `Tomorrow ${startTime} - ${endTime}`;
+        } else if (diffDays === -1) {
+            return `Yesterday ${startTime} - ${endTime}`;
+        } else if (diffDays > 1 && diffDays < 7) {
+            const dayName = dueDate.toLocaleDateString('en-US', { weekday: 'long' });
+            return `${dayName} ${startTime} - ${endTime}`;
+        } else {
+            return `${fmtShortDate(dueDate)}, ${startTime} - ${endTime}`;
+        }
+    }
+
+    // No duration: keep previous format
+    const timeStr = fmtTime(dueDate);
     if (diffDays === 0) {
         return `Today at ${timeStr}`;
     } else if (diffDays === 1) {
@@ -191,9 +226,9 @@ const formattedDueDate = computed(() => {
         return dueDate.toLocaleDateString('en-US', {
             month: 'short',
             day: 'numeric',
-            hour: 'numeric',
+            hour: '2-digit',
             minute: '2-digit',
-            hour12: false
+            hour12: false,
         });
     }
 });

@@ -36,6 +36,11 @@
                     </button>
                     <button type="button" class="quick-chip" @click.prevent="setNow">Now</button>
                 </div>
+                <DurationPicker
+                    class="dtp-duration"
+                    :modelValue="duration"
+                    @update:modelValue="val => emit('update:duration', val)"
+                />
             </div>
         </template>
     </DatePicker>
@@ -44,6 +49,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import DatePicker from 'primevue/datepicker';
+import DurationPicker from '@/components/common/DurationPicker.vue';
 
 const props = withDefaults(defineProps<{
     modelValue: string | null;
@@ -52,16 +58,19 @@ const props = withDefaults(defineProps<{
     showIcon?: boolean;
     showClear?: boolean;
     quickTimes?: string[];
+    duration?: number | null; // minutes
 }>(), {
     placeholder: 'Due Date',
     size: 'small',
     showIcon: true,
     showClear: true,
     quickTimes: () => ['09:00', '13:00', '18:00', '21:00'],
+    duration: null,
 });
 
 const emit = defineEmits<{
     (e: 'update:modelValue', value: string | null): void;
+    (e: 'update:duration', value: number | null): void;
 }>();
 
 const date = ref<Date | null>(null);
