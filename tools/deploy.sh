@@ -62,10 +62,13 @@ log_success "Code updated"
 # Backup database (optional)
 if [ "$SKIP_BACKUP" = false ]; then
     log_info "Creating database backup..."
-    mkdir -p "$BACKUP_DIR"
 
-    # Load database credentials from .env file
-    source "$ENV_FILE"
+    # Extract database credentials from Docker Compose config (respects .env and defaults)
+    DB_USER=$(docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" config | grep -A 5 'postgres:' | grep 'POSTGRES_USER:' | sed 's/.*POSTGRES_USER: //' | tr -d '"')
+    DB_NAME=$(docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" config | grep -A 5 'postgres:' | grep 'POSTGRES_DB:' | sed 's/.*POSTGRES_DB: //' | tr -d '"')
+
+    # Create backup directory if it doesn't exist
+    mkdir -p "$BACKUP_DIR"
 
     # Backup PostgreSQL
     if docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" ps postgres | grep -q "Up"; then
