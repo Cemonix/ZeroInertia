@@ -203,9 +203,28 @@ async def is_authenticated(
 async def logout(request: Request) -> JSONResponse:  # noqa: ARG001  # pyright: ignore[reportUnusedParameter]
     """Logout user by clearing the JWT cookie."""
     response = JSONResponse({"message": "Successfully logged out"})
-    # Delete both possible cookie names
-    response.delete_cookie(key="__Host-access_token", path="/")
-    response.delete_cookie(key="access_token", path="/")
+
+    # Delete both possible cookie names with proper parameters
+    # Important: Must match the same secure/samesite settings as when the cookie was set
+    response.delete_cookie(
+        key="__Host-access_token",
+        path="/",
+        secure=settings.environment == "production",
+        httponly=True,
+        samesite="lax"
+    )
+    response.delete_cookie(
+        key="access_token",
+        path="/",
+        secure=settings.environment == "production",
+        httponly=True,
+        samesite="lax"
+    )
     # Also clear CSRF token on logout
-    response.delete_cookie(key="csrf_token")
+    response.delete_cookie(
+        key="csrf_token",
+        path="/",
+        secure=settings.environment == "production",
+        samesite="lax"
+    )
     return response

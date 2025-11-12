@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, cast
 from uuid import UUID
 
-from sqlalchemy import bindparam, func
+from sqlalchemy import case, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -406,6 +406,10 @@ async def delete_task(db: AsyncSession, task_id: UUID, user_id: UUID) -> None:
 
 async def reorder_tasks(db: AsyncSession, user_id: UUID, tasks_reorder: list[TaskReorder]) -> None:
     """Reorder tasks based on the provided list of task data using bulk update."""
+    # Early return if no tasks to reorder
+    if not tasks_reorder:
+        return
+
     task_ids = [t.id for t in tasks_reorder]
 
     # Verify all tasks exist and belong to the user
@@ -420,27 +424,26 @@ async def reorder_tasks(db: AsyncSession, user_id: UUID, tasks_reorder: list[Tas
     if len(existing_task_ids) != len(task_ids):
         raise TaskNotFoundException()
 
-    # Bulk update using executemany with bindparams
-    # Ensures each row is updated by id and scoped by user_id
-    _ = await db.execute(
+    # Perform a single set-based UPDATE using CASE expressions per column.
+    # This avoids per-row ORM bulk update requirements and reserved bindparam names.
+    order_map = {tr.id: tr.order_index for tr in tasks_reorder}
+    section_map = {tr.id: tr.section_id for tr in tasks_reorder}
+
+    # Build searched CASE expressions: CASE WHEN Task.id=<id> THEN <value> ... END
+    order_whens = [(Task.id == tid, idx) for tid, idx in order_map.items()]
+    section_whens = [(Task.id == tid, sid) for tid, sid in section_map.items()]
+
+    order_case = case(*order_whens, else_=Task.order_index)
+    section_case = case(*section_whens, else_=Task.section_id)
+
+    stmt = (
         update(Task)
-        .where(
-            Task.id == bindparam("id"),
-            Task.user_id == user_id,
-        )
-        .values(
-            order_index=bindparam("order_index"),
-            section_id=bindparam("section_id"),
-        ),
-        [
-            {
-                "id": task_data.id,
-                "order_index": task_data.order_index,
-                "section_id": task_data.section_id,
-            }
-            for task_data in tasks_reorder
-        ],
+        .execution_options(synchronize_session=None)
+        .where(Task.id.in_(task_ids), Task.user_id == user_id)
+        .values(order_index=order_case, section_id=section_case)
     )
+
+    _ = await db.execute(stmt)
 
     await db.commit()
 

@@ -353,6 +353,98 @@ class TestTaskOrdering:
 
         assert response.status_code == 204
 
+    async def test_reorder_tasks_across_sections(
+        self,
+        authenticated_client: AsyncClient,
+        test_project: Project,
+        test_section: Section,
+    ) -> None:
+        """Reorder tasks while moving items between sections in one batch."""
+        # Create a second section in the same project
+        sec_resp = await authenticated_client.post(
+            "/api/v1/sections",
+            json={
+                "title": "Second Section",
+                "project_id": str(test_project.id),
+                "order_index": 1,
+            },
+        )
+        assert sec_resp.status_code == 201
+        second_section_id = sec_resp.json()["id"]
+
+        # Create two tasks in section A and two tasks in section B
+        create_payloads = [
+            {"title": "A1", "project_id": str(test_project.id), "section_id": str(test_section.id)},
+            {"title": "A2", "project_id": str(test_project.id), "section_id": str(test_section.id)},
+            {"title": "B1", "project_id": str(test_project.id), "section_id": str(second_section_id)},
+            {"title": "B2", "project_id": str(test_project.id), "section_id": str(second_section_id)},
+        ]
+        created: list[dict[str, object]] = []
+        for payload in create_payloads:
+            r = await authenticated_client.post("/api/v1/tasks", json=payload)
+            assert r.status_code == 201
+            created.append(r.json())
+
+        # Move A2 to section B and B1 to section A. Reindex within each target section.
+        a1_id = created[0]["id"]
+        a2_id = created[1]["id"]
+        b1_id = created[2]["id"]
+        b2_id = created[3]["id"]
+
+        reorder_payload = [
+            {"id": a1_id, "section_id": str(test_section.id), "order_index": 1},  # A1 -> A index 1
+            {"id": b1_id, "section_id": str(test_section.id), "order_index": 0},  # B1 -> A index 0
+            {"id": a2_id, "section_id": str(second_section_id), "order_index": 1},  # A2 -> B index 1
+            {"id": b2_id, "section_id": str(second_section_id), "order_index": 0},  # B2 -> B index 0
+        ]
+
+        resp = await authenticated_client.post("/api/v1/tasks/reorder", json=reorder_payload)
+        assert resp.status_code == 204
+
+        # Verify via list call and filtering by section
+        list_resp = await authenticated_client.get(f"/api/v1/tasks?project_id={test_project.id}")
+        assert list_resp.status_code == 200
+        tasks = list_resp.json()["items"]
+
+        # Build lookup by id
+        by_id = {t["id"]: t for t in tasks}
+
+        assert by_id[b1_id]["section_id"] == str(test_section.id)
+        assert by_id[b1_id]["order_index"] == 0
+        assert by_id[a1_id]["section_id"] == str(test_section.id)
+        assert by_id[a1_id]["order_index"] == 1
+
+        assert by_id[b2_id]["section_id"] == str(second_section_id)
+        assert by_id[b2_id]["order_index"] == 0
+        assert by_id[a2_id]["section_id"] == str(second_section_id)
+        assert by_id[a2_id]["order_index"] == 1
+
+    async def test_reorder_with_empty_payload(
+        self,
+        authenticated_client: AsyncClient,
+    ) -> None:
+        """Test that reordering with empty payload doesn't cause SQL errors."""
+        # Send empty reorder payload
+        response = await authenticated_client.post("/api/v1/tasks/reorder", json=[])
+        # Should return 204 (no-op) or 400, but not 500 (SQL error)
+        assert response.status_code in [204, 400]
+
+    async def test_reorder_with_null_ids(
+        self,
+        authenticated_client: AsyncClient,
+        test_section: Section,
+    ) -> None:
+        """Test that reordering with null IDs is rejected properly."""
+        # Try to send reorder with null ID
+        response = await authenticated_client.post(
+            "/api/v1/tasks/reorder",
+            json=[
+                {"id": None, "section_id": str(test_section.id), "order_index": 0},
+            ],
+        )
+        # Should be rejected with 422 validation error, not SQL error
+        assert response.status_code == 422
+
 
 class TestTaskEdgeCases:
     """Test edge cases and input validation."""

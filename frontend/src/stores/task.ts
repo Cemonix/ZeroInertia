@@ -66,32 +66,53 @@ export const useTaskStore = defineStore('task', () => {
 
         const wasRecurring = !!task.recurrence_type;
         const projectId = task.project_id;
+        const wasCompleted = task.completed;
+
+        // Optimistically update the UI immediately without setting loading state
+        const index = tasks.value.findIndex(t => t.id === taskId);
+        if (index !== -1) {
+            tasks.value[index] = {
+                ...task,
+                completed: !task.completed,
+            };
+        }
+
+        // Play sound immediately for better UX
+        if (!wasCompleted) {
+            await playTaskCompletedSound();
+        }
 
         try {
             const updatedTask = await taskService.updateTask(taskId, {
-                completed: !task.completed,
+                completed: !wasCompleted,
             });
 
             // If task was recurring and is now completed, it was archived and a new one was created
             // We need to reload the project's tasks to get the new task and remove the archived one
-            if (wasRecurring && !task.completed && updatedTask.completed && updatedTask.archived) {
+            if (wasRecurring && !wasCompleted && updatedTask.completed && updatedTask.archived) {
                 // Remove the archived task from the list
                 tasks.value = tasks.value.filter(t => t.id !== taskId);
                 // Reload tasks for this project to get the new recurring task instance
+                // Use a silent reload that doesn't trigger loading state
+                const currentLoading = loading.value;
+                loading.value = false;
                 await loadTasksForProject(projectId);
+                loading.value = currentLoading;
             } else {
-                // Normal task completion - just update in place
-                const index = tasks.value.findIndex(t => t.id === taskId);
-                if (index !== -1) {
-                    tasks.value[index] = updatedTask;
+                // Update with the server response to ensure data consistency
+                const currentIndex = tasks.value.findIndex(t => t.id === taskId);
+                if (currentIndex !== -1) {
+                    tasks.value[currentIndex] = updatedTask;
                 }
             }
-
-            if (!task.completed && updatedTask.completed) {
-                await playTaskCompletedSound();
-            }
         } catch (err) {
+            // Revert the optimistic update on error
+            const currentIndex = tasks.value.findIndex(t => t.id === taskId);
+            if (currentIndex !== -1) {
+                tasks.value[currentIndex] = task;
+            }
             error.value = err instanceof Error ? err.message : "Failed to toggle task completion";
+            throw err;
         }
     }
 

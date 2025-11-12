@@ -81,7 +81,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
-import { useRouter, useRoute } from "vue-router";
+import { useRoute } from "vue-router";
 import { storeToRefs } from "pinia";
 import { useUiStore } from "@/stores/ui";
 import { useAuthStore } from "@/stores/auth";
@@ -97,7 +97,6 @@ const props = withDefaults(defineProps<{
 
 const authStore = useAuthStore();
 const streakStore = useStreakStore();
-const router = useRouter();
 const route = useRoute();
 
 const userMenu = ref();
@@ -143,7 +142,8 @@ const userMenuItems = computed(() => [
         icon: "fa fa-sign-out-alt",
         command: async () => {
             await authStore.logout();
-            router.push("/home");
+            // Force full page redirect to login after logout
+            window.location.href = "/api/v1/auth/google/login";
         },
     },
 ]);
