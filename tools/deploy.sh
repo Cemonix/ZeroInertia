@@ -35,6 +35,12 @@ log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
+# Check if .env file exists
+if [ ! -f "$ENV_FILE" ]; then
+    log_error ".env file not found at: $ENV_FILE"
+    exit 1
+fi
+
 # Check if running as root
 if [ "$EUID" -eq 0 ]; then
     log_warning "Running as root. Consider using a non-root user with docker permissions."
@@ -63,9 +69,19 @@ log_success "Code updated"
 if [ "$SKIP_BACKUP" = false ]; then
     log_info "Creating database backup..."
 
-    # Extract database credentials from Docker Compose config (respects .env and defaults)
-    DB_USER=$(docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" config | grep -A 5 'postgres:' | grep 'POSTGRES_USER:' | sed 's/.*POSTGRES_USER: //' | tr -d '"')
-    DB_NAME=$(docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" config | grep -A 5 'postgres:' | grep 'POSTGRES_DB:' | sed 's/.*POSTGRES_DB: //' | tr -d '"')
+    # Extract database credentials from .env file
+    DB_USER=$(grep -E '^DB_USER=' "$ENV_FILE" | cut -d '=' -f2 | tr -d '"' | tr -d "'")
+    DB_NAME=$(grep -E '^DB_NAME=' "$ENV_FILE" | cut -d '=' -f2 | tr -d '"' | tr -d "'")
+
+    # Validate that required variables are set
+    if [ -z "$DB_USER" ]; then
+        log_error "DB_USER not found in $ENV_FILE"
+        exit 1
+    fi
+    if [ -z "$DB_NAME" ]; then
+        log_error "DB_NAME not found in $ENV_FILE"
+        exit 1
+    fi
 
     # Create backup directory if it doesn't exist
     mkdir -p "$BACKUP_DIR"
