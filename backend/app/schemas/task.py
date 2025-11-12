@@ -16,6 +16,7 @@ class TaskCreate(BaseModel):
     priority_id: UUID | None = None
     due_datetime: datetime | None = None
     reminder_minutes: int | None = None  # Minutes before due_datetime to send notification
+    duration_minutes: int | None = None  # Estimated time to complete task in minutes
     recurrence_type: str | None = None  # daily | weekly | alternate_days
     recurrence_days: list[int] | None = None  # For weekly: 0=Mon, 6=Sun (Python weekday convention)
     label_ids: list[UUID] | None = None
@@ -30,6 +31,7 @@ class TaskUpdate(BaseModel):
     priority_id: UUID | None = None
     due_datetime: datetime | None = None
     reminder_minutes: int | None = None  # Minutes before due_datetime to send notification
+    duration_minutes: int | None = None  # Estimated time to complete task in minutes
     recurrence_type: str | None = None
     recurrence_days: list[int] | None = None
     label_ids: list[UUID] | None = None
@@ -49,6 +51,7 @@ class TaskResponse(BaseModel):
     priority_id: UUID | None
     due_datetime: datetime | None
     reminder_minutes: int | None
+    duration_minutes: int | None
     recurrence_type: str | None
     recurrence_days: list[int] | None
     created_at: datetime
