@@ -23,13 +23,13 @@
                     <h3>Overdue</h3>
                     <span class="task-count">{{ overdueTasks.length }}</span>
                 </div>
-                <div class="task-list">
+                <TransitionGroup name="task-list" tag="div" class="task-list">
                     <TaskCard
                         v-for="task in overdueTasks"
                         :key="task.id"
                         :task="task"
                     />
-                </div>
+                </TransitionGroup>
             </div>
 
             <!-- Today's Tasks Section -->
@@ -39,13 +39,13 @@
                     <h3>Today</h3>
                     <span class="task-count">{{ todayTasks.length }}</span>
                 </div>
-                <div class="task-list">
+                <TransitionGroup name="task-list" tag="div" class="task-list">
                     <TaskCard
                         v-for="task in todayTasks"
                         :key="task.id"
                         :task="task"
                     />
-                </div>
+                </TransitionGroup>
             </div>
 
             <!-- Empty State -->
@@ -232,6 +232,28 @@ onMounted(async () => {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+}
+
+/* Smooth transitions for task completion */
+.task-list-move,
+.task-list-enter-active,
+.task-list-leave-active {
+    transition: all 0.3s ease;
+}
+
+.task-list-enter-from {
+    opacity: 0;
+    transform: translateX(-20px);
+}
+
+.task-list-leave-to {
+    opacity: 0;
+    transform: translateX(20px);
+}
+
+.task-list-leave-active {
+    position: absolute;
+    width: 100%;
 }
 
 .empty-state {

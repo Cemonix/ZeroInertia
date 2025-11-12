@@ -154,10 +154,13 @@ const newSectionTitle = ref(props.section.title);
 
 const tasks = computed(() => taskStore.getTasksBySection(props.section.id));
 
-// Filter tasks based on showCompleted toggle
+// Filter and sort tasks: uncompleted first, then completed (when toggle is on)
 const visibleTasks = computed(() => {
     if (showCompleted.value) {
-        return tasks.value;
+        // Sort: uncompleted tasks first (by order_index), then completed tasks (by order_index)
+        const uncompleted = tasks.value.filter(task => !task.completed);
+        const completed = tasks.value.filter(task => task.completed);
+        return [...uncompleted, ...completed];
     }
     return tasks.value.filter(task => !task.completed);
 });
@@ -190,6 +193,12 @@ async function handleDragChange(event: any) {
 
     // Recalculate order indices for all tasks in this section
     const taskIds = draggableTasks.value.map((task: Task) => task.id);
+
+    // Don't send reorder request if there are no tasks
+    if (taskIds.length === 0) {
+        return;
+    }
+
     try {
         await taskStore.reorderTasks(props.section.id, taskIds);
     } catch (error) {
