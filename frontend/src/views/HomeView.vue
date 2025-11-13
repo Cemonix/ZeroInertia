@@ -29,8 +29,8 @@
         <template #default>
             <Transition name="fade-slide" mode="out-in">
                 <div :key="viewKey">
-                    <TodayView v-if="activeWorkspaceView === 'today'" />
-                    <Board v-else-if="activeWorkspaceView === 'project'" :project-id="selectedProjectId" />
+                    <TodayBoard v-if="activeWorkspaceView === 'today'" />
+                    <ProjectBoard v-else-if="activeWorkspaceView === 'project'" :project-id="selectedProjectId" />
                     <LabelManager v-else-if="activeWorkspaceView === 'labels'" />
                     <TaskFilters v-else-if="activeWorkspaceView === 'filters'" />
                     <div v-else class="workspace-placeholder">
@@ -51,10 +51,10 @@ import { storeToRefs } from 'pinia';
 import { useUiStore } from '@/stores/ui';
 import ProjectPanel from '@/components/sidebar/ProjectPanel.vue';
 import ControlPanel from '@/components/sidebar/ControlPanel.vue';
-import Board from '@/components/board/Board.vue';
+import ProjectBoard from '@/components/board/ProjectBoard.vue';
 import LabelManager from '@/components/labels/LabelManager.vue';
 import TaskFilters from '@/components/filters/TaskFilters.vue';
-import TodayView from '@/components/today/TodayView.vue';
+import TodayBoard from '@/components/today/TodayBoard.vue';
 import WorkspaceLayout from '@/layouts/WorkspaceLayout.vue';
 
 const projectStore = useProjectStore();

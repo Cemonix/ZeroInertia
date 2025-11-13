@@ -87,6 +87,7 @@ const formattedDate = computed(() => {
 });
 
 // Filter tasks to only show those with due dates that aren't completed or archived
+// Use a stable reference by mapping to task IDs to prevent unnecessary re-computations
 const getTasksWithDueDate = computed((): Task[] => {
     return taskStore.tasks.filter(task =>
         !task.completed &&

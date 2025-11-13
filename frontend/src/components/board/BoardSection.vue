@@ -227,7 +227,7 @@ async function handleRenameSection() {
 
     try {
         await sectionStore.updateSection(props.section.id, { title: trimmedTitle });
-        toast.add({ severity: "success", summary: "Section renamed", detail: `Section is now "${trimmedTitle}".` });
+        toast.add({ severity: "success", summary: "Section renamed", detail: `Section is now "${trimmedTitle}".`, life: 3000 });
     } catch (error) {
         const message = error instanceof Error ? error.message : "Failed to rename section";
         toast.add({ severity: "error", summary: "Error", detail: message });
