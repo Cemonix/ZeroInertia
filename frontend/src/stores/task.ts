@@ -68,6 +68,11 @@ export const useTaskStore = defineStore('task', () => {
         const projectId = task.project_id;
         const wasCompleted = task.completed;
 
+        // Play sound immediately for better UX
+        if (!wasCompleted) {
+            await playTaskCompletedSound();
+        }
+
         // Optimistically update the UI immediately without setting loading state
         const index = tasks.value.findIndex(t => t.id === taskId);
         if (index !== -1) {
@@ -75,11 +80,6 @@ export const useTaskStore = defineStore('task', () => {
                 ...task,
                 completed: !task.completed,
             };
-        }
-
-        // Play sound immediately for better UX
-        if (!wasCompleted) {
-            await playTaskCompletedSound();
         }
 
         try {
@@ -99,10 +99,21 @@ export const useTaskStore = defineStore('task', () => {
                 await loadTasksForProject(projectId);
                 loading.value = currentLoading;
             } else {
-                // Update with the server response to ensure data consistency
+                // Skip update if only completion status changed (already optimistically updated)
+                // This prevents double-rendering flicker in production builds
                 const currentIndex = tasks.value.findIndex(t => t.id === taskId);
                 if (currentIndex !== -1) {
-                    tasks.value[currentIndex] = updatedTask;
+                    // Check if there are meaningful changes beyond what we already optimistically updated
+                    const hasSignificantChanges =
+                        updatedTask.archived !== tasks.value[currentIndex].archived ||
+                        updatedTask.snooze_count !== tasks.value[currentIndex].snooze_count ||
+                        updatedTask.title !== tasks.value[currentIndex].title ||
+                        updatedTask.description !== tasks.value[currentIndex].description;
+
+                    if (hasSignificantChanges) {
+                        tasks.value[currentIndex] = updatedTask;
+                    }
+                    // If no significant changes, keep the optimistic update (no re-render needed)
                 }
             }
         } catch (err) {
@@ -276,6 +287,14 @@ export const useTaskStore = defineStore('task', () => {
         }
     }
 
+    function clearProjectTasks(projectId: string) {
+        tasks.value = tasks.value.filter(t => t.project_id !== projectId);
+    }
+
+    function clearTasks() {
+        tasks.value = [];
+    }
+
     return {
         tasks,
         loading,
@@ -299,5 +318,7 @@ export const useTaskStore = defineStore('task', () => {
         reorderTasks,
         duplicateTask,
         snoozeTask,
+        clearProjectTasks,
+        clearTasks,
     };
 });

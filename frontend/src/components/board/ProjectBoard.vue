@@ -110,24 +110,48 @@ const labelStore = useLabelStore();
 
 const isSectionCreateVisible = ref(false);
 
-// View mode state
-const VIEW_MODE_STORAGE_KEY = "board.viewMode";
+// View mode state - per-project
+const VIEW_MODE_STORAGE_PREFIX = "board.viewMode";
 
 type ViewMode = "list" | "kanban";
-const savedViewMode = localStorage.getItem(
-    VIEW_MODE_STORAGE_KEY
-) as ViewMode | null;
 
-const viewMode = ref<ViewMode>(savedViewMode || "list");
+// Helper function to get storage key for a project
+const getViewModeKey = (projectId: string) => `${VIEW_MODE_STORAGE_PREFIX}.${projectId}`;
+
+// Get initial view mode for current project
+const getInitialViewMode = (): ViewMode => {
+    if (!props.projectId) return "list";
+
+    const projectKey = getViewModeKey(props.projectId);
+    const projectViewMode = localStorage.getItem(projectKey) as ViewMode | null;
+
+    return projectViewMode || "list";
+};
+
+const viewMode = ref<ViewMode>(getInitialViewMode());
 const viewModeOptions = [
     { label: "List", value: "list", icon: "list" },
     { label: "Kanban", value: "kanban", icon: "table-columns" },
 ];
 
-// Save view mode preference to localStorage
+// Save view mode preference to localStorage per-project
 watch(viewMode, (newMode) => {
-    localStorage.setItem(VIEW_MODE_STORAGE_KEY, newMode);
+    if (props.projectId) {
+        localStorage.setItem(getViewModeKey(props.projectId), newMode);
+    }
 });
+
+// Watch for project changes and load the project's saved view mode
+watch(
+    () => props.projectId,
+    (newProjectId) => {
+        if (newProjectId) {
+            const projectKey = getViewModeKey(newProjectId);
+            const savedMode = localStorage.getItem(projectKey) as ViewMode | null;
+            viewMode.value = savedMode || "list";
+        }
+    }
+);
 
 // Create a local ref that draggable can mutate
 const draggableSections = ref<Section[]>([]);
@@ -168,8 +192,12 @@ async function handleDragEnd() {
 const loadSections = async () => {
     if (!props.projectId) {
         sectionStore.clearSections();
+        taskStore.clearTasks();
         return;
     }
+
+    taskStore.clearProjectTasks(props.projectId);
+    sectionStore.clearProjectSections(props.projectId);
 
     try {
         await Promise.all([

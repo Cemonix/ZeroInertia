@@ -110,6 +110,10 @@ export const useSectionStore = defineStore('section', () => {
         }
     }
 
+    function clearProjectSections(projectId: string) {
+        sections.value = sections.value.filter(s => s.project_id !== projectId);
+    }
+    
     function clearSections() {
         sections.value = [];
     }
@@ -124,6 +128,7 @@ export const useSectionStore = defineStore('section', () => {
         deleteSection,
         updateSection,
         reorderSections,
+        clearProjectSections,
         clearSections,
     };
 });
