@@ -1,14 +1,19 @@
-import { defineStore } from 'pinia';
-import { ref } from 'vue';
-import { streakService } from '@/services/streakService';
-import type { StreakStats } from '@/models/streak';
+import { defineStore } from "pinia";
+import { ref } from "vue";
+import { streakService } from "@/services/streakService";
+import type { StreakStats, StreakCalendarDay } from "@/models/streak";
 
-export const useStreakStore = defineStore('streak', () => {
+export const useStreakStore = defineStore("streak", () => {
     const currentStreak = ref(0);
     const longestStreak = ref(0);
     const lastActivityDate = ref<string | null>(null);
     const loading = ref(false);
     const error = ref<string | null>(null);
+
+    const calendarDays = ref<StreakCalendarDay[]>([]);
+    const calendarStartDate = ref<string | null>(null);
+    const calendarEndDate = ref<string | null>(null);
+    const calendarLoading = ref(false);
 
     async function loadStreak() {
         loading.value = true;
@@ -19,9 +24,27 @@ export const useStreakStore = defineStore('streak', () => {
             longestStreak.value = stats.longest_streak;
             lastActivityDate.value = stats.last_activity_date;
         } catch (err) {
-            error.value = err instanceof Error ? err.message : 'Failed to load streak';
+            error.value = err instanceof Error ? err.message : "Failed to load streak";
         } finally {
             loading.value = false;
+        }
+    }
+
+    async function loadCalendar(startDate?: string, endDate?: string) {
+        calendarLoading.value = true;
+        error.value = null;
+        try {
+            const response = await streakService.getCalendar({
+                start_date: startDate,
+                end_date: endDate,
+            });
+            calendarDays.value = response.days;
+            calendarStartDate.value = startDate ?? response.start_date;
+            calendarEndDate.value = endDate ?? response.end_date;
+        } catch (err) {
+            error.value = err instanceof Error ? err.message : "Failed to load streak calendar";
+        } finally {
+            calendarLoading.value = false;
         }
     }
 
@@ -31,6 +54,11 @@ export const useStreakStore = defineStore('streak', () => {
         lastActivityDate,
         loading,
         error,
+        calendarDays,
+        calendarStartDate,
+        calendarEndDate,
+        calendarLoading,
         loadStreak,
+        loadCalendar,
     };
 });

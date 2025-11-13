@@ -30,7 +30,16 @@
                 </div>
                 <Button v-if="!authStore.isAuthenticated" @click="login" class="login-btn">Log in</Button>
                 <div v-else class="user-section">
-                    <div v-if="showStreak" class="streak-widget">
+                    <div
+                        v-if="showStreak"
+                        class="streak-widget"
+                        role="button"
+                        tabindex="0"
+                        aria-label="Open streak calendar"
+                        @click="goToStreaks"
+                        @keyup.enter="goToStreaks"
+                        @keyup.space.prevent="goToStreaks"
+                    >
                         <span v-if="streakStore.currentStreak > 0" class="streak-flame">🔥</span>
                         <span class="streak-count">{{ streakStore.currentStreak }}</span>
                     </div>
@@ -81,7 +90,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { storeToRefs } from "pinia";
 import { useUiStore } from "@/stores/ui";
 import { useAuthStore } from "@/stores/auth";
@@ -98,6 +107,7 @@ const props = withDefaults(defineProps<{
 const authStore = useAuthStore();
 const streakStore = useStreakStore();
 const route = useRoute();
+const router = useRouter();
 
 const userMenu = ref();
 const uiStore = useUiStore();
@@ -150,6 +160,12 @@ const userMenuItems = computed(() => [
 
 const toggleSidebar = () => {
     uiStore.toggleSidebar();
+};
+
+const goToStreaks = () => {
+    if (router.currentRoute.value.path !== "/streaks") {
+        router.push("/streaks");
+    }
 };
 
 const toggleTheme = () => {
@@ -440,6 +456,7 @@ watch(
     padding: 0.375rem 0.75rem;
     font-weight: 600;
     transition: all 0.2s ease;
+    cursor: pointer;
 }
 
 .streak-widget:hover {

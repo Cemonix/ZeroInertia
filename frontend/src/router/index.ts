@@ -3,6 +3,7 @@ import { useAuthStore } from "@/stores/auth";
 import HomeView from "@/views/HomeView.vue";
 import NotesView from "@/views/NotesView.vue";
 import MediaView from "@/views/MediaView.vue";
+import StreakView from "@/views/StreakView.vue";
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
@@ -32,6 +33,15 @@ const router = createRouter({
             component: MediaView,
             meta: {
                 title: "Media | Zero Inertia",
+                requiresAuth: true,
+            },
+        },
+        {
+            path: "/streaks",
+            name: "streaks",
+            component: StreakView,
+            meta: {
+                title: "Streaks | Zero Inertia",
                 requiresAuth: true,
             },
         },
