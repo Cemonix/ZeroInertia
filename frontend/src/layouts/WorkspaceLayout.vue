@@ -224,7 +224,7 @@ onMounted(() => {
             isDarkMode.value = document.documentElement.classList.contains("dark-mode");
         }
     }
-    if (authStore.isAuthenticated && props.showStreak) {
+    if (authStore.isAuthenticated && props.showStreak && !streakStore.hasLoadedStreak) {
         streakStore.loadStreak();
     }
     checkMobileView();
@@ -256,7 +256,7 @@ onUnmounted(() => {
 watch(
     () => authStore.isAuthenticated,
     async (isAuthenticated) => {
-        if (isAuthenticated && props.showStreak) {
+        if (isAuthenticated && props.showStreak && !streakStore.hasLoadedStreak) {
             await streakStore.loadStreak();
         }
     },

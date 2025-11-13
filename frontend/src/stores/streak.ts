@@ -9,6 +9,7 @@ export const useStreakStore = defineStore("streak", () => {
     const lastActivityDate = ref<string | null>(null);
     const loading = ref(false);
     const error = ref<string | null>(null);
+    const hasLoadedStreak = ref(false);
 
     const calendarDays = ref<StreakCalendarDay[]>([]);
     const calendarStartDate = ref<string | null>(null);
@@ -23,6 +24,7 @@ export const useStreakStore = defineStore("streak", () => {
             currentStreak.value = stats.current_streak;
             longestStreak.value = stats.longest_streak;
             lastActivityDate.value = stats.last_activity_date;
+            hasLoadedStreak.value = true;
         } catch (err) {
             error.value = err instanceof Error ? err.message : "Failed to load streak";
         } finally {
@@ -30,7 +32,7 @@ export const useStreakStore = defineStore("streak", () => {
         }
     }
 
-    async function loadCalendar(startDate?: string, endDate?: string) {
+    async function loadCalendar(startDate: string, endDate: string) {
         calendarLoading.value = true;
         error.value = null;
         try {
@@ -39,8 +41,8 @@ export const useStreakStore = defineStore("streak", () => {
                 end_date: endDate,
             });
             calendarDays.value = response.days;
-            calendarStartDate.value = startDate ?? response.start_date;
-            calendarEndDate.value = endDate ?? response.end_date;
+            calendarStartDate.value = startDate;
+            calendarEndDate.value = endDate;
         } catch (err) {
             error.value = err instanceof Error ? err.message : "Failed to load streak calendar";
         } finally {
@@ -54,6 +56,7 @@ export const useStreakStore = defineStore("streak", () => {
         lastActivityDate,
         loading,
         error,
+        hasLoadedStreak,
         calendarDays,
         calendarStartDate,
         calendarEndDate,

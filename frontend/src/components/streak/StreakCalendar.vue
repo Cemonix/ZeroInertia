@@ -37,7 +37,7 @@
                     </span>
                 </div>
                 <div class="calendar-body">
-                    <div class="weekday-labels">
+                    <div class="weekday-labels" aria-hidden="true">
                         <span class="weekday-label">Mon</span>
                         <span class="weekday-label" />
                         <span class="weekday-label">Wed</span>

@@ -69,12 +69,7 @@ const lastActivityText = computed(() => {
 
 const ensureStreakSummaryLoaded = async () => {
     if (!authStore.isAuthenticated) return;
-    if (
-        streakStore.currentStreak === 0 &&
-        streakStore.longestStreak === 0 &&
-        !streakStore.lastActivityDate &&
-        !streakStore.loading
-    ) {
+    if (!streakStore.hasLoadedStreak && !streakStore.loading) {
         await streakStore.loadStreak();
     }
 };

@@ -26,10 +26,7 @@ export const streakService = {
      *        daily_counts: { "YYYY-MM-DD": number }
      *      }
      */
-    async getCalendar(params: {
-        start_date?: string;
-        end_date?: string;
-    }): Promise<StreakCalendarResponse> {
+    async getCalendar(params: { start_date: string; end_date: string }): Promise<StreakCalendarResponse> {
         const response = await apiClient.get<DailyCompletionData>("/api/v1/statistics/daily", {
             params,
         });

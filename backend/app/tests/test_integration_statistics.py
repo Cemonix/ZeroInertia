@@ -10,6 +10,7 @@ Tests cover:
 - User data isolation
 """
 
+import calendar
 from datetime import datetime, timedelta, timezone
 
 from httpx import AsyncClient
@@ -147,7 +148,7 @@ class TestStatisticsEndpoints:
         assert data["max_day_count"] >= 1
 
         # Verify it contains all days in the year (365 or 366)
-        expected_days = 366 if now.year % 4 == 0 else 365
+        expected_days = 366 if calendar.isleap(now.year) else 365
         assert len(data["daily_counts"]) == expected_days
 
     async def test_get_calendar_heatmap_specific_year(
