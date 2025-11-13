@@ -19,6 +19,7 @@ from app.api.v1 import (
     priority,
     project,
     section,
+    statistics,
     streak,
     task,
 )
@@ -124,6 +125,7 @@ app.include_router(task.router, prefix="/api/v1/tasks", tags=["tasks"])
 app.include_router(checklist.router, prefix="/api/v1/checklists", tags=["checklists"])
 app.include_router(priority.router, prefix="/api/v1/priorities", tags=["priorities"])
 app.include_router(streak.router, prefix="/api/v1/streaks", tags=["streaks"])
+app.include_router(statistics.router, prefix="/api/v1/statistics", tags=["statistics"])
 app.include_router(label.router, prefix="/api/v1/labels", tags=["labels"])
 app.include_router(note.router, prefix="/api/v1/notes", tags=["notes"])
 app.include_router(notification.router, prefix="/api/v1/notifications", tags=["notifications"])
