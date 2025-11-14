@@ -333,7 +333,7 @@ import CheckList from "@/components/common/CheckList.vue";
 import Popover from "@/components/common/Popover.vue";
 import { useToast } from "primevue";
 import type { Label } from "@/models/label";
-import type { TaskRecurrenceType } from "@/models/task";
+import type { Task, TaskRecurrenceType } from "@/models/task";
 import {
     jsDaysToPythonDays,
     pythonDaysToJsDays,
@@ -535,78 +535,103 @@ const reminderButtonText = computed(() => {
     return `${minutes / 1440}d before`;
 });
 
-// Watch for modal visibility changes and load task data
+function loadTaskData(task: Task) {
+    title.value = task.title;
+    description.value = task.description;
+    taskCompleted.value = task.completed;
+    priorityId.value = task.priority_id;
+    dueDateTimeString.value = task.due_datetime;
+    durationMinutes.value = task.duration_minutes ?? null;
+    selectedLabelIds.value =
+        task.label_ids?.slice() ??
+        (task.labels ? task.labels.map((label) => label.id) : []);
+
+    // Load recurrence from task fields (convert Python days to JS convention)
+    if (task.recurrence_type) {
+        const recurrence = task.recurrence_type as TaskRecurrenceType;
+        recurrenceType.value = recurrence;
+        if (recurrence === "weekly" && task.recurrence_days) {
+            recurrenceDaysOfWeek.value = pythonDaysToJsDays(task.recurrence_days);
+        } else {
+            recurrenceDaysOfWeek.value = [];
+        }
+    } else {
+        resetRecurrence();
+    }
+
+    // Load reminder
+    reminderMinutes.value = task.reminder_minutes ?? null;
+}
+
+function applyInitialValues() {
+    const initialValues = taskStore.initialTaskValues;
+    if (!initialValues) return;
+
+    if (initialValues.due_datetime) {
+        dueDateTimeString.value = initialValues.due_datetime;
+    }
+    if (initialValues.duration_minutes !== undefined) {
+        durationMinutes.value = initialValues.duration_minutes;
+    }
+    if (initialValues.title) {
+        title.value = initialValues.title;
+    }
+    if (initialValues.description) {
+        description.value = initialValues.description;
+    }
+    if (initialValues.priority_id) {
+        priorityId.value = initialValues.priority_id;
+    }
+    if (initialValues.label_ids) {
+        selectedLabelIds.value = initialValues.label_ids.slice();
+    }
+}
+
+async function handleModalOpen() {
+    // Load labels if not already loaded
+    if (!labelStore.labels.length) {
+        try {
+            await labelStore.loadLabels();
+        } catch (error) {
+            toast.add({
+                severity: "error",
+                summary: "Error",
+                detail: "Failed to load labels",
+            });
+        }
+    }
+
+    const currentTask = taskStore.getCurrentTask;
+    if (currentTask) {
+        // Editing existing task
+        loadTaskData(currentTask);
+        await loadChecklists(currentTask.id);
+    } else {
+        // Creating new task
+        resetForm();
+        applyInitialValues();
+    }
+}
+
+function handleModalClose() {
+    checklistStore.clearChecklists();
+    showLabelPicker.value = false;
+    showRecurrencePicker.value = false;
+    showReminderPicker.value = false;
+    resetForm();
+}
+
 watch(
     () => taskStore.isTaskModalVisible,
-    async (newVal) => {
-        if (newVal) {
-            const currentTask = taskStore.getCurrentTask;
-            if (!labelStore.labels.length) {
-                try {
-                    await labelStore.loadLabels();
-                } catch (error) {
-                    toast.add({
-                        severity: "error",
-                        summary: "Error",
-                        detail: "Failed to load labels",
-                    });
-                }
-            }
-            if (currentTask) {
-                // Editing existing task
-                title.value = currentTask.title;
-                description.value = currentTask.description;
-                taskCompleted.value = currentTask.completed;
-                priorityId.value = currentTask.priority_id;
-                // Populate ISO string directly; child DateTimePicker will parse it
-                dueDateTimeString.value = currentTask.due_datetime;
-                // Duration (minutes)
-                durationMinutes.value = currentTask.duration_minutes ?? null;
-                selectedLabelIds.value =
-                    currentTask.label_ids?.slice() ??
-                    (currentTask.labels
-                        ? currentTask.labels.map((label) => label.id)
-                        : []);
-
-                // Load recurrence from task fields (convert Python days to JS convention)
-                if (currentTask.recurrence_type) {
-                    const recurrence =
-                        currentTask.recurrence_type as TaskRecurrenceType;
-                    recurrenceType.value = recurrence;
-                    if (
-                        recurrence === "weekly" &&
-                        currentTask.recurrence_days
-                    ) {
-                        recurrenceDaysOfWeek.value = pythonDaysToJsDays(
-                            currentTask.recurrence_days
-                        );
-                    } else {
-                        recurrenceDaysOfWeek.value = [];
-                    }
-                } else {
-                    resetRecurrence();
-                }
-
-                // Load reminder
-                reminderMinutes.value = currentTask.reminder_minutes ?? null;
-
-                await loadChecklists(currentTask.id);
-            } else {
-                // Creating new task
-                resetForm();
-            }
+    async (isVisible) => {
+        if (isVisible) {
+            await handleModalOpen();
         } else {
-            // Clear checklists when modal closes
-            checklistStore.clearChecklists();
-            showLabelPicker.value = false;
-            showRecurrencePicker.value = false;
-            showReminderPicker.value = false;
-            resetForm();
+            handleModalClose();
         }
     }
 );
 
-// Clear reminder when due date is removed
 watch(
     () => dueDateTimeString.value,
     (newValue) => {
@@ -615,8 +640,6 @@ watch(
         }
     }
 );
-
-// Date/time clearing handled inside DateTimePicker
 
 async function loadChecklists(taskId: string) {
     try {

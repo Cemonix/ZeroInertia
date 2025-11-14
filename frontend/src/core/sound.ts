@@ -1,5 +1,24 @@
 let audioContext: AudioContext | null = null;
 
+const TASK_COMPLETION_SOUND_KEY = "sound.taskCompletion.enabled";
+
+function isTaskCompletionSoundEnabled(): boolean {
+    if (typeof window === "undefined") {
+        return true;
+    }
+
+    try {
+        const stored = window.localStorage.getItem(TASK_COMPLETION_SOUND_KEY);
+        if (stored === null) {
+            return true;
+        }
+        return stored !== "false";
+    } catch {
+        // If localStorage is unavailable (e.g., privacy mode), fall back to enabled.
+        return true;
+    }
+}
+
 function getAudioContext(): AudioContext | null {
     if (typeof window === 'undefined') {
         return null;
@@ -29,6 +48,10 @@ async function resumeContext(context: AudioContext) {
 }
 
 export async function playTaskCompletedSound() {
+    if (!isTaskCompletionSoundEnabled()) {
+        return;
+    }
+
     const context = getAudioContext();
     if (!context) {
         return;
