@@ -76,7 +76,16 @@
                         ref="userMenu"
                         :model="userMenuItems"
                         :popup="true"
-                    />
+                    >
+                        <template #item="{ item, props }">
+                            <a class="p-menuitem-link" v-bind="props.action">
+                                <span v-if="item.icon" class="p-menuitem-icon">
+                                    <FontAwesomeIcon :icon="item.icon" />
+                                </span>
+                                <span class="p-menuitem-text">{{ item.label }}</span>
+                            </a>
+                        </template>
+                    </Menu>
                 </div>
             </nav>
             <section class="workspace">
@@ -95,6 +104,7 @@ import { storeToRefs } from "pinia";
 import { useUiStore } from "@/stores/ui";
 import { useAuthStore } from "@/stores/auth";
 import { useStreakStore } from "@/stores/streak";
+import { useTheme } from "@/composables/useTheme";
 import NotificationToggle from "@/components/common/NotificationToggle.vue";
 import ShortcutsHelp from "@/components/common/ShortcutsHelp.vue";
 
@@ -112,10 +122,12 @@ const router = useRouter();
 const userMenu = ref();
 const uiStore = useUiStore();
 const { isSidebarCollapsed } = storeToRefs(uiStore);
-const isDarkMode = ref(false);
+const { isDarkMode, toggleTheme, initializeTheme } = useTheme();
 const showNotificationSettings = ref(false);
 const showShortcuts = ref(false);
 const isMobileView = ref(false);
+const TASK_COMPLETION_SOUND_KEY = "sound.taskCompletion.enabled";
+const isTaskCompletionSoundEnabled = ref(true);
 
 const getUserInitials = (fullName: string | null, email: string): string => {
     if (fullName && fullName.trim()) {
@@ -142,14 +154,27 @@ const userMenuItems = computed(() => [
     { separator: true },
     {
         label: "Notifications",
-        icon: "fa fa-bell",
+        icon: "bell",
         command: () => {
             showNotificationSettings.value = true;
         },
     },
     {
+        label: isTaskCompletionSoundEnabled.value
+            ? "Mute sound"
+            : "Unmute sound",
+        icon: isTaskCompletionSoundEnabled.value ? "volume-xmark" : "volume-high",
+        command: () => {
+            const next = !isTaskCompletionSoundEnabled.value;
+            isTaskCompletionSoundEnabled.value = next;
+            if (typeof localStorage !== "undefined") {
+                localStorage.setItem(TASK_COMPLETION_SOUND_KEY, String(next));
+            }
+        },
+    },
+    {
         label: "Logout",
-        icon: "fa fa-sign-out-alt",
+        icon: "sign-out-alt",
         command: async () => {
             await authStore.logout();
             // Force full page redirect to login after logout
@@ -165,25 +190,6 @@ const toggleSidebar = () => {
 const goToStreaks = () => {
     if (router.currentRoute.value.path !== "/streaks") {
         router.push("/streaks");
-    }
-};
-
-const toggleTheme = () => {
-    const nextDarkMode = !isDarkMode.value;
-    isDarkMode.value = nextDarkMode;
-    
-    if (typeof document !== "undefined") {
-        const html = document.documentElement;
-        
-        if (nextDarkMode) {
-            html.classList.add("dark-mode");
-        } else {
-            html.classList.remove("dark-mode");
-        }
-    }
-    
-    if (typeof localStorage !== "undefined") {
-        localStorage.setItem("theme.mode", nextDarkMode ? "dark" : "light");
     }
 };
 
@@ -212,16 +218,12 @@ const checkMobileView = () => {
 };
 
 onMounted(() => {
+    initializeTheme();
+
     if (typeof window !== "undefined") {
-        const storedTheme = localStorage.getItem("theme.mode");
-        if (storedTheme === "dark") {
-            isDarkMode.value = true;
-            document.documentElement.classList.add("dark-mode");
-        } else if (storedTheme === "light") {
-            isDarkMode.value = false;
-            document.documentElement.classList.remove("dark-mode");
-        } else {
-            isDarkMode.value = document.documentElement.classList.contains("dark-mode");
+        const storedSound = localStorage.getItem(TASK_COMPLETION_SOUND_KEY);
+        if (storedSound !== null) {
+            isTaskCompletionSoundEnabled.value = storedSound !== "false";
         }
     }
     if (authStore.isAuthenticated && props.showStreak && !streakStore.hasLoadedStreak) {
@@ -231,7 +233,7 @@ onMounted(() => {
     if (typeof window !== "undefined") {
         window.addEventListener("resize", checkMobileView);
     }
-    
+
     // Prevent background scroll when mobile sidebar is open
     if (typeof document !== "undefined") {
         const updateBodyOverflow = () => {

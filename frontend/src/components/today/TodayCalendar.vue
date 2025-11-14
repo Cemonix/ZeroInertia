@@ -1,0 +1,547 @@
+<template>
+    <div class="today-calendar-container">
+        <VueCal
+            ref="vuecalRef"
+            :views-bar="false"
+            :time="true"
+            :time-from="timeFrom"
+            :time-to="timeTo"
+            :time-step="30"
+            :events="calendarEvents"
+            :editable-events="{ create: true, resize: true, drag: true, delete: false }"
+            :snap-to-interval="15"
+            :watch-real-time="true"
+            :dark="isDarkMode"
+            view="day"
+            :views="['day']"
+            :hide-view-selector="true"
+            :disable-views="['years', 'year', 'month', 'week']"
+            all-day-events
+            class="vuecal-instance"
+            @event-click="handleEventClick"
+            @event-drop="handleEventDrop"
+            @event-resize-end="handleEventResize"
+            @event-create="handleEventCreate"
+            @ready="onCalendarReady"
+        >
+            <template #event="{ event }">
+                <div class="calendar-event-content">
+                    <div class="event-title-row">
+                        <FontAwesomeIcon
+                            v-if="event.priority"
+                            icon="flag"
+                            :style="{ color: event.priority.color }"
+                            class="event-priority-flag"
+                        />
+                        <span class="event-title">{{ event.title }}</span>
+                    </div>
+                    <div class="event-meta">
+                        <span class="event-time">
+                            {{ formatEventTime(event) }}
+                        </span>
+                        <div v-if="event.labels && event.labels.length" class="event-labels">
+                            <span
+                                v-for="label in event.labels"
+                                :key="label.id"
+                                class="event-label"
+                                :style="{ backgroundColor: label.color }"
+                                :title="label.name"
+                            ></span>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </VueCal>
+    </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, watch } from 'vue';
+// @ts-expect-error - vue-cal doesn't have proper TypeScript declarations
+import { VueCal } from 'vue-cal';
+import 'vue-cal/style.css';
+import type { Task } from '@/models/task';
+import type { Priority } from '@/models/priority';
+import type { Label } from '@/models/label';
+import { useTaskStore } from '@/stores/task';
+import { usePriorityStore } from '@/stores/priority';
+import { useToast } from 'primevue/usetoast';
+import { useTheme } from '@/composables/useTheme';
+
+interface VueCalEvent {
+    start: Date | string;
+    end: Date | string;
+    startMinutes: number;
+    endMinutes: number;
+    title: string;
+    content: string;
+    class: string;
+    backgroundColor: string;
+    color: string;
+    allDay: boolean;
+    taskId: string;
+    priority: Priority | null;
+    labels: Label[];
+    task: Task;
+}
+
+interface VueCalEventClickPayload {
+    event: VueCalEvent;
+}
+
+interface VueCalEventDropPayload {
+    event: VueCalEvent;
+}
+
+interface VueCalEventResizePayload {
+    event: VueCalEvent;
+}
+
+interface VueCalEventCreatePayload {
+    event: VueCalEvent;
+    cell: {
+        date: Date;
+    };
+    cursor: {
+        x: number;
+        y: number;
+        date: Date;
+    };
+    resolve: (value: boolean | VueCalEvent) => void;
+}
+
+interface VueCalReadyPayload {
+    view: {
+        scrollToTime: (minutes: number) => void;
+        scrollToCurrentTime: () => void;
+        scrollTop: () => void;
+    };
+}
+
+interface Props {
+    tasks: Task[];
+    currentDate?: Date;
+}
+
+const props = withDefaults(defineProps<Props>(), {
+    currentDate: () => new Date(),
+});
+
+const taskStore = useTaskStore();
+const priorityStore = usePriorityStore();
+const toast = useToast();
+const { isDarkMode } = useTheme();
+
+const vuecalRef = ref<InstanceType<typeof VueCal> | null>(null);
+
+const timeFrom = 0;
+const timeTo = 24 * 60;
+
+// Transform tasks into vue-cal events format
+const calendarEvents = computed(() => {
+    const events = props.tasks.map(task => {
+        // If no due_datetime, treat as all-day event for today
+        let startDate: Date;
+        let isAllDay: boolean;
+
+        if (!task.due_datetime) {
+            // No date set - create all-day event for today
+            const today = new Date();
+            startDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0);
+            isAllDay = true;
+        } else {
+            startDate = new Date(task.due_datetime);
+            // Determine if this is an all-day event (no specific time set - midnight)
+            isAllDay = startDate.getHours() === 0 && startDate.getMinutes() === 0 && startDate.getSeconds() === 0;
+        }
+
+        let endDate: Date;
+        let start: Date | string;
+        let end: Date | string;
+
+        // Calculate end time based on duration
+        if (isAllDay) {
+            // For all-day events, use YYYY-MM-DD string format
+            // End date should be the next day for proper rendering
+            const year = startDate.getFullYear();
+            const month = String(startDate.getMonth() + 1).padStart(2, '0');
+            const day = String(startDate.getDate()).padStart(2, '0');
+            start = `${year}-${month}-${day}`;
+
+            // End should be the next day
+            const nextDay = new Date(startDate);
+            nextDay.setDate(nextDay.getDate() + 1);
+            const endYear = nextDay.getFullYear();
+            const endMonth = String(nextDay.getMonth() + 1).padStart(2, '0');
+            const endDay = String(nextDay.getDate()).padStart(2, '0');
+            end = `${endYear}-${endMonth}-${endDay}`;
+        } else {
+            // For timed events, use Date objects
+            start = startDate;
+            if (task.duration_minutes && task.duration_minutes > 0) {
+                endDate = new Date(startDate.getTime() + task.duration_minutes * 60000);
+            } else {
+                // Default to 30 minutes if no duration specified
+                endDate = new Date(startDate.getTime() + 30 * 60000);
+            }
+            end = endDate;
+        }
+
+        // Get priority and labels for styling
+        const priority = task.priority_id ? priorityStore.getPriorityById(task.priority_id) : null;
+        const labels = task.labels || [];
+
+        // Determine event background color
+        let backgroundColor = 'var(--p-primary-color)';
+        if (priority) {
+            backgroundColor = priority.color + 'cc'; // Add transparency
+        } else if (labels.length > 0) {
+            backgroundColor = labels[0].color + 'cc';
+        }
+
+        return {
+            start,
+            end,
+            title: task.title,
+            content: task.description || '',
+            class: `task-event priority-${task.priority_id || 'none'}${isAllDay ? ' all-day-task' : ''}`,
+            backgroundColor,
+            color: '#ffffff',
+            allDay: isAllDay,
+            // Store original task data for editing
+            taskId: task.id,
+            priority,
+            labels,
+            task,
+        };
+    });
+
+    return events;
+});
+
+// Format event time range for display
+function formatEventTime(event: VueCalEvent): string {
+    // Don't show time for all-day events
+    if (event.allDay) {
+        return 'All day';
+    }
+
+    const start = new Date(event.start);
+    const end = new Date(event.end);
+
+    const formatTime = (date: Date): string => {
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${hours}:${minutes}`;
+    };
+
+    return `${formatTime(start)} - ${formatTime(end)}`;
+}
+
+const handleEventClick = ({ event }: VueCalEventClickPayload) => {
+    const task = event.task;
+    // Open task modal with the task's section
+    taskStore.openTaskModal(task.section_id, task);
+};
+
+// Handle event drag & drop - update task due_datetime
+const handleEventDrop = async ({ event }: VueCalEventDropPayload) => {
+    const task = event.task;
+    const newDueDateTime = typeof event.start === 'string' ? new Date(event.start) : event.start;
+
+    try {
+        await taskStore.updateTask(task.id, {
+            due_datetime: newDueDateTime.toISOString(),
+        });
+
+        const timeDisplay = event.allDay
+            ? 'all day'
+            : newDueDateTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        toast.add({
+            severity: 'success',
+            summary: 'Task rescheduled',
+            detail: `"${task.title}" moved to ${timeDisplay}`,
+            life: 3000,
+        });
+    } catch (error) {
+        toast.add({
+            severity: 'error',
+            summary: 'Failed to reschedule task',
+            detail: 'Please try again',
+            life: 3000,
+        });
+        // Revert the event position by rejecting the drop
+        return false;
+    }
+};
+
+const handleEventResize = async ({ event }: VueCalEventResizePayload) => {
+    const task = event.task;
+    const startTime = typeof event.start === 'string' ? new Date(event.start) : event.start;
+    const endTime = typeof event.end === 'string' ? new Date(event.end) : event.end;
+    const newDuration = Math.round((endTime.getTime() - startTime.getTime()) / 60000);
+
+    try {
+        await taskStore.updateTask(task.id, {
+            duration_minutes: newDuration,
+        });
+
+        toast.add({
+            severity: 'success',
+            summary: 'Task duration updated',
+            detail: `"${task.title}" is now ${newDuration} minutes`,
+            life: 3000,
+        });
+    } catch (error) {
+        toast.add({
+            severity: 'error',
+            summary: 'Failed to update duration',
+            detail: 'Please try again',
+            life: 3000,
+        });
+        // Revert the resize by rejecting
+        return false;
+    }
+};
+
+const handleEventCreate = async ({ event, resolve }: VueCalEventCreatePayload) => {
+    // Extract start time and compute duration from event object
+    const startDateTime = new Date(event.start);
+    const durationMinutes = event.endMinutes - event.startMinutes;
+
+    // Round to nearest 15-minute interval
+    const minutes = startDateTime.getMinutes();
+    const roundedMinutes = Math.round(minutes / 15) * 15;
+    startDateTime.setMinutes(roundedMinutes, 0, 0);
+
+    const defaultSectionId = props.tasks.length > 0 ? props.tasks[0].section_id : '';
+
+    resolve(false);
+
+    const initialValues = {
+        due_datetime: startDateTime.toISOString(),
+        duration_minutes: durationMinutes,
+    };
+
+    taskStore.openTaskModal(defaultSectionId, null, initialValues);
+};
+
+// Scroll to current time when calendar is ready
+const onCalendarReady = ({ view }: VueCalReadyPayload) => {
+    // Scroll to current time or 8 AM, whichever is later
+    const now = new Date();
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    const scrollToMinutes = Math.max(currentMinutes - 60, 8 * 60); // 1 hour before current or 8 AM
+
+    view.scrollToTime(scrollToMinutes);
+};
+
+// Watch for date changes to update calendar view
+watch(() => props.currentDate, (newDate: Date | undefined) => {
+    if (vuecalRef.value && newDate) {
+        // TODO: Update vue-cal to show the new date
+        // This might require calling a method on the vue-cal instance
+    }
+});
+</script>
+
+<style scoped>
+.today-calendar-container {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    margin: 0 auto;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Vue-cal custom styling to match your theme */
+:deep(.vuecal) {
+    --vuecal-primary-color: var(--p-primary-color);
+    --vuecal-base-color: var(--p-content-background);
+    --vuecal-contrast-color: var(--p-text-color);
+    --vuecal-border-color: var(--p-content-border-color);
+    --vuecal-header-color: var(--p-content-background);
+    --vuecal-event-color: var(--p-content-background);
+    --vuecal-border-radius: 6px;
+    --vuecal-transition-duration: 0.2s;
+
+    box-sizing: border-box;
+    max-height: calc(100vh - 220px);
+    min-height: 400px; /* Minimum usable height */
+    border-radius: var(--vuecal-border-radius);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    font-family: var(--p-font-family);
+    background: var(--p-content-background);
+    overflow: hidden; /* Prevent calendar from growing beyond bounds */
+}
+
+/* Ensure the VueCal instance takes full container space */
+.vuecal-instance {
+    flex: 1;
+    width: 100%;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .today-calendar-container {
+        padding: 0.75rem;
+    }
+    
+    :deep(.vuecal) {
+        height: calc(100vh - 180px);
+        max-height: calc(100vh - 180px);
+        min-height: 350px;
+    }
+}
+
+@media (max-width: 480px) {
+    .today-calendar-container {
+        padding: 0.5rem;
+    }
+    
+    :deep(.vuecal) {
+        height: calc(100vh - 150px);
+        max-height: calc(100vh - 150px);
+        min-height: 300px;
+    }
+}
+
+:deep(.vuecal__title) {
+    font-size: 1rem;
+    color: var(--p-text-color);
+}
+
+:deep(.vuecal__time-cell) {
+    color: var(--p-text-muted-color);
+    font-size: 0.875rem;
+}
+
+:deep(.vuecal__now-line) {
+    border-color: var(--p-primary-color);
+    opacity: 0.8;
+}
+
+/* Event styling */
+:deep(.vuecal__event) {
+    border: none;
+    border-radius: 4px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+:deep(.vuecal__event:hover) {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+:deep(.vuecal__event--dragging-ghost) {
+    opacity: 0.7;
+    transform: scale(1.05);
+}
+
+:deep(.vuecal__event--all-day) {
+    border-left: 3px solid currentColor;
+    background: linear-gradient(to right, currentColor 3px, var(--vuecal-event-color) 3px);
+}
+
+/* Custom event content styling */
+.calendar-event-content {
+    padding: 4px 8px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    overflow: hidden;
+}
+
+.event-title-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 500;
+}
+
+.event-priority-flag {
+    font-size: 0.75rem;
+    flex-shrink: 0;
+}
+
+.event-title {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.875rem;
+}
+
+.event-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    font-size: 0.75rem;
+}
+
+.event-time {
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 0.7rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.event-labels {
+    display: flex;
+    gap: 3px;
+    flex-wrap: wrap;
+}
+
+.event-label {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+
+/* All-day bar styling */
+:deep(.vuecal__all-day-bar) {
+    background: color-mix(in srgb, var(--p-content-background) 95%, var(--p-text-color) 5%);
+    border-bottom: 1px solid var(--p-content-border-color);
+    min-height: 60px;
+}
+
+:deep(.vuecal__all-day-bar .vuecal__cell-date) {
+    font-weight: 600;
+    color: var(--p-text-color);
+}
+
+:deep(.vuecal__all-day-bar .vuecal__no-event) {
+    display: none;
+}
+
+/* All-day event styling - ensure readable text on colored backgrounds */
+:deep(.vuecal__all-day-label) {
+    color: var(--p-text-color);
+}
+
+/* Scrollbar styling */
+:deep(.vuecal__scrollable::-webkit-scrollbar) {
+    width: 8px;
+}
+
+:deep(.vuecal__scrollable::-webkit-scrollbar-track) {
+    background: color-mix(in srgb, var(--p-content-background) 95%, var(--p-text-color) 5%);
+}
+
+:deep(.vuecal__scrollable::-webkit-scrollbar-thumb) {
+    background: color-mix(in srgb, var(--p-content-background) 70%, var(--p-text-color) 30%);
+    border-radius: 4px;
+}
+
+:deep(.vuecal__scrollable::-webkit-scrollbar-thumb:hover) {
+    background: color-mix(in srgb, var(--p-content-background) 50%, var(--p-text-color) 50%);
+}
+</style>

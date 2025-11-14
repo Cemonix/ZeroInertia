@@ -1,5 +1,6 @@
 <template>
     <DatePicker
+        ref="datePickerRef"
         v-model="dateForPicker"
         :placeholder="placeholder"
         :size="size"
@@ -8,7 +9,11 @@
         iconDisplay="input"
         :showTime="!!time"
         hourFormat="24"
+        :inputId="timeInputId + '-picker'"
     >
+        <template #dropdownicon>
+            <FontAwesomeIcon icon="calendar" />
+        </template>
         <template #footer>
             <div class="dtp-footer">
                 <div class="dtp-time-row">
@@ -47,9 +52,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, ref, watch, nextTick, onMounted } from 'vue';
 import DatePicker from 'primevue/datepicker';
 import DurationPicker from '@/components/common/DurationPicker.vue';
+import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
 
 const props = withDefaults(defineProps<{
     modelValue: string | null;
@@ -77,6 +83,7 @@ const date = ref<Date | null>(null);
 const time = ref<string | null>(null); // HH:mm
 const timeInputId = `dtp-time-${Math.random().toString(36).slice(2, 8)}`;
 const syncing = ref(false); // Flag to prevent re-emission during sync
+const datePickerRef = ref<InstanceType<typeof DatePicker> | null>(null);
 
 // Keep internal state in sync when parent modelValue changes
 watch(() => props.modelValue, (val) => {
@@ -163,6 +170,87 @@ const dateForPicker = computed<Date | null>({
         date.value = new Date(val.getFullYear(), val.getMonth(), val.getDate());
     },
 });
+
+// Format the display string
+function getFormattedDisplay(): string {
+    if (!date.value || !time.value) return '';
+
+    const dt = dateForPicker.value;
+    if (!dt) return '';
+
+    // Format date as M/D/YYYY
+    const month = dt.getMonth() + 1;
+    const day = dt.getDate();
+    const year = dt.getFullYear();
+    const dateStr = `${month}/${day}/${year}`;
+
+    // Format start time as HH:mm
+    const startHH = String(dt.getHours()).padStart(2, '0');
+    const startMM = String(dt.getMinutes()).padStart(2, '0');
+    const startTime = `${startHH}:${startMM}`;
+
+    // Calculate and format end time if duration is provided
+    if (props.duration && props.duration > 0) {
+        const endDt = new Date(dt.getTime() + props.duration * 60000);
+        const endHH = String(endDt.getHours()).padStart(2, '0');
+        const endMM = String(endDt.getMinutes()).padStart(2, '0');
+        const endTime = `${endHH}:${endMM}`;
+        return `${dateStr} ${startTime} - ${endTime}`;
+    }
+
+    return `${dateStr} ${startTime}`;
+}
+
+// Update the input element display to show time range
+function updateInputDisplay() {
+    nextTick(() => {
+        const inputElement = document.getElementById(timeInputId + '-picker') as HTMLInputElement;
+        if (!inputElement) return;
+
+        const formattedValue = getFormattedDisplay();
+        if (formattedValue && inputElement.value !== formattedValue) {
+            inputElement.value = formattedValue;
+        }
+    });
+}
+
+// Watch for changes to update the display
+watch([date, time, () => props.duration], updateInputDisplay);
+
+// Re-apply custom formatting after DatePicker updates
+watch(dateForPicker, () => {
+    setTimeout(updateInputDisplay, 50);
+});
+
+// Setup MutationObserver to watch for PrimeVue overwriting our value
+onMounted(() => {
+    updateInputDisplay();
+
+    // Watch for changes to the input value and re-apply our format
+    nextTick(() => {
+        const inputElement = document.getElementById(timeInputId + '-picker') as HTMLInputElement;
+        if (!inputElement) return;
+
+        // Use MutationObserver to detect when PrimeVue changes the input value
+        const observer = new MutationObserver(() => {
+            const formattedValue = getFormattedDisplay();
+            if (formattedValue && inputElement.value !== formattedValue) {
+                inputElement.value = formattedValue;
+            }
+        });
+
+        // Also listen to input events
+        inputElement.addEventListener('input', () => {
+            setTimeout(updateInputDisplay, 10);
+        });
+
+        // Observe changes to input element attributes
+        observer.observe(inputElement, {
+            attributes: true,
+            attributeFilter: ['value']
+        });
+    });
+});
 </script>
 
 <style>
@@ -246,5 +334,11 @@ const dateForPicker = computed<Date | null>({
 
 .quick-chip:hover {
     border-color: var(--p-primary-color);
+}
+
+/* Override DatePicker input width to accommodate time range display */
+:deep(.p-inputtext) {
+    width: 100%;
+    max-width: 240px;
 }
 </style>

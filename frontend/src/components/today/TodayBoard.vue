@@ -1,8 +1,32 @@
 <template>
     <div class="today-container">
         <div class="today-header">
-            <h2>Today</h2>
-            <p class="today-date">{{ formattedDate }}</p>
+            <div class="today-header-content">
+                <div v-if="viewMode === 'list'">
+                    <h2>Today</h2>
+                    <p class="today-date">{{ formattedDate }}</p>
+                </div>
+                <div class="view-toggle">
+                    <Button
+                        :class="{ 'active': viewMode === 'list' }"
+                        text
+                        @click="viewMode = 'list'"
+                        title="List View"
+                    >
+                        <FontAwesomeIcon icon="list" class="view-toggle-icon" />
+                        <span class="view-toggle-label">List</span>
+                    </Button>
+                    <Button
+                        :class="{ 'active': viewMode === 'calendar' }"
+                        text
+                        @click="viewMode = 'calendar'"
+                        title="Calendar View"
+                    >
+                        <FontAwesomeIcon icon="calendar" class="view-toggle-icon" />
+                        <span class="view-toggle-label">Calendar</span>
+                    </Button>
+                </div>
+            </div>
         </div>
 
         <div v-if="loading" class="loading-state">
@@ -16,8 +40,17 @@
         </div>
 
         <div v-else class="today-content">
-            <!-- Overdue Tasks Section -->
-            <div v-if="overdueTasks.length > 0" class="task-group overdue-group">
+            <!-- Calendar View -->
+            <TodayCalendar
+                v-if="viewMode === 'calendar'"
+                :tasks="allTodayTasks"
+                :current-date="new Date()"
+            />
+
+            <!-- List View -->
+            <div v-else class="list-view">
+                <!-- Overdue Tasks Section -->
+                <div v-if="overdueTasks.length > 0" class="task-group overdue-group">
                 <div class="task-group-header">
                     <FontAwesomeIcon icon="exclamation-circle" class="group-icon overdue-icon" />
                     <h3>Overdue</h3>
@@ -54,6 +87,7 @@
                 <h3>No tasks for today</h3>
                 <p>You're all caught up! Enjoy your day.</p>
             </div>
+            </div>
         </div>
     </div>
 
@@ -61,13 +95,26 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useTaskStore } from "@/stores/task";
 import { useLabelStore } from "@/stores/label";
 import { usePriorityStore } from "@/stores/priority";
 import TaskCard from "@/components/board/TaskCard.vue";
 import TaskModal from "@/components/board/TaskModal.vue";
+import TodayCalendar from "@/components/today/TodayCalendar.vue";
 import type { Task } from "@/models/task";
+
+type ViewMode = 'list' | 'calendar';
+
+const STORAGE_KEY = 'today-view-mode';
+
+// Load saved view mode from localStorage, default to 'list'
+const loadViewMode = (): ViewMode => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    return (saved === 'list' || saved === 'calendar') ? saved : 'list';
+};
+
+const viewMode = ref<ViewMode>(loadViewMode());
 
 const taskStore = useTaskStore();
 const labelStore = useLabelStore();
@@ -126,6 +173,25 @@ const todayTasks = computed((): Task[] => {
     });
 });
 
+// Get tasks without a due date (treat as all-day tasks for calendar)
+const tasksWithoutDate = computed((): Task[] => {
+    return taskStore.tasks.filter(task =>
+        !task.completed &&
+        !task.archived &&
+        task.due_datetime === null
+    );
+});
+
+// Combined tasks for calendar view (includes overdue + today + no-date tasks)
+const allTodayTasks = computed((): Task[] => {
+    return [...overdueTasks.value, ...todayTasks.value, ...tasksWithoutDate.value];
+});
+
+// Save viewMode to localStorage whenever it changes
+watch(viewMode, (newMode) => {
+    localStorage.setItem(STORAGE_KEY, newMode);
+});
+
 onMounted(async () => {
     await Promise.all([
         taskStore.loadAllTasks(),
@@ -140,10 +206,54 @@ onMounted(async () => {
     padding: 1.5rem;
     max-width: 900px;
     margin: 0 auto;
+    transition: max-width 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    box-sizing: border-box;
+}
+
+.today-container:has(.today-calendar-container) {
+    max-width: 1400px;
 }
 
 .today-header {
     margin-bottom: 2rem;
+}
+
+.today-header-content {
+    display: flex;
+    justify-content: flex-start;
+    align-items: flex-start;
+    gap: 1rem;
+}
+
+.view-toggle {
+    display: flex;
+    gap: 0.25rem;
+    background: color-mix(in srgb, var(--p-content-background) 95%, var(--p-text-color) 5%);
+    padding: 0.25rem;
+    border-radius: 8px;
+    margin-left: auto;
+}
+
+.view-toggle :deep(.p-button) {
+    min-width: 0;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.75rem;
+}
+
+.view-toggle :deep(.p-button.active) {
+    background: var(--p-primary-color);
+    color: white;
+}
+
+.view-toggle :deep(.p-button:not(.active):hover) {
+    background: color-mix(in srgb, var(--p-content-background) 90%, var(--p-text-color) 10%);
 }
 
 .today-header h2 {
@@ -157,6 +267,14 @@ onMounted(async () => {
     font-size: 1rem;
     color: var(--p-text-muted-color);
     margin: 0;
+}
+
+.view-toggle-label {
+    font-size: 0.85rem;
+}
+
+.view-toggle-icon {
+    font-size: 0.85rem;
 }
 
 .loading-state,
@@ -175,12 +293,16 @@ onMounted(async () => {
     display: flex;
     flex-direction: column;
     gap: 2rem;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
 }
 
 .task-group {
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
+    padding-bottom: 1rem;
 }
 
 .task-group-header {

@@ -9,6 +9,7 @@ export const useTaskStore = defineStore('task', () => {
     const tasks = ref<Task[]>([]);
     const currentTask = ref<Task | null>(null);
     const currentSectionId = ref<string | null>(null);
+    const initialTaskValues = ref<Partial<TaskCreateInput> | null>(null);
     const loading = ref(false);
     const error = ref<string | null>(null);
     const taskModalVisible = ref(false);
@@ -45,16 +46,18 @@ export const useTaskStore = defineStore('task', () => {
 
     const setTaskModalVisible = (visible: boolean) => {
         taskModalVisible.value = visible;
-        // Clear current task and section when closing
+        // Clear current task, section, and initial values when closing
         if (!visible) {
             currentTask.value = null;
             currentSectionId.value = null;
+            initialTaskValues.value = null;
         }
     };
 
-    const openTaskModal = (sectionId: string, task: Task | null = null) => {
+    const openTaskModal = (sectionId: string, task: Task | null = null, initialValues: Partial<TaskCreateInput> | null = null) => {
         currentSectionId.value = sectionId;
         currentTask.value = task;
+        initialTaskValues.value = initialValues;
         taskModalVisible.value = true;
     };
 
@@ -300,6 +303,7 @@ export const useTaskStore = defineStore('task', () => {
         loading,
         error,
         currentSectionId,
+        initialTaskValues,
         getTasksBySection,
         getTasksByProject,
         getTaskById,
