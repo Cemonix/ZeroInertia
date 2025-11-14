@@ -52,7 +52,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, nextTick, onMounted } from 'vue';
+import { computed, ref, watch, nextTick, onMounted, onBeforeUnmount } from 'vue';
 import DatePicker from 'primevue/datepicker';
 import DurationPicker from '@/components/common/DurationPicker.vue';
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
@@ -84,6 +84,8 @@ const time = ref<string | null>(null); // HH:mm
 const timeInputId = `dtp-time-${Math.random().toString(36).slice(2, 8)}`;
 const syncing = ref(false); // Flag to prevent re-emission during sync
 const datePickerRef = ref<InstanceType<typeof DatePicker> | null>(null);
+const mutationObserver = ref<MutationObserver | null>(null);
+const inputEventHandler = ref<(() => void) | null>(null);
 
 // Keep internal state in sync when parent modelValue changes
 watch(() => props.modelValue, (val) => {
@@ -232,7 +234,7 @@ onMounted(() => {
         if (!inputElement) return;
 
         // Use MutationObserver to detect when PrimeVue changes the input value
-        const observer = new MutationObserver(() => {
+        mutationObserver.value = new MutationObserver(() => {
             const formattedValue = getFormattedDisplay();
             if (formattedValue && inputElement.value !== formattedValue) {
                 inputElement.value = formattedValue;
@@ -240,16 +242,31 @@ onMounted(() => {
         });
 
         // Also listen to input events
-        inputElement.addEventListener('input', () => {
+        inputEventHandler.value = () => {
             setTimeout(updateInputDisplay, 10);
-        });
+        };
+        inputElement.addEventListener('input', inputEventHandler.value);
 
         // Observe changes to input element attributes
-        observer.observe(inputElement, {
+        mutationObserver.value.observe(inputElement, {
             attributes: true,
             attributeFilter: ['value']
         });
     });
+});
+
+// Cleanup event listeners and observers
+onBeforeUnmount(() => {
+    if (mutationObserver.value) {
+        mutationObserver.value.disconnect();
+    }
+
+    if (inputEventHandler.value) {
+        const inputElement = document.getElementById(timeInputId + '-picker') as HTMLInputElement;
+        if (inputElement) {
+            inputElement.removeEventListener('input', inputEventHandler.value);
+        }
+    }
 });
 </script>
 

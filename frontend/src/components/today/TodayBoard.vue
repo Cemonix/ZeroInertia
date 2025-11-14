@@ -110,8 +110,11 @@ const STORAGE_KEY = 'today-view-mode';
 
 // Load saved view mode from localStorage, default to 'list'
 const loadViewMode = (): ViewMode => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    return (saved === 'list' || saved === 'calendar') ? saved : 'list';
+    if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        return (saved === 'list' || saved === 'calendar') ? saved : 'list';
+    }
+    return 'list';
 };
 
 const viewMode = ref<ViewMode>(loadViewMode());
@@ -189,7 +192,9 @@ const allTodayTasks = computed((): Task[] => {
 
 // Save viewMode to localStorage whenever it changes
 watch(viewMode, (newMode) => {
-    localStorage.setItem(STORAGE_KEY, newMode);
+    if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+        localStorage.setItem(STORAGE_KEY, newMode);
+    }
 });
 
 onMounted(async () => {

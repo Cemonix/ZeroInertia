@@ -163,7 +163,7 @@ const userMenuItems = computed(() => [
         label: isTaskCompletionSoundEnabled.value
             ? "Mute sound"
             : "Unmute sound",
-        icon: isTaskCompletionSoundEnabled.value ? "volume-xmark" : "volume-high",
+        icon: isTaskCompletionSoundEnabled.value ? "volume-high" : "volume-xmark",
         command: () => {
             const next = !isTaskCompletionSoundEnabled.value;
             isTaskCompletionSoundEnabled.value = next;
