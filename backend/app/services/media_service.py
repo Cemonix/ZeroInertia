@@ -17,6 +17,7 @@ from app.schemas.media import (
     ShowCreate,
     ShowUpdate,
 )
+from app.services.base_service import apply_updates_async
 
 # pyright: reportAny=false
 
@@ -72,14 +73,17 @@ async def update_book(
     if book is None:
         raise MediaNotFoundException(str(book_id))
 
-    update_dict = book_data.model_dump(exclude_unset=True)
+    async def handle_status(_model: object, value: object, _updates: dict[str, object]) -> None:
+        if value is not None and hasattr(value, "value"):
+            book.status = value.value  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
+        elif value is not None:
+            book.status = value  # pyright: ignore[reportAttributeAccessIssue]
 
-    # Convert enum to value if status is provided
-    if "status" in update_dict and update_dict["status"] is not None:
-        update_dict["status"] = update_dict["status"].value
-
-    for field, value in update_dict.items():
-        setattr(book, field, value)
+    _ = await apply_updates_async(
+        model=book,
+        update_schema=book_data,
+        custom_handlers={"status": handle_status}
+    )
 
     db.add(book)
     await db.commit()
@@ -153,13 +157,17 @@ async def update_movie(
     if movie is None:
         raise MediaNotFoundException(str(movie_id))
 
-    update_dict = movie_data.model_dump(exclude_unset=True)
+    async def handle_status(_model: object, value: object, _updates: dict[str, object]) -> None:
+        if value is not None and hasattr(value, "value"):
+            movie.status = value.value  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
+        elif value is not None:
+            movie.status = value  # pyright: ignore[reportAttributeAccessIssue]
 
-    if "status" in update_dict and update_dict["status"] is not None:
-        update_dict["status"] = update_dict["status"].value
-
-    for field, value in update_dict.items():
-        setattr(movie, field, value)
+    _ = await apply_updates_async(
+        model=movie,
+        update_schema=movie_data,
+        custom_handlers={"status": handle_status}
+    )
 
     db.add(movie)
     await db.commit()
@@ -234,13 +242,17 @@ async def update_game(
     if game is None:
         raise MediaNotFoundException(str(game_id))
 
-    update_dict = game_data.model_dump(exclude_unset=True)
+    async def handle_status(_model: object, value: object, _updates: dict[str, object]) -> None:
+        if value is not None and hasattr(value, "value"):
+            game.status = value.value  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
+        elif value is not None:
+            game.status = value  # pyright: ignore[reportAttributeAccessIssue]
 
-    if "status" in update_dict and update_dict["status"] is not None:
-        update_dict["status"] = update_dict["status"].value
-
-    for field, value in update_dict.items():
-        setattr(game, field, value)
+    _ = await apply_updates_async(
+        model=game,
+        update_schema=game_data,
+        custom_handlers={"status": handle_status}
+    )
 
     db.add(game)
     await db.commit()
@@ -315,13 +327,17 @@ async def update_show(
     if show is None:
         raise MediaNotFoundException(str(show_id))
 
-    update_dict = show_data.model_dump(exclude_unset=True)
+    async def handle_status(_model: object, value: object, _updates: dict[str, object]) -> None:
+        if value is not None and hasattr(value, "value"):
+            show.status = value.value  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
+        elif value is not None:
+            show.status = value  # pyright: ignore[reportAttributeAccessIssue]
 
-    if "status" in update_dict and update_dict["status"] is not None:
-        update_dict["status"] = update_dict["status"].value
-
-    for field, value in update_dict.items():
-        setattr(show, field, value)
+    _ = await apply_updates_async(
+        model=show,
+        update_schema=show_data,
+        custom_handlers={"status": handle_status}
+    )
 
     db.add(show)
     await db.commit()

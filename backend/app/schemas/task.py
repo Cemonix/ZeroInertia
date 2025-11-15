@@ -11,8 +11,8 @@ class TaskCreate(BaseModel):
     """Schema for creating a task"""
     title: str = Field(..., min_length=1, max_length=255)
     description: str | None = None
-    project_id: UUID
-    section_id: UUID
+    project_id: UUID | None = None
+    section_id: UUID | None = None
     priority_id: UUID | None = None
     due_datetime: datetime | None = None
     reminder_minutes: int | None = None  # Minutes before due_datetime to send notification
@@ -27,6 +27,8 @@ class TaskUpdate(BaseModel):
     title: str | None = Field(None, min_length=1, max_length=255)
     description: str | None = None
     completed: bool | None = None
+    project_id: UUID | None = None
+    section_id: UUID | None = None
     order_index: int | None = None
     priority_id: UUID | None = None
     due_datetime: datetime | None = None
@@ -64,6 +66,7 @@ class TaskResponse(BaseModel):
 class TaskReorder(BaseModel):
     """Schema for reordering tasks"""
     id: UUID
+    project_id: UUID
     section_id: UUID
     order_index: int
 

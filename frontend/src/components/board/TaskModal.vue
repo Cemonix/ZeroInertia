@@ -760,14 +760,6 @@ async function saveTask() {
         ? currentTask.section_id
         : taskStore.currentSectionId;
 
-    if (!currentTask && !sectionIdForCreate) {
-        toast.add({
-            severity: "warn",
-            summary: "Task",
-            detail: "Select a section before creating a task.",
-        });
-        return;
-    }
 
     isLoading.value = true;
 
@@ -787,8 +779,8 @@ async function saveTask() {
             });
         } else {
             await taskStore.createTask({
-                project_id: props.projectId,
-                section_id: sectionIdForCreate as string,
+                project_id: props.projectId ?? null,
+                section_id: sectionIdForCreate as string ?? null,
                 title: finalTitle,
                 description: description.value,
                 priority_id: priorityId.value,

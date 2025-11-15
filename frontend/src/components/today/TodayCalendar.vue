@@ -315,16 +315,16 @@ const handleEventCreate = async ({ event, resolve }: VueCalEventCreatePayload) =
     const roundedMinutes = Math.round(minutes / 15) * 15;
     startDateTime.setMinutes(roundedMinutes, 0, 0);
 
-    const defaultSectionId = props.tasks.length > 0 ? props.tasks[0].section_id : '';
-
     resolve(false);
 
     const initialValues = {
         due_datetime: startDateTime.toISOString(),
         duration_minutes: durationMinutes,
+        project_id: null,
+        section_id: null,
     };
 
-    taskStore.openTaskModal(defaultSectionId, null, initialValues);
+    taskStore.openTaskModal(null, null, initialValues);
 };
 
 // Scroll to current time when calendar is ready

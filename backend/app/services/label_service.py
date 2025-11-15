@@ -7,6 +7,8 @@ from sqlalchemy.sql import select
 
 from app.core.exceptions import DuplicateResourceException, LabelNotFoundException
 from app.models.label import Label
+from app.schemas.label import LabelUpdate
+from app.services.base_service import apply_updates_async
 
 
 async def create_label(
@@ -62,24 +64,14 @@ async def update_label(
     db: AsyncSession,
     label_id: UUID,
     user_id: UUID,
-    name: str | None = None,
-    color: str | None = None,
-    description: str | None = None,
-    order_index: int | None = None,
+    update_data: LabelUpdate,
 ) -> Label:
     """Update an existing label."""
     label = await get_label_by_id(db, label_id, user_id)
     if label is None:
         raise LabelNotFoundException(str(label_id))
 
-    if name is not None:
-        label.name = name
-    if color is not None:
-        label.color = color
-    if description is not None:
-        label.description = description
-    if order_index is not None:
-        label.order_index = order_index
+    _ = await apply_updates_async(model=label, update_schema=update_data)
 
     db.add(label)
 
@@ -87,6 +79,8 @@ async def update_label(
         await db.commit()
     except IntegrityError as exc:
         await db.rollback()
+        updates = update_data.model_dump(exclude_unset=True)
+        name = updates.get("name", label.name)  # pyright: ignore[reportAny]
         raise DuplicateResourceException("Label", f"name '{name}'") from exc
 
     await db.refresh(label)

@@ -74,6 +74,11 @@
                 :popup="true"
             />
         </div>
+
+        <TaskMoveModal
+            v-model:visible="showMoveModal"
+            :task="task"
+        />
     </div>
 </template>
 
@@ -87,11 +92,13 @@ import type { Label } from "@/models/label";
 import { JS_WEEKDAY_LABELS, pythonDayToJsDay } from "@/utils/recurrenceUtils";
 import type { MenuItem } from "primevue/menuitem";
 import { useToast } from "primevue/usetoast";
+import TaskMoveModal from "./TaskMoveModal.vue";
 
 const taskStore = useTaskStore();
 const priorityStore = usePriorityStore();
 const labelStore = useLabelStore();
 const toast = useToast();
+
 
 interface Props {
     task: Task;
@@ -105,6 +112,7 @@ type TaskMenuInstance = {
 };
 
 const taskMenu = ref<TaskMenuInstance | null>(null);
+const showMoveModal = ref(false);
 
 const menuId = computed(() => `task_menu_${props.task.id}`);
 
@@ -259,6 +267,7 @@ const isFuture = computed(() => {
     return dueDate >= dayAfterTomorrow;
 });
 
+
 const handleCardClick = (event: MouseEvent) => {
     // Ignore clicks originating from interactive controls
     const target = event.target as HTMLElement;
@@ -340,6 +349,14 @@ const taskMenuItems = computed<MenuItem[]>(() => {
             command: () => handleSnooze(),
         });
     }
+
+    items.push({
+        label: "Move to project",
+        command: () => {
+            closeMenu();
+            showMoveModal.value = true;
+        },
+    });
 
     items.push(
         {

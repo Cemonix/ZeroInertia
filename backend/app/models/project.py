@@ -16,6 +16,7 @@ class Project(Base):
     # Project fields - required
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     order_index: Mapped[int] = mapped_column(default=0, nullable=False)
+    is_inbox: Mapped[bool] = mapped_column(default=False, nullable=False)
     user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     parent_id: Mapped[UUID | None] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), nullable=True)
 

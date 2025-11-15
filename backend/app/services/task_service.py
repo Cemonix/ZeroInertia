@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from datetime import datetime, timedelta, timezone
-from typing import Any, cast
+from typing import cast
 from uuid import UUID
 
 from sqlalchemy import case, func
@@ -19,9 +19,12 @@ from app.core.exceptions import (
     TaskNotFoundException,
 )
 from app.models.label import Label
+from app.models.section import Section
 from app.models.task import Task
-from app.schemas.task import TaskReorder
+from app.schemas.task import TaskReorder, TaskUpdate
 from app.services import streak_service
+from app.services.base_service import apply_updates_async
+from app.services.project_service import get_inbox_project
 
 # pyright: reportAttributeAccessIssue=false, reportUnknownMemberType=false, reportUnknownArgumentType=false
 
@@ -33,8 +36,8 @@ async def create_task(
     user_id: UUID,
     title: str,
     description: str | None,
-    project_id: UUID,
-    section_id: UUID,
+    project_id: UUID | None,
+    section_id: UUID | None,
     priority_id: UUID | None = None,
     due_datetime: datetime | None = None,
     recurrence_type: str | None = None,
@@ -44,6 +47,30 @@ async def create_task(
     duration_minutes: int | None = None,
 ) -> Task:
     """Create a new task for a user."""
+    # If no project_id provided, assign to inbox
+    if project_id is None:
+        inbox_project = await get_inbox_project(db, user_id)
+        if inbox_project is None:
+            raise InvalidOperationException("Inbox project not found for user")
+        project_id = inbox_project.id
+
+        # Get the default section of the inbox project
+        if section_id is None:
+            result = await db.execute(
+                select(Section).where(
+                    Section.project_id == project_id,
+                    Section.user_id == user_id
+                ).limit(1)
+            )
+            inbox_section = result.scalars().first()
+            if inbox_section is None:
+                raise InvalidOperationException("Inbox section not found")
+            section_id = inbox_section.id
+
+    # Ensure section_id is provided if project_id was provided
+    if section_id is None:
+        raise InvalidOperationException("section_id must be provided when project_id is specified")
+
     # Get the max order_index for this section to append new task at the end
     result = await db.execute(
         select(Task.order_index)
@@ -263,48 +290,87 @@ async def get_active_task_counts_by_project(
     return {str(project_id): count for project_id, count in rows}  # pyright: ignore[reportAny]
 
 
+async def _handle_task_move(
+    task: Task,
+    user_id: UUID,
+    db: AsyncSession,
+    updates: dict[str, object],
+) -> None:
+    """Handle moving a task to a different project/section."""
+    new_project_id = cast(UUID | None, updates.get("project_id", task.project_id))
+    new_section_id = cast(UUID | None, updates.get("section_id", task.section_id))
+
+    if new_project_id is None or new_section_id is None:
+        raise InvalidOperationException("Both project_id and section_id are required to move a task")
+
+    section_result = await db.execute(
+        select(Section).where(
+            Section.id == new_section_id,
+            Section.user_id == user_id,
+        )
+    )
+    section = section_result.scalars().first()
+    if section is None or section.project_id != new_project_id:
+        raise InvalidOperationException("Target section does not belong to the specified project")
+
+    order_result = await db.execute(
+        select(Task.order_index)
+        .where(Task.section_id == new_section_id, Task.user_id == user_id)
+        .order_by(Task.order_index.desc())
+        .limit(1)
+    )
+    max_order = order_result.scalar()
+    next_order_index = (max_order + 1) if max_order is not None else 0
+
+    task.project_id = new_project_id
+    task.section_id = new_section_id
+    task.order_index = next_order_index
+
+
+async def _handle_label_updates(
+    task: Task,
+    user_id: UUID,
+    db: AsyncSession,
+    label_ids: list[UUID] | None,
+) -> None:
+    """Handle updating task labels (many-to-many relationship)."""
+    if label_ids is not None:
+        labels = await _get_labels_for_user(db=db, user_id=user_id, label_ids=label_ids)
+        task.labels.clear()
+        task.labels.extend(labels)
+    else:
+        task.labels.clear()
+
+
 async def _apply_task_updates(
     task: Task,
     user_id: UUID,
     db: AsyncSession,
     was_incomplete: bool,
-    **updates: dict[str, Any],  # pyright: ignore[reportExplicitAny]
+    update_data: TaskUpdate,
 ) -> None:
-    """Apply update fields to a task."""
+    """Apply update fields to a task using Pydantic schema validation."""
+    updates = update_data.model_dump(exclude_unset=True)
     completed_value = cast(bool | None, updates.get("completed"))
 
-    if "title" in updates:
-        task.title = updates["title"]
-    if "description" in updates:
-        task.description = updates["description"]
-    if "completed" in updates:
-        task.completed = updates["completed"]
-        # Set completed_at timestamp when marking as complete
-        if completed_value and was_incomplete:
-            task.completed_at = datetime.now(timezone.utc)
-    if "priority_id" in updates:
-        task.priority_id = updates["priority_id"]
-    if "due_datetime" in updates:
-        task.due_datetime = updates["due_datetime"]
-    if "reminder_minutes" in updates:
-        task.reminder_minutes = updates["reminder_minutes"]
-    if "duration_minutes" in updates:
-        task.duration_minutes = updates["duration_minutes"]
-    if "recurrence_type" in updates:
-        task.recurrence_type = updates["recurrence_type"]
-    if "recurrence_days" in updates:
-        task.recurrence_days = updates["recurrence_days"]
+    # Handle project/section moves (including cross-project)
+    if "project_id" in updates or "section_id" in updates:
+        await _handle_task_move(task, user_id, db, updates)
+
+    # Handle labels separately (many-to-many relationship)
     if "label_ids" in updates:
-        label_ids = updates["label_ids"]
-        if label_ids is not None:  # pyright: ignore[reportUnnecessaryComparison]
-            # Fetch new labels and replace the entire collection
-            labels = await _get_labels_for_user(db=db, user_id=user_id, label_ids=label_ids)  # pyright: ignore[reportArgumentType]
-            # Clear existing labels and add new ones
-            task.labels.clear()
-            task.labels.extend(labels)
-        else:
-            # Clear all labels
-            task.labels.clear()
+        await _handle_label_updates(task, user_id, db, updates["label_ids"])  # pyright: ignore[reportAny]
+
+    # Handle completion timestamp
+    if "completed" in updates and completed_value and was_incomplete:
+        task.completed_at = datetime.now(timezone.utc)
+
+    # Apply all other standard field updates
+    _ = await apply_updates_async(
+        model=task,
+        update_schema=update_data,
+        exclude_fields={"project_id", "section_id", "order_index", "label_ids"}
+    )
 
 
 async def _handle_recurring_task_completion(
@@ -363,12 +429,12 @@ async def update_task(
     db: AsyncSession,
     task_id: UUID,
     user_id: UUID,
-    **updates: dict[str, Any],  # pyright: ignore[reportExplicitAny]
+    update_data: TaskUpdate,
 ) -> Task:
     """
     Update an existing task.
 
-    Only fields provided in updates dict will be modified.
+    Only fields provided in update_data will be modified.
     Passing None for a field will set it to NULL (e.g., clearing due_datetime).
     """
     task = await get_task_by_id(db, task_id, user_id)
@@ -377,12 +443,13 @@ async def update_task(
 
     # Track completion state for side effects
     was_incomplete = not task.completed
+    updates = update_data.model_dump(exclude_unset=True)
     completed_value = cast(bool | None, updates.get("completed"))
     is_marking_complete = completed_value is True
     is_completing_recurring_task = was_incomplete and is_marking_complete and task.recurrence_type is not None
 
     # Apply field updates
-    await _apply_task_updates(task, user_id, db, was_incomplete, **updates)
+    await _apply_task_updates(task, user_id, db, was_incomplete, update_data)
 
     # Handle recurring task completion (archive + create new instance)
     if is_completing_recurring_task:
@@ -430,23 +497,39 @@ async def reorder_tasks(db: AsyncSession, user_id: UUID, tasks_reorder: list[Tas
     if len(existing_task_ids) != len(task_ids):
         raise TaskNotFoundException()
 
+    # Verify all target sections belong to their specified projects and to the user
+    section_project_pairs = {(tr.section_id, tr.project_id) for tr in tasks_reorder}
+    for section_id, project_id in section_project_pairs:
+        section_result = await db.execute(
+            select(Section).where(
+                Section.id == section_id,
+                Section.user_id == user_id,
+            )
+        )
+        section = section_result.scalars().first()
+        if section is None or section.project_id != project_id:
+            raise InvalidOperationException("Target section does not belong to the specified project")
+
     # Perform a single set-based UPDATE using CASE expressions per column.
     # This avoids per-row ORM bulk update requirements and reserved bindparam names.
     order_map = {tr.id: tr.order_index for tr in tasks_reorder}
     section_map = {tr.id: tr.section_id for tr in tasks_reorder}
+    project_map = {tr.id: tr.project_id for tr in tasks_reorder}
 
     # Build searched CASE expressions: CASE WHEN Task.id=<id> THEN <value> ... END
     order_whens = [(Task.id == tid, idx) for tid, idx in order_map.items()]
     section_whens = [(Task.id == tid, sid) for tid, sid in section_map.items()]
+    project_whens = [(Task.id == tid, pid) for tid, pid in project_map.items()]
 
     order_case = case(*order_whens, else_=Task.order_index)
     section_case = case(*section_whens, else_=Task.section_id)
+    project_case = case(*project_whens, else_=Task.project_id)
 
     stmt = (
         update(Task)
         .execution_options(synchronize_session=None)
         .where(Task.id.in_(task_ids), Task.user_id == user_id)
-        .values(order_index=order_case, section_id=section_case)
+        .values(order_index=order_case, section_id=section_case, project_id=project_case)
     )
 
     _ = await db.execute(stmt)

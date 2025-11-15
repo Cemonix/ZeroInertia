@@ -68,10 +68,7 @@ async def update_label(
         db=db,
         label_id=label_id,
         user_id=current_user.id,
-        name=label_data.name,
-        color=label_data.color,
-        description=label_data.description,
-        order_index=label_data.order_index,
+        update_data=label_data,
     )
 
     return LabelResponse.model_validate(updated_label)

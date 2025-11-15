@@ -20,7 +20,7 @@
 </template>
 
 <script setup lang="ts">
-type ControlPanelView = "today" | "labels" | "filters" | "project";
+type ControlPanelView = "today" | "inbox" | "labels" | "filters" | "project";
 
 interface PanelAction {
     id: ControlPanelView;
@@ -38,6 +38,7 @@ const emit = defineEmits<{
 
 const panelActions: PanelAction[] = [
     { id: "today", label: "Today", icon: "fa fa-calendar" },
+    { id: "inbox", label: "Inbox", icon: "fa fa-inbox" },
     { id: "labels", label: "Labels", icon: "fa fa-tag" },
     { id: "filters", label: "Filters", icon: "fa fa-filter" },
 ];

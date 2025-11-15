@@ -1,7 +1,7 @@
 <template>
     <div class="board-container">
         <div v-if="!projectId" class="empty-state">
-            <p>Select a project to view its tasks</p>
+            <p>{{ emptyMessage }}</p>
         </div>
         <div v-else>
             <!-- View mode toggle -->
@@ -98,10 +98,12 @@ const toast = useToast();
 
 interface Props {
     projectId?: string | null;
+    emptyMessage?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
     projectId: null,
+    emptyMessage: "Select a project to view its tasks",
 });
 
 const sectionStore = useSectionStore();

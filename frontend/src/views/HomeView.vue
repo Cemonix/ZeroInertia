@@ -30,7 +30,15 @@
             <Transition name="fade-slide" mode="out-in">
                 <div :key="viewKey">
                     <TodayBoard v-if="activeWorkspaceView === 'today'" />
-                    <ProjectBoard v-else-if="activeWorkspaceView === 'project'" :project-id="selectedProjectId" />
+                    <ProjectBoard
+                        v-else-if="activeWorkspaceView === 'inbox'"
+                        :project-id="inboxProjectId"
+                        empty-message="You have no tasks in Inbox. You're organized!"
+                    />
+                    <ProjectBoard
+                        v-else-if="activeWorkspaceView === 'project'"
+                        :project-id="selectedProjectId"
+                    />
                     <LabelManager v-else-if="activeWorkspaceView === 'labels'" />
                     <TaskFilters v-else-if="activeWorkspaceView === 'filters'" />
                     <div v-else class="workspace-placeholder">
@@ -61,14 +69,20 @@ const projectStore = useProjectStore();
 const uiStore = useUiStore();
 const router = useRouter();
 
-const { selectedProjectId } = storeToRefs(projectStore);
-const activeWorkspaceView = ref<'today' | 'labels' | 'filters' | 'project'>('today');
+const { selectedProjectId, inboxProject } = storeToRefs(projectStore);
+const activeWorkspaceView = ref<'today' | 'inbox' | 'labels' | 'filters' | 'project'>('today');
+
+const inboxProjectId = computed(() => inboxProject.value?.id ?? null);
 
 // Unique key for transitions when switching views/projects
 const viewKey = computed(() => {
-    return activeWorkspaceView.value === 'project'
-        ? `project:${selectedProjectId.value ?? 'none'}`
-        : activeWorkspaceView.value;
+    if (activeWorkspaceView.value === 'project') {
+        return `project:${selectedProjectId.value ?? 'none'}`;
+    }
+    if (activeWorkspaceView.value === 'inbox') {
+        return 'inbox';
+    }
+    return activeWorkspaceView.value;
 });
 
 const goToNotes = () => {

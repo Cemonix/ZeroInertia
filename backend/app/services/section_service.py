@@ -6,7 +6,8 @@ from sqlalchemy.sql import select
 
 from app.core.exceptions import SectionNotFoundException
 from app.models.section import Section
-from app.schemas.section import SectionReorder
+from app.schemas.section import SectionReorder, SectionUpdate
+from app.services.base_service import apply_updates_async
 
 
 async def create_section(db: AsyncSession, user_id: UUID, title: str, project_id: UUID | None, order_index: int) -> Section:
@@ -54,18 +55,14 @@ async def update_section(
     db: AsyncSession,
     section_id: UUID,
     user_id: UUID,
-    title: str | None = None,
-    order_index: int | None = None,
+    update_data: SectionUpdate,
 ) -> Section:
     """Update an existing section."""
     section = await get_section_by_id(db, section_id, user_id)
     if section is None:
         raise SectionNotFoundException(str(section_id))
 
-    if title is not None:
-        section.title = title
-    if order_index is not None:
-        section.order_index = order_index
+    _ = await apply_updates_async(model=section, update_schema=update_data)
 
     db.add(section)
     await db.commit()

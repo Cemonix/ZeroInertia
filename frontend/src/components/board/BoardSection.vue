@@ -35,7 +35,10 @@
         </div>
 
         <!-- Task List -->
-        <div v-if="!isCollapsed" class="task-list">
+        <div
+            v-if="!isCollapsed"
+            class="task-list"
+        >
             <draggable
                 v-model="draggableTasks"
                 group="tasks"

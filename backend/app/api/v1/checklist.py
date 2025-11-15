@@ -95,8 +95,7 @@ async def update_checklist(
     updated_checklist = await checklist_service.update_checklist(
         db=db,
         checklist_id=checklist_id,
-        title=checklist_data.title,
-        order_index=checklist_data.order_index,
+        update_data=checklist_data,
     )
     return CheckListResponse.model_validate(updated_checklist)
 
@@ -174,9 +173,7 @@ async def update_checklist_item(
     updated_item = await checklist_service.update_checklist_item(
         db=db,
         item_id=item_id,
-        text=item_data.text,
-        completed=item_data.completed,
-        order_index=item_data.order_index,
+        update_data=item_data,
     )
     return CheckListItemResponse.model_validate(updated_item)
 

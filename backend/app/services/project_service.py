@@ -6,10 +6,15 @@ from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import select
 
-from app.core.exceptions import CircularReferenceException, ProjectNotFoundException
+from app.core.exceptions import (
+    CircularReferenceException,
+    InvalidOperationException,
+    ProjectNotFoundException,
+)
 from app.models import Section
 from app.models.project import Project
-from app.schemas.project import ProjectsReorder
+from app.schemas.project import ProjectsReorder, ProjectUpdate
+from app.services.base_service import apply_updates_async
 
 
 async def create_project(db: AsyncSession, user_id: UUID, title: str, parent_id: UUID | None, order_index: int) -> Project:
@@ -50,6 +55,14 @@ async def get_project_by_id(db: AsyncSession, project_id: UUID, user_id: UUID) -
     """Retrieve a project by its ID and user ID."""
     result = await db.execute(
         select(Project).where(Project.id == project_id, Project.user_id == user_id)
+    )
+    return result.scalars().first()
+
+
+async def get_inbox_project(db: AsyncSession, user_id: UUID) -> Project | None:
+    """Retrieve the inbox project for a user."""
+    result = await db.execute(
+        select(Project).where(Project.user_id == user_id, Project.is_inbox.is_(True))
     )
     return result.scalars().first()
 
@@ -95,7 +108,7 @@ async def update_project(
     db: AsyncSession,
     project_id: UUID,
     user_id: UUID,
-    **updates: UUID | str | int | None,
+    update_data: ProjectUpdate,
 ) -> Project:
     """
     Update an existing project.
@@ -104,31 +117,34 @@ async def update_project(
         db: Database session
         project_id: ID of project to update
         user_id: ID of user who owns the project
-        **updates: Fields to update (parent_id, title, order_index)
+        update_data: Project update data
     """
     project = await get_project_by_id(db, project_id, user_id)
     if project is None:
         raise ProjectNotFoundException(str(project_id))
 
-    # Handle parent_id updates if provided
-    if "parent_id" in updates:
-        parent_id = updates["parent_id"]
-        # Check for circular reference if setting a non-null parent
+    updates = update_data.model_dump(exclude_unset=True)
+
+    if project.is_inbox and "parent_id" in updates and updates["parent_id"] is not None:
+        raise InvalidOperationException("Cannot set parent for Inbox project")
+
+    async def handle_parent_id(_model: object, value: object, _updates: dict[str, object]) -> None:
+        parent_id = cast(UUID | None, value)
         if (
             parent_id is not None
             and parent_id != project.parent_id
-            and await _check_circular_reference(db, project_id, cast(UUID, parent_id))
+            and await _check_circular_reference(db, project_id, parent_id)
         ):
             raise CircularReferenceException(
                 "Cannot set parent: this would create a circular reference in the project hierarchy"
             )
-        # Update parent_id (can be None to remove parent, or a UUID to set parent)
-        project.parent_id = cast(UUID | None, parent_id)
+        project.parent_id = parent_id
 
-    if "title" in updates:
-        project.title = cast(str, updates["title"])
-    if "order_index" in updates:
-        project.order_index = cast(int, updates["order_index"])
+    _ = await apply_updates_async(
+        model=project,
+        update_schema=update_data,
+        custom_handlers={"parent_id": handle_parent_id}
+    )
 
     db.add(project)
     await db.commit()
@@ -141,6 +157,9 @@ async def delete_project(db: AsyncSession, project_id: UUID, user_id: UUID) -> N
     project = await get_project_by_id(db, project_id, user_id)
     if project is None:
         raise ProjectNotFoundException(str(project_id))
+
+    if project.is_inbox:
+        raise InvalidOperationException("Cannot delete the Inbox project")
 
     await db.delete(project)
     await db.commit()

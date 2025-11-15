@@ -1,5 +1,5 @@
 """Database seeding utilities for initializing default data."""
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,6 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import async_session_local
 from app.core.logging import logger
 from app.models.priority import Priority
+from app.models.project import Project
+from app.models.section import Section
 
 DEFAULT_PRIORITIES = [
     {
@@ -68,6 +70,41 @@ async def seed_priorities(session: AsyncSession) -> None:
 
     await session.commit()
     logger.info("Priority seeding completed")
+
+
+async def create_inbox_project(session: AsyncSession, user_id: UUID) -> Project:
+    """Create the special inbox project for a new user.
+
+    Args:
+        session: Database session to use
+        user_id: ID of the user to create inbox for
+
+    Returns:
+        Created inbox project
+    """
+    logger.info(f"Creating inbox project for user {user_id}")
+
+    inbox_project = Project(
+        id=uuid4(),
+        title="Inbox",
+        order_index=-1,
+        is_inbox=True,
+        user_id=user_id,
+        parent_id=None
+    )
+    session.add(inbox_project)
+    await session.flush()
+
+    inbox_section = Section(
+        title="Inbox",
+        project_id=inbox_project.id,
+        user_id=user_id
+    )
+    session.add(inbox_section)
+    await session.commit()
+
+    logger.info(f"Created inbox project for user {user_id}")
+    return inbox_project
 
 
 async def seed_database() -> None:
