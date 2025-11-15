@@ -345,9 +345,9 @@ class TestTaskOrdering:
         response = await authenticated_client.post(
             "/api/v1/tasks/reorder",
             json=[
-                {"id": task_ids[2], "section_id": str(test_section.id), "order_index": 0},
-                {"id": task_ids[0], "section_id": str(test_section.id), "order_index": 1},
-                {"id": task_ids[1], "section_id": str(test_section.id), "order_index": 2},
+                {"id": task_ids[2], "project_id": str(test_project.id), "section_id": str(test_section.id), "order_index": 0},
+                {"id": task_ids[0], "project_id": str(test_project.id), "section_id": str(test_section.id), "order_index": 1},
+                {"id": task_ids[1], "project_id": str(test_project.id), "section_id": str(test_section.id), "order_index": 2},
             ],
         )
 
@@ -392,10 +392,10 @@ class TestTaskOrdering:
         b2_id = created[3]["id"]
 
         reorder_payload = [
-            {"id": a1_id, "section_id": str(test_section.id), "order_index": 1},  # A1 -> A index 1
-            {"id": b1_id, "section_id": str(test_section.id), "order_index": 0},  # B1 -> A index 0
-            {"id": a2_id, "section_id": str(second_section_id), "order_index": 1},  # A2 -> B index 1
-            {"id": b2_id, "section_id": str(second_section_id), "order_index": 0},  # B2 -> B index 0
+            {"id": a1_id, "project_id": str(test_project.id), "section_id": str(test_section.id), "order_index": 1},  # A1 -> A index 1
+            {"id": b1_id, "project_id": str(test_project.id), "section_id": str(test_section.id), "order_index": 0},  # B1 -> A index 0
+            {"id": a2_id, "project_id": str(test_project.id), "section_id": str(second_section_id), "order_index": 1},  # A2 -> B index 1
+            {"id": b2_id, "project_id": str(test_project.id), "section_id": str(second_section_id), "order_index": 0},  # B2 -> B index 0
         ]
 
         resp = await authenticated_client.post("/api/v1/tasks/reorder", json=reorder_payload)

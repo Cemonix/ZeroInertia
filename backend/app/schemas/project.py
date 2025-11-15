@@ -24,6 +24,7 @@ class ProjectResponse(BaseModel):
     title: str
     parent_id: UUID | None
     order_index: int
+    is_inbox: bool
     created_at: datetime
     updated_at: datetime
 

@@ -19,9 +19,11 @@ from app.core.exceptions import (
     TaskNotFoundException,
 )
 from app.models.label import Label
+from app.models.section import Section
 from app.models.task import Task
 from app.schemas.task import TaskReorder
 from app.services import streak_service
+from app.services.project_service import get_inbox_project
 
 # pyright: reportAttributeAccessIssue=false, reportUnknownMemberType=false, reportUnknownArgumentType=false
 
@@ -33,8 +35,8 @@ async def create_task(
     user_id: UUID,
     title: str,
     description: str | None,
-    project_id: UUID,
-    section_id: UUID,
+    project_id: UUID | None,
+    section_id: UUID | None,
     priority_id: UUID | None = None,
     due_datetime: datetime | None = None,
     recurrence_type: str | None = None,
@@ -44,6 +46,30 @@ async def create_task(
     duration_minutes: int | None = None,
 ) -> Task:
     """Create a new task for a user."""
+    # If no project_id provided, assign to inbox
+    if project_id is None:
+        inbox_project = await get_inbox_project(db, user_id)
+        if inbox_project is None:
+            raise InvalidOperationException("Inbox project not found for user")
+        project_id = inbox_project.id
+
+        # Get the default section of the inbox project
+        if section_id is None:
+            result = await db.execute(
+                select(Section).where(
+                    Section.project_id == project_id,
+                    Section.user_id == user_id
+                ).limit(1)
+            )
+            inbox_section = result.scalars().first()
+            if inbox_section is None:
+                raise InvalidOperationException("Inbox section not found")
+            section_id = inbox_section.id
+
+    # Ensure section_id is provided if project_id was provided
+    if section_id is None:
+        raise InvalidOperationException("section_id must be provided when project_id is specified")
+
     # Get the max order_index for this section to append new task at the end
     result = await db.execute(
         select(Task.order_index)
@@ -273,6 +299,44 @@ async def _apply_task_updates(
     """Apply update fields to a task."""
     completed_value = cast(bool | None, updates.get("completed"))
 
+    # Handle project/section moves (including cross-project).
+    # Both project_id and section_id must refer to a valid section for this user.
+    if "project_id" in updates or "section_id" in updates:
+        new_project_id = cast(UUID | None, updates.get("project_id", task.project_id))
+        new_section_id = cast(UUID | None, updates.get("section_id", task.section_id))
+
+        if new_project_id is None or new_section_id is None:
+            raise InvalidOperationException("Both project_id and section_id are required to move a task")
+
+        # Validate target section belongs to the given project and user
+        section_result = await db.execute(
+            select(Section).where(
+                Section.id == new_section_id,
+                Section.user_id == user_id,
+            )
+        )
+        section = section_result.scalars().first()
+        if section is None or section.project_id != new_project_id:
+            raise InvalidOperationException("Target section does not belong to the specified project")
+
+        # Compute next order index within the target section
+        order_result = await db.execute(
+            select(Task.order_index)
+            .where(Task.section_id == new_section_id, Task.user_id == user_id)
+            .order_by(Task.order_index.desc())
+            .limit(1)
+        )
+        max_order = order_result.scalar()
+        next_order_index = (max_order + 1) if max_order is not None else 0
+
+        task.project_id = new_project_id
+        task.section_id = new_section_id
+        task.order_index = next_order_index
+
+        # Remove handled fields so they are not processed again below
+        updates.pop("project_id", None)
+        updates.pop("section_id", None)
+
     if "title" in updates:
         task.title = updates["title"]
     if "description" in updates:
@@ -430,23 +494,39 @@ async def reorder_tasks(db: AsyncSession, user_id: UUID, tasks_reorder: list[Tas
     if len(existing_task_ids) != len(task_ids):
         raise TaskNotFoundException()
 
+    # Verify all target sections belong to their specified projects and to the user
+    section_project_pairs = {(tr.section_id, tr.project_id) for tr in tasks_reorder}
+    for section_id, project_id in section_project_pairs:
+        section_result = await db.execute(
+            select(Section).where(
+                Section.id == section_id,
+                Section.user_id == user_id,
+            )
+        )
+        section = section_result.scalars().first()
+        if section is None or section.project_id != project_id:
+            raise InvalidOperationException("Target section does not belong to the specified project")
+
     # Perform a single set-based UPDATE using CASE expressions per column.
     # This avoids per-row ORM bulk update requirements and reserved bindparam names.
     order_map = {tr.id: tr.order_index for tr in tasks_reorder}
     section_map = {tr.id: tr.section_id for tr in tasks_reorder}
+    project_map = {tr.id: tr.project_id for tr in tasks_reorder}
 
     # Build searched CASE expressions: CASE WHEN Task.id=<id> THEN <value> ... END
     order_whens = [(Task.id == tid, idx) for tid, idx in order_map.items()]
     section_whens = [(Task.id == tid, sid) for tid, sid in section_map.items()]
+    project_whens = [(Task.id == tid, pid) for tid, pid in project_map.items()]
 
     order_case = case(*order_whens, else_=Task.order_index)
     section_case = case(*section_whens, else_=Task.section_id)
+    project_case = case(*project_whens, else_=Task.project_id)
 
     stmt = (
         update(Task)
         .execution_options(synchronize_session=None)
         .where(Task.id.in_(task_ids), Task.user_id == user_id)
-        .values(order_index=order_case, section_id=section_case)
+        .values(order_index=order_case, section_id=section_case, project_id=project_case)
     )
 
     _ = await db.execute(stmt)

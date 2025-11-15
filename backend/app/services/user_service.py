@@ -3,6 +3,7 @@ from uuid import UUID
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.seed import create_inbox_project
 from app.models.user import User
 
 
@@ -50,6 +51,9 @@ class UserService:
         session.add(user)
         await session.commit()
         await session.refresh(user)
+
+        _ = await create_inbox_project(session, user.id)
+
         return user
 
     @staticmethod

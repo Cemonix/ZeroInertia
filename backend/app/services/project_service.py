@@ -6,7 +6,11 @@ from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import select
 
-from app.core.exceptions import CircularReferenceException, ProjectNotFoundException
+from app.core.exceptions import (
+    CircularReferenceException,
+    InvalidOperationException,
+    ProjectNotFoundException,
+)
 from app.models import Section
 from app.models.project import Project
 from app.schemas.project import ProjectsReorder
@@ -50,6 +54,14 @@ async def get_project_by_id(db: AsyncSession, project_id: UUID, user_id: UUID) -
     """Retrieve a project by its ID and user ID."""
     result = await db.execute(
         select(Project).where(Project.id == project_id, Project.user_id == user_id)
+    )
+    return result.scalars().first()
+
+
+async def get_inbox_project(db: AsyncSession, user_id: UUID) -> Project | None:
+    """Retrieve the inbox project for a user."""
+    result = await db.execute(
+        select(Project).where(Project.user_id == user_id, Project.is_inbox.is_(True))
     )
     return result.scalars().first()
 
@@ -110,6 +122,9 @@ async def update_project(
     if project is None:
         raise ProjectNotFoundException(str(project_id))
 
+    if project.is_inbox and "parent_id" in updates and updates["parent_id"] is not None:
+        raise InvalidOperationException("Cannot set parent for Inbox project")
+
     # Handle parent_id updates if provided
     if "parent_id" in updates:
         parent_id = updates["parent_id"]
@@ -141,6 +156,9 @@ async def delete_project(db: AsyncSession, project_id: UUID, user_id: UUID) -> N
     project = await get_project_by_id(db, project_id, user_id)
     if project is None:
         raise ProjectNotFoundException(str(project_id))
+
+    if project.is_inbox:
+        raise InvalidOperationException("Cannot delete the Inbox project")
 
     await db.delete(project)
     await db.commit()
