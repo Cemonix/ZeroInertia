@@ -99,8 +99,8 @@ import { computed, onMounted, ref, watch } from "vue";
 import { useTaskStore } from "@/stores/task";
 import { useLabelStore } from "@/stores/label";
 import { usePriorityStore } from "@/stores/priority";
-import TaskCard from "@/components/board/TaskCard.vue";
-import TaskModal from "@/components/board/TaskModal.vue";
+import TaskCard from "@/components/tasks/TaskCard.vue";
+import TaskModal from "@/components/tasks/TaskModal.vue";
 import TodayCalendar from "@/components/today/TodayCalendar.vue";
 import type { Task } from "@/models/task";
 

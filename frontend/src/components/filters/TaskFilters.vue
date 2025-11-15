@@ -206,8 +206,8 @@ import { useTaskStore } from "@/stores/task";
 import { useProjectStore } from "@/stores/project";
 import { useLabelStore } from "@/stores/label";
 import { usePriorityStore } from "@/stores/priority";
-import TaskCard from "@/components/board/TaskCard.vue";
-import TaskModal from "@/components/board/TaskModal.vue";
+import TaskCard from "@/components/tasks/TaskCard.vue";
+import TaskModal from "@/components/tasks/TaskModal.vue";
 import type { Task } from "@/models/task";
 
 const taskStore = useTaskStore();

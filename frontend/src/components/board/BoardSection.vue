@@ -108,7 +108,7 @@ import { useTaskStore } from "@/stores/task";
 import { useSectionStore } from "@/stores/section";
 import { useConfirm } from "primevue/useconfirm";
 import draggable from "vuedraggable";
-import TaskCard from "./TaskCard.vue";
+import TaskCard from "@/components/tasks/TaskCard.vue";
 import type { Section } from "@/models/section";
 import type { Task } from "@/models/task";
 import Menu from "primevue/menu";

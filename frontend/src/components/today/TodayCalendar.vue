@@ -25,8 +25,15 @@
             @ready="onCalendarReady"
         >
             <template #event="{ event }">
-                <div class="calendar-event-content">
+                <div class="calendar-event-content" :class="{ 'compact-event': event.isCompact }">
                     <div class="event-title-row">
+                        <div class="event-checkbox" @click.stop>
+                            <Checkbox
+                                :model-value="event.task.completed"
+                                binary
+                                @update:model-value="() => handleToggleComplete(event)"
+                            />
+                        </div>
                         <FontAwesomeIcon
                             v-if="event.priority"
                             icon="flag"
@@ -34,8 +41,14 @@
                             class="event-priority-flag"
                         />
                         <span class="event-title">{{ event.title }}</span>
+                        <span
+                            v-if="event.isCompact"
+                            class="event-time event-time-compact"
+                        >
+                            {{ formatEventTime(event) }}
+                        </span>
                     </div>
-                    <div class="event-meta">
+                    <div class="event-meta" v-if="!event.isCompact">
                         <span class="event-time">
                             {{ formatEventTime(event) }}
                         </span>
@@ -49,6 +62,18 @@
                             ></span>
                         </div>
                     </div>
+                    <div
+                        v-else-if="event.labels && event.labels.length"
+                        class="event-labels event-labels-compact"
+                    >
+                        <span
+                            v-for="label in event.labels"
+                            :key="label.id"
+                            class="event-label"
+                            :style="{ backgroundColor: label.color }"
+                            :title="label.name"
+                        ></span>
+                    </div>
                 </div>
             </template>
         </VueCal>
@@ -60,6 +85,7 @@ import { ref, computed, watch } from 'vue';
 // @ts-expect-error - vue-cal doesn't have proper TypeScript declarations
 import { VueCal } from 'vue-cal';
 import 'vue-cal/style.css';
+import Checkbox from 'primevue/checkbox';
 import type { Task } from '@/models/task';
 import type { Priority } from '@/models/priority';
 import type { Label } from '@/models/label';
@@ -83,6 +109,7 @@ interface VueCalEvent {
     priority: Priority | null;
     labels: Label[];
     task: Task;
+    isCompact: boolean;
 }
 
 interface VueCalEventClickPayload {
@@ -155,6 +182,11 @@ const calendarEvents = computed(() => {
             isAllDay = startDate.getHours() === 0 && startDate.getMinutes() === 0 && startDate.getSeconds() === 0;
         }
 
+        const scheduledDurationMinutes =
+            !isAllDay && task.duration_minutes && task.duration_minutes > 0
+                ? task.duration_minutes
+                : 30;
+
         let endDate: Date;
         let start: Date | string;
         let end: Date | string;
@@ -178,12 +210,7 @@ const calendarEvents = computed(() => {
         } else {
             // For timed events, use Date objects
             start = startDate;
-            if (task.duration_minutes && task.duration_minutes > 0) {
-                endDate = new Date(startDate.getTime() + task.duration_minutes * 60000);
-            } else {
-                // Default to 30 minutes if no duration specified
-                endDate = new Date(startDate.getTime() + 30 * 60000);
-            }
+            endDate = new Date(startDate.getTime() + scheduledDurationMinutes * 60000);
             end = endDate;
         }
 
@@ -199,6 +226,8 @@ const calendarEvents = computed(() => {
             backgroundColor = labels[0].color + 'cc';
         }
 
+        const isCompact = !isAllDay && scheduledDurationMinutes <= 15;
+
         return {
             start,
             end,
@@ -213,6 +242,7 @@ const calendarEvents = computed(() => {
             priority,
             labels,
             task,
+            isCompact,
         };
     });
 
@@ -237,6 +267,10 @@ function formatEventTime(event: VueCalEvent): string {
 
     return `${formatTime(start)} - ${formatTime(end)}`;
 }
+
+const handleToggleComplete = (event: VueCalEvent) => {
+    taskStore.toggleTaskComplete(event.taskId);
+};
 
 const handleEventClick = ({ event }: VueCalEventClickPayload) => {
     const task = event.task;
@@ -420,8 +454,9 @@ watch(() => props.currentDate, (newDate: Date | undefined) => {
 }
 
 :deep(.vuecal__now-line) {
-    border-color: var(--p-primary-color);
-    opacity: 0.8;
+    color: var(--p-text-color);
+    text-shadow: 0 0 2px var(--p-content-background);
+    font-weight: 600;
 }
 
 /* Event styling */
@@ -431,6 +466,10 @@ watch(() => props.currentDate, (newDate: Date | undefined) => {
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
     cursor: pointer;
     transition: transform 0.2s, box-shadow 0.2s;
+}
+
+:deep(.vuecal__event.task-event) {
+    min-height: 22px;
 }
 
 :deep(.vuecal__event:hover) {
@@ -461,7 +500,7 @@ watch(() => props.currentDate, (newDate: Date | undefined) => {
 .event-title-row {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 2px;
     font-weight: 500;
 }
 
@@ -472,6 +511,7 @@ watch(() => props.currentDate, (newDate: Date | undefined) => {
 
 .event-title {
     flex: 1;
+    min-width: 0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -495,8 +535,35 @@ watch(() => props.currentDate, (newDate: Date | undefined) => {
 
 .event-labels {
     display: flex;
-    gap: 3px;
+    gap: 4px;
     flex-wrap: wrap;
+}
+
+.calendar-event-content.compact-event {
+    padding: 2px 8px;
+    gap: 3px;
+}
+
+.calendar-event-content.compact-event .event-title {
+    flex: 0 1 auto;
+    min-width: 0;
+}
+
+.calendar-event-content.compact-event .event-meta {
+    font-size: 0.7rem;
+}
+
+.event-time-compact {
+    opacity: 0.9;
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.875rem;
+    line-height: 1;
+    margin-left: 0.35rem;
+}
+
+.event-labels-compact {
+    margin-top: 2px;
 }
 
 .event-label {
@@ -504,6 +571,26 @@ watch(() => props.currentDate, (newDate: Date | undefined) => {
     height: 12px;
     border-radius: 2px;
     flex-shrink: 0;
+}
+
+.event-checkbox {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+}
+
+.event-checkbox :deep(.p-checkbox-box) {
+    width: 14px;
+    height: 14px;
+    padding: 0;
+    position: absolute;
+    top: 50%;
+    left: 35%;
+    transform: translate(-50%, -50%);
 }
 
 /* All-day bar styling */

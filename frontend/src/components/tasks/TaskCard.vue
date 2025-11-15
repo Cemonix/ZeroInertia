@@ -89,10 +89,10 @@ import { useTaskStore } from "@/stores/task";
 import { usePriorityStore } from "@/stores/priority";
 import { useLabelStore } from "@/stores/label";
 import type { Label } from "@/models/label";
-import { JS_WEEKDAY_LABELS, pythonDayToJsDay } from "@/utils/recurrenceUtils";
+import { formatRecurrence } from "@/utils/recurrenceUtils";
 import type { MenuItem } from "primevue/menuitem";
 import { useToast } from "primevue/usetoast";
-import TaskMoveModal from "./TaskMoveModal.vue";
+import TaskMoveModal from "@/components/tasks/TaskMoveModal.vue";
 
 const taskStore = useTaskStore();
 const priorityStore = usePriorityStore();
@@ -137,34 +137,11 @@ const taskLabels = computed<Label[]>(() => {
 });
 
 const recurrenceSummary = computed(() => {
-    const recurrenceType = props.task.recurrence_type;
-    if (recurrenceType) {
-        if (recurrenceType === "daily") {
-            return "Daily";
-        }
-        if (recurrenceType === "alternate_days") {
-            return "Every other day";
-        }
-        if (recurrenceType === "weekly") {
-            const days = props.task.recurrence_days ?? [];
-            if (!days.length) {
-                return "Weekly";
-            }
-            // recurrence_days uses Python convention (0=Mon), convert to JS convention for display
-            const labels = days
-                .map(dayIndex => {
-                    try {
-                        const jsDay = pythonDayToJsDay(dayIndex);
-                        return JS_WEEKDAY_LABELS[jsDay] ?? "";
-                    } catch {
-                        return "";
-                    }
-                })
-                .filter(Boolean);
-            return labels.join(" · ") || "Weekly";
-        }
-    }
-    return null;
+    return formatRecurrence(
+        props.task.recurrence_interval,
+        props.task.recurrence_unit,
+        props.task.recurrence_days
+    ) || null;
 });
 
 const isRecurring = computed(() => Boolean(recurrenceSummary.value));
@@ -453,7 +430,7 @@ const reminderLabel = computed(() => {
 
 .recurring-pill {
     display: inline-flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 0.3rem;
     border-radius: 10px;
     padding: 0.125rem 0.5rem;
@@ -462,6 +439,12 @@ const reminderLabel = computed(() => {
     background: rgba(59, 130, 246, 0.15);
     color: var(--p-primary-color);
     flex-shrink: 0;
+    max-width: 11rem;
+}
+
+.recurring-pill span:last-child {
+    white-space: normal;
+    line-height: 1.1;
 }
 
 .task-title.completed-text {

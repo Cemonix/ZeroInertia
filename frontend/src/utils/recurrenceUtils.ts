@@ -67,6 +67,62 @@ export function pythonDaysToJsDays(pythonDays: number[]): number[] {
 export const JS_WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 /**
- * Numeric indices for JavaScript days (for iteration).
+ * Python weekday labels (0=Monday, 6=Sunday).
  */
-export const JS_WEEKDAY_INDICES = [0, 1, 2, 3, 4, 5, 6];
+const PYTHON_WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+/**
+ * Format a recurrence pattern for display.
+ *
+ * Examples:
+ * - "Every day"
+ * - "Every 3 days"
+ * - "Every week"
+ * - "Every 2 weeks"
+ * - "Every 2 weeks on Mon · Wed"
+ * - "Every month"
+ * - "Every 3 months"
+ * - "Every year"
+ *
+ * @param interval - Number of units between recurrences
+ * @param unit - Unit type (days, weeks, months, years)
+ * @param pythonDays - Optional array of Python weekday indices for weekly recurrence
+ * @returns Formatted recurrence string
+ */
+export function formatRecurrence(
+    interval: number | null,
+    unit: string | null,
+    pythonDays: number[] | null = null
+): string {
+    if (!interval || !unit) {
+        return "";
+    }
+
+    const isPlural = interval > 1;
+    let result = `Every ${interval > 1 ? interval + " " : ""}`;
+
+    switch (unit) {
+        case "days":
+            result += isPlural ? "days" : "day";
+            break;
+        case "weeks":
+            result += isPlural ? "weeks" : "week";
+            if (pythonDays && pythonDays.length > 0) {
+                const dayLabels = pythonDays
+                    .map((day) => PYTHON_WEEKDAY_LABELS[day])
+                    .join(" · ");
+                result += ` on ${dayLabels}`;
+            }
+            break;
+        case "months":
+            result += isPlural ? "months" : "month";
+            break;
+        case "years":
+            result += isPlural ? "years" : "year";
+            break;
+        default:
+            return "";
+    }
+
+    return result;
+}

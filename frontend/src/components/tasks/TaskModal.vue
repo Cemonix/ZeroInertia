@@ -73,6 +73,8 @@
                     outlined
                     size="small"
                     @click="showRecurrencePicker = true"
+                    :disabled="!dueDateTimeString"
+                    :title="!dueDateTimeString ? 'Set a due date first' : ''"
                 >
                     <FontAwesomeIcon icon="repeat" class="button-icon" />
                     <span>{{ recurrenceButtonText }}</span>
@@ -221,58 +223,17 @@
             <Popover
                 v-model:visible="showRecurrencePicker"
                 title="Recurring Task"
-                width="360px"
+                width="500px"
             >
-                <div class="recurrence-picker">
-                    <div class="recurrence-field">
-                        <label for="recurrence-frequency">Frequency</label>
-                        <Select
-                            id="recurrence-frequency"
-                            v-model="recurrenceType"
-                            :options="RECURRENCE_OPTIONS"
-                            optionLabel="label"
-                            optionValue="value"
-                            placeholder="Select frequency"
-                            size="small"
-                            showClear
-                            variant="outlined"
-                        />
-                    </div>
-                    <div
-                        v-if="recurrenceType === 'weekly'"
-                        class="recurrence-field"
-                    >
-                        <label>Days of the week</label>
-                        <div class="weekday-selector">
-                            <button
-                                v-for="(
-                                    dayLabel, dayIndex
-                                ) in JS_WEEKDAY_LABELS"
-                                :key="dayLabel"
-                                type="button"
-                                class="weekday-chip"
-                                :class="{
-                                    active: recurrenceDaysOfWeek.includes(
-                                        dayIndex
-                                    ),
-                                }"
-                                @click="toggleWeekday(dayIndex)"
-                            >
-                                {{ dayLabel }}
-                            </button>
-                        </div>
-                    </div>
-                    <div class="recurrence-actions">
-                        <Button text size="small" @click="clearRecurrence"
-                            >Clear</Button
-                        >
-                        <Button
-                            size="small"
-                            @click="showRecurrencePicker = false"
-                            >Done</Button
-                        >
-                    </div>
-                </div>
+                <RecurrencePicker
+                    :interval="recurrenceInterval"
+                    :unit="recurrenceUnit"
+                    :days="recurrenceDays"
+                    @update:interval="recurrenceInterval = $event"
+                    @update:unit="recurrenceUnit = $event"
+                    @update:days="recurrenceDays = $event"
+                    @close="showRecurrencePicker = false"
+                />
             </Popover>
 
             <!-- Reminder Picker Popover -->
@@ -331,14 +292,11 @@ import { usePriorityStore } from "@/stores/priority";
 import { useLabelStore } from "@/stores/label";
 import CheckList from "@/components/common/CheckList.vue";
 import Popover from "@/components/common/Popover.vue";
+import RecurrencePicker from "@/components/common/RecurrencePicker.vue";
 import { useToast } from "primevue";
 import type { Label } from "@/models/label";
-import type { Task, TaskRecurrenceType } from "@/models/task";
-import {
-    jsDaysToPythonDays,
-    pythonDaysToJsDays,
-    JS_WEEKDAY_LABELS,
-} from "@/utils/recurrenceUtils";
+import type { Task, TaskRecurrenceUnit } from "@/models/task";
+import { formatRecurrence } from "@/utils/recurrenceUtils";
 import { useNaturalLanguageParsing } from "@/composables/useNaturalLanguageParsing";
 
 const toast = useToast();
@@ -368,9 +326,10 @@ const selectedLabelIds = ref<string[]>([]);
 const showRecurrencePicker = ref(false);
 const showReminderPicker = ref(false);
 
-// Recurrence state (stored directly on task now)
-const recurrenceType = ref<TaskRecurrenceType | null>(null);
-const recurrenceDaysOfWeek = ref<number[]>([]); // JS convention: 0=Sunday
+// Recurrence state
+const recurrenceInterval = ref<number | null>(null);
+const recurrenceUnit = ref<TaskRecurrenceUnit | null>(null);
+const recurrenceDays = ref<number[] | null>(null); // Python convention: 0=Mon, 6=Sun
 
 // Reminder state
 const reminderMinutes = ref<number | null>(null);
@@ -454,12 +413,6 @@ onBeforeUnmount(() => {
     }
 });
 
-const RECURRENCE_OPTIONS: { label: string; value: TaskRecurrenceType }[] = [
-    { label: "Daily", value: "daily" },
-    { label: "Every Other Day", value: "alternate_days" },
-    { label: "Specific Days", value: "weekly" },
-];
-
 const REMINDER_OPTIONS: { label: string; value: number }[] = [
     { label: "At time of event", value: 0 },
     { label: "5 minutes before", value: 5 },
@@ -500,27 +453,12 @@ const labelButtonText = computed(() => {
 });
 
 const recurrenceButtonText = computed(() => {
-    if (!recurrenceType.value) {
-        return "Repeat";
-    }
-
-    if (recurrenceType.value === "daily") {
-        return "Daily";
-    }
-
-    if (recurrenceType.value === "alternate_days") {
-        return "Every Other Day";
-    }
-
-    if (recurrenceType.value === "weekly") {
-        const selectedDays = recurrenceDaysOfWeek.value
-            .sort((a, b) => a - b)
-            .map((day) => JS_WEEKDAY_LABELS[day]);
-        const daysLabel = selectedDays.length ? selectedDays.join(" ") : "Days";
-        return `Weekly · ${daysLabel}`;
-    }
-
-    return "Repeat";
+    const formatted = formatRecurrence(
+        recurrenceInterval.value,
+        recurrenceUnit.value,
+        recurrenceDays.value
+    );
+    return formatted || "Repeat";
 });
 
 const reminderButtonText = computed(() => {
@@ -546,18 +484,10 @@ function loadTaskData(task: Task) {
         task.label_ids?.slice() ??
         (task.labels ? task.labels.map((label) => label.id) : []);
 
-    // Load recurrence from task fields (convert Python days to JS convention)
-    if (task.recurrence_type) {
-        const recurrence = task.recurrence_type as TaskRecurrenceType;
-        recurrenceType.value = recurrence;
-        if (recurrence === "weekly" && task.recurrence_days) {
-            recurrenceDaysOfWeek.value = pythonDaysToJsDays(task.recurrence_days);
-        } else {
-            recurrenceDaysOfWeek.value = [];
-        }
-    } else {
-        resetRecurrence();
-    }
+    // Load recurrence from task fields
+    recurrenceInterval.value = task.recurrence_interval;
+    recurrenceUnit.value = task.recurrence_unit;
+    recurrenceDays.value = task.recurrence_days;
 
     // Load reminder
     reminderMinutes.value = task.reminder_minutes ?? null;
@@ -637,6 +567,9 @@ watch(
     (newValue) => {
         if (!newValue) {
             reminderMinutes.value = null;
+            recurrenceInterval.value = null;
+            recurrenceUnit.value = null;
+            recurrenceDays.value = null;
         }
     }
 );
@@ -681,57 +614,9 @@ async function addChecklist() {
     }
 }
 
-function toggleWeekday(dayIndex: number) {
-    if (recurrenceDaysOfWeek.value.includes(dayIndex)) {
-        recurrenceDaysOfWeek.value = recurrenceDaysOfWeek.value.filter(
-            (day) => day !== dayIndex
-        );
-    } else {
-        recurrenceDaysOfWeek.value = [
-            ...recurrenceDaysOfWeek.value,
-            dayIndex,
-        ].sort((a, b) => a - b);
-    }
-}
-
-function resetRecurrence() {
-    recurrenceType.value = null;
-    recurrenceDaysOfWeek.value = [];
-}
-
-function clearRecurrence() {
-    resetRecurrence();
-    showRecurrencePicker.value = false;
-}
-
 function clearReminder() {
     reminderMinutes.value = null;
     showReminderPicker.value = false;
-}
-
-function getRecurrencePayload(): {
-    type: TaskRecurrenceType | null;
-    days: number[] | null;
-} {
-    if (!recurrenceType.value) {
-        return { type: null, days: null };
-    }
-
-    if (recurrenceType.value === "weekly") {
-        if (!recurrenceDaysOfWeek.value.length) {
-            throw new Error("Select at least one day for weekly recurrence.");
-        }
-        // Convert from JS convention (0=Sunday) to Python convention (0=Monday)
-        return {
-            type: recurrenceType.value,
-            days: jsDaysToPythonDays(recurrenceDaysOfWeek.value),
-        };
-    }
-
-    return {
-        type: recurrenceType.value,
-        days: null,
-    };
 }
 
 async function saveTask() {
@@ -740,18 +625,13 @@ async function saveTask() {
     // Use cleaned title if date was detected, otherwise use original title
     const finalTitle = cleanedTitleBeforeSave.value || title.value;
 
-    let recurrencePayload: {
-        type: TaskRecurrenceType | null;
-        days: number[] | null;
-    };
-    try {
-        recurrencePayload = getRecurrencePayload();
-    } catch (validationError) {
-        const detail =
-            validationError instanceof Error
-                ? validationError.message
-                : "Invalid recurrence configuration.";
-        toast.add({ severity: "warn", summary: "Recurring Task", detail });
+    // Validate weekly recurrence has at least one day selected
+    if (recurrenceUnit.value === "weeks" && recurrenceInterval.value && (!recurrenceDays.value || recurrenceDays.value.length === 0)) {
+        toast.add({
+            severity: "warn",
+            summary: "Recurring Task",
+            detail: "Select at least one day for weekly recurrence."
+        });
         return;
     }
 
@@ -759,7 +639,6 @@ async function saveTask() {
     const sectionIdForCreate = currentTask
         ? currentTask.section_id
         : taskStore.currentSectionId;
-
 
     isLoading.value = true;
 
@@ -773,8 +652,9 @@ async function saveTask() {
                 due_datetime: dueDateTimeString.value,
                 duration_minutes: durationMinutes.value,
                 label_ids: selectedLabelIds.value,
-                recurrence_type: recurrencePayload.type,
-                recurrence_days: recurrencePayload.days,
+                recurrence_interval: recurrenceInterval.value,
+                recurrence_unit: recurrenceUnit.value,
+                recurrence_days: recurrenceDays.value,
                 reminder_minutes: reminderMinutes.value,
             });
         } else {
@@ -787,8 +667,9 @@ async function saveTask() {
                 due_datetime: dueDateTimeString.value,
                 duration_minutes: durationMinutes.value,
                 label_ids: selectedLabelIds.value,
-                recurrence_type: recurrencePayload.type,
-                recurrence_days: recurrencePayload.days,
+                recurrence_interval: recurrenceInterval.value,
+                recurrence_unit: recurrenceUnit.value,
+                recurrence_days: recurrenceDays.value,
                 reminder_minutes: reminderMinutes.value,
             });
         }
@@ -822,7 +703,9 @@ function resetForm() {
     showRecurrencePicker.value = false;
     showReminderPicker.value = false;
     reminderMinutes.value = null;
-    resetRecurrence();
+    recurrenceInterval.value = null;
+    recurrenceUnit.value = null;
+    recurrenceDays.value = null;
 }
 
 onMounted(async () => {
