@@ -85,7 +85,7 @@ import { ref, watch, onMounted, onBeforeUnmount } from "vue";
 import draggable from "vuedraggable";
 import BoardSection from "./BoardSection.vue";
 import SectionCreateModal from "./SectionCreateModal.vue";
-import TaskModal from "./TaskModal.vue";
+import TaskModal from "@/components/tasks/TaskModal.vue";
 import { useSectionStore } from "@/stores/section";
 import { useTaskStore } from "@/stores/task";
 import { useLabelStore } from "@/stores/label";

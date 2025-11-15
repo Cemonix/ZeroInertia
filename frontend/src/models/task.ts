@@ -1,6 +1,7 @@
 import type { Label } from "./label";
 
 export type TaskRecurrenceType = "daily" | "alternate_days" | "weekly";
+export type TaskRecurrenceUnit = "days" | "weeks" | "months" | "years";
 
 export interface TaskRecurrence {
     type: TaskRecurrenceType;
@@ -24,8 +25,10 @@ export interface Task {
     priority_id: string | null;
     due_datetime: string | null;
     duration_minutes: number | null;
-    reminder_minutes: number | null; // Minutes before due_datetime to send notification
-    recurrence_type: string | null; // daily | alternate_days | weekly
+    reminder_minutes: number | null;
+    recurrence_type: string | null; // DEPRECATED
+    recurrence_interval: number | null;
+    recurrence_unit: TaskRecurrenceUnit | null;
     recurrence_days: number[] | null; // For weekly: 0=Mon, 6=Sun (Python weekday convention)
     created_at: string;
     updated_at: string;
@@ -43,7 +46,9 @@ export interface TaskCreateInput {
     due_datetime?: string | null;
     duration_minutes?: number | null;
     reminder_minutes?: number | null;
-    recurrence_type?: string | null;
+    recurrence_type?: string | null; // DEPRECATED
+    recurrence_interval?: number | null;
+    recurrence_unit?: TaskRecurrenceUnit | null;
     recurrence_days?: number[] | null;
     label_ids?: string[] | null;
 }
@@ -59,7 +64,9 @@ export interface TaskUpdateInput {
     due_datetime?: string | null;
     duration_minutes?: number | null;
     reminder_minutes?: number | null;
-    recurrence_type?: string | null;
+    recurrence_type?: string | null; // DEPRECATED
+    recurrence_interval?: number | null;
+    recurrence_unit?: TaskRecurrenceUnit | null;
     recurrence_days?: number[] | null;
     label_ids?: string[] | null;
 }
