@@ -92,8 +92,7 @@ async def update_section(
         db=db,
         section_id=section_id,
         user_id=current_user.id,
-        title=section_data.title,
-        order_index=section_data.order_index,
+        update_data=section_data,
     )
     return SectionResponse.model_validate(updated_section)
 

@@ -142,14 +142,11 @@ async def update_task(
     db: AsyncSession = Depends(get_db),
 ) -> TaskResponse:
     """Update a specific task by ID for the authenticated user."""
-    # Only pass fields that were explicitly set in the request
-    # This allows null values to clear fields (e.g., removing a due date)
-    update_fields = task_data.model_dump(exclude_unset=True)
     updated_task = await task_service.update_task(
         db=db,
         task_id=task_id,
         user_id=current_user.id,
-        **update_fields,  # pyright: ignore[reportAny]
+        update_data=task_data,
     )
     return TaskResponse.model_validate(updated_task)
 

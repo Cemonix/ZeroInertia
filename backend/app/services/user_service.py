@@ -5,6 +5,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.seed import create_inbox_project
 from app.models.user import User
+from app.schemas.user import UserUpdate
+from app.services.base_service import apply_updates_async
 
 
 class UserService:
@@ -60,17 +62,10 @@ class UserService:
     async def update_user(
         session: AsyncSession,
         user: User,
-        email: str | None = None,
-        full_name: str | None = None,
-        avatar_url: str | None = None
+        update_data: UserUpdate,
     ) -> User:
         """Update an existing user."""
-        if email is not None:
-            user.email = email
-        if full_name is not None:
-            user.full_name = full_name
-        if avatar_url is not None:
-            user.avatar_url = avatar_url
+        _ = await apply_updates_async(model=user, update_schema=update_data)
 
         user.last_login_at = func.now()
 

@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from typing import cast
 from uuid import UUID
 
 from sqlalchemy import func
@@ -7,7 +8,8 @@ from sqlalchemy.sql import select
 
 from app.core.exceptions import InvalidOperationException, NoteNotFoundException
 from app.models.note import Note
-from app.schemas.note import NoteReorder
+from app.schemas.note import NoteReorder, NoteUpdate
+from app.services.base_service import apply_updates_async
 
 
 async def _ensure_parent_belongs_to_user(
@@ -125,30 +127,26 @@ async def update_note(
     db: AsyncSession,
     note_id: UUID,
     user_id: UUID,
-    title: str | None = None,
-    content: str | None = None,
-    parent_id: UUID | None = None,
-    parent_id_set: bool = False,
-    order_index: int | None = None,
+    update_data: NoteUpdate,
 ) -> Note:
     """Update the note with the supplied fields."""
     note = await get_note_by_id(db=db, note_id=note_id, user_id=user_id)
     if note is None:
         raise NoteNotFoundException(str(note_id))
 
-    if parent_id_set:
+    async def handle_parent_id(_model: object, value: object, _updates: dict[str, object]) -> None:
+        parent_id = cast(UUID | None, value)
         if parent_id == note.id:
             raise InvalidOperationException("Note cannot reference itself as parent")
         if parent_id is not None:
             await _ensure_parent_belongs_to_user(db=db, user_id=user_id, parent_id=parent_id)
         note.parent_id = parent_id
 
-    if title is not None:
-        note.title = title
-    if content is not None:
-        note.content = content
-    if order_index is not None:
-        note.order_index = order_index
+    _ = await apply_updates_async(
+        model=note,
+        update_schema=update_data,
+        custom_handlers={"parent_id": handle_parent_id}
+    )
 
     db.add(note)
     await db.commit()

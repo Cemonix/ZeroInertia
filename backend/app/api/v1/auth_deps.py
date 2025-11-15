@@ -102,12 +102,12 @@ async def create_or_update_user(session: AsyncSession, user_data: dict[str, str 
 
     if user is not None:
         # Update existing user
+        from app.schemas.user import UserUpdate
+        update_data = UserUpdate(email=email, full_name=full_name, avatar_url=avatar_url)
         user = await UserService.update_user(
             session,
             user,
-            email=email,
-            full_name=full_name,
-            avatar_url=avatar_url
+            update_data=update_data,
         )
     else:
         # Create new user

@@ -1,4 +1,3 @@
-from typing import cast
 from uuid import UUID
 
 from fastapi import Depends, status
@@ -79,16 +78,11 @@ async def update_note(
     db: AsyncSession = Depends(get_db),
 ) -> NoteResponse:
     """Update a note for the authenticated user."""
-    payload = note_data.model_dump(exclude_unset=True)
-    parent_id_set = "parent_id" in payload
-    parent_id = cast(UUID | None, payload.pop("parent_id", None))
     note = await note_service.update_note(
         db=db,
         note_id=note_id,
         user_id=current_user.id,
-        parent_id=parent_id,
-        parent_id_set=parent_id_set,
-        **payload,  # pyright: ignore[reportAny]
+        update_data=note_data,
     )
     return NoteResponse.model_validate(note)
 

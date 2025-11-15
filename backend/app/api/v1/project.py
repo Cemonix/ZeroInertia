@@ -95,14 +95,11 @@ async def update_project(
     db: AsyncSession = Depends(get_db),
 ) -> ProjectResponse:
     """Update a specific project by ID for the authenticated user."""
-    # Only pass fields that were actually provided in the request
-    update_data = project_data.model_dump(exclude_unset=True)
-
     updated_project = await project_service.update_project(
         db=db,
         project_id=project_id,
         user_id=current_user.id,
-        **update_data,  # pyright: ignore[reportAny]
+        update_data=project_data,
     )
     return ProjectResponse.model_validate(updated_project)
 

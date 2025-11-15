@@ -8,6 +8,8 @@ from sqlalchemy.sql import select
 from app.core.exceptions import ChecklistItemNotFoundException, ChecklistNotFoundException
 from app.models.checklist import CheckList, CheckListItem
 from app.models.task import Task
+from app.schemas.checklist import CheckListItemUpdate, CheckListUpdate
+from app.services.base_service import apply_updates_async
 
 
 async def verify_checklist_ownership(
@@ -74,18 +76,14 @@ async def get_checklists_by_task(db: AsyncSession, task_id: UUID) -> Sequence[Ch
 async def update_checklist(
     db: AsyncSession,
     checklist_id: UUID,
-    title: str | None = None,
-    order_index: int | None = None,
+    update_data: CheckListUpdate,
 ) -> CheckList:
     """Update a checklist."""
     checklist = await get_checklist_by_id(db, checklist_id)
     if not checklist:
         raise ChecklistNotFoundException(str(checklist_id))
 
-    if title is not None:
-        checklist.title = title
-    if order_index is not None:
-        checklist.order_index = order_index
+    _ = await apply_updates_async(model=checklist, update_schema=update_data)
 
     await db.commit()
     await db.refresh(checklist)
@@ -163,21 +161,14 @@ async def get_checklist_item_by_id(
 async def update_checklist_item(
     db: AsyncSession,
     item_id: UUID,
-    text: str | None = None,
-    completed: bool | None = None,
-    order_index: int | None = None,
+    update_data: CheckListItemUpdate,
 ) -> CheckListItem:
     """Update a checklist item."""
     item = await get_checklist_item_by_id(db, item_id)
     if not item:
         raise ChecklistItemNotFoundException(str(item_id))
 
-    if text is not None:
-        item.text = text
-    if completed is not None:
-        item.completed = completed
-    if order_index is not None:
-        item.order_index = order_index
+    _ = await apply_updates_async(model=item, update_schema=update_data)
 
     await db.commit()
     await db.refresh(item)
