@@ -16,12 +16,16 @@ export const useProjectStore = defineStore("project", () => {
     const loading = ref(false);
     const error = ref<string | null>(null);
 
-    const getProjectById = computed(() => {
-        return (id: string) => projects.value.find((p) => p.id === id);
+    const getProjectById = (id: string) => {
+        return projects.value.find((p) => p.id === id);
+    };
+
+    const inboxProject = computed(() => {
+        return projects.value.find((p) => p.is_inbox) ?? null;
     });
 
     const selectedProjectDetails = computed(() => {
-        return selectedProjectId.value ? getProjectById.value(selectedProjectId.value) : null;
+        return selectedProjectId.value ? getProjectById(selectedProjectId.value) : null;
     });
 
     watch(selectedProject, (newSelection) => {
@@ -64,10 +68,10 @@ export const useProjectStore = defineStore("project", () => {
         try {
             // Create project at the top (order_index: 0)
             const newProject = await projectService.createProject({
-                ...projectData,
+                title: projectData.title as string,
                 order_index: 0,
                 parent_id: projectData.parent_id ?? null,
-            } as Project);
+            });
 
             // Shift other root-level projects down (before adding new project)
             const rootProjects = projects.value
@@ -221,6 +225,7 @@ export const useProjectStore = defineStore("project", () => {
         // Getters
         getProjectById,
         selectedProjectDetails,
+        inboxProject,
         // Actions
         loadProjects,
         createProject,

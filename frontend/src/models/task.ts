@@ -37,8 +37,8 @@ export interface Task {
 export interface TaskCreateInput {
     title: string;
     description: string | null;
-    project_id: string;
-    section_id: string;
+    project_id: string | null;
+    section_id: string | null;
     priority_id?: string | null;
     due_datetime?: string | null;
     duration_minutes?: number | null;
@@ -52,6 +52,8 @@ export interface TaskUpdateInput {
     title?: string;
     description?: string | null;
     completed?: boolean;
+    project_id?: string;
+    section_id?: string;
     order_index?: number;
     priority_id?: string | null;
     due_datetime?: string | null;
@@ -64,6 +66,7 @@ export interface TaskUpdateInput {
 
 export interface TaskReorderItem {
     id: string;
+    project_id: string;
     section_id: string;
     order_index: number;
 }

@@ -6,6 +6,9 @@ import apiClient from "./apiClient";
 
 const API_URL = "/api/v1/projects";
 
+type ProjectCreatePayload = Pick<Project, "title" | "parent_id" | "order_index">;
+type ProjectUpdatableFields = Pick<Project, "title" | "parent_id" | "order_index">;
+
 export const projectService = {
     async getProjects(pagination?: PaginationParams): Promise<PaginatedResponse<Project>> {
         const response = await apiClient.get(API_URL, { params: buildPaginationQuery(pagination) });
@@ -19,12 +22,15 @@ export const projectService = {
         return response.data;
     },
 
-    async createProject(project: Project): Promise<Project> {
+    async createProject(project: ProjectCreatePayload): Promise<Project> {
         const response = await apiClient.post(API_URL, project);
         return response.data;
     },
 
-    async updateProject(projectId: string, updates: Partial<Omit<Project, 'id' | 'created_at'>>): Promise<Project> {
+    async updateProject(
+        projectId: string,
+        updates: Partial<ProjectUpdatableFields>,
+    ): Promise<Project> {
         const response = await apiClient.patch(`${API_URL}/${projectId}`, updates);
         return response.data;
     },

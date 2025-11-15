@@ -44,6 +44,7 @@ import {
     faList,
     faTableColumns,
     faKeyboard,
+    faInbox
 } from "@fortawesome/free-solid-svg-icons";
 
 // PrimeVue components
@@ -90,7 +91,8 @@ library.add(
     faCalendarDay,
     faList,
     faTableColumns,
-    faKeyboard
+    faKeyboard,
+    faInbox
 );
 
 const app = createApp(App);

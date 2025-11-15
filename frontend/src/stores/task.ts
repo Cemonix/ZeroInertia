@@ -4,6 +4,7 @@ import type { Task, TaskCreateInput, TaskUpdateInput, TaskReorderItem } from '@/
 import { taskService } from '@/services/taskService';
 import { playTaskCompletedSound } from '@/core/sound';
 import type { PaginationParams } from '@/models/pagination';
+import { useStreakStore } from './streak';
 
 export const useTaskStore = defineStore('task', () => {
     const tasks = ref<Task[]>([]);
@@ -13,6 +14,7 @@ export const useTaskStore = defineStore('task', () => {
     const loading = ref(false);
     const error = ref<string | null>(null);
     const taskModalVisible = ref(false);
+    const draggedTaskId = ref<string | null>(null);
 
     const getTasksBySection = computed(() => {
         return (sectionId: string) =>
@@ -54,7 +56,7 @@ export const useTaskStore = defineStore('task', () => {
         }
     };
 
-    const openTaskModal = (sectionId: string, task: Task | null = null, initialValues: Partial<TaskCreateInput> | null = null) => {
+    const openTaskModal = (sectionId: string | null, task: Task | null = null, initialValues: Partial<TaskCreateInput> | null = null) => {
         currentSectionId.value = sectionId;
         currentTask.value = task;
         initialTaskValues.value = initialValues;
@@ -62,6 +64,14 @@ export const useTaskStore = defineStore('task', () => {
     };
 
     const isTaskModalVisible = computed(() => taskModalVisible.value);
+
+    const startDraggingTask = (taskId: string) => {
+        draggedTaskId.value = taskId;
+    };
+
+    const stopDraggingTask = () => {
+        draggedTaskId.value = null;
+    };
 
     const toggleTaskComplete = async (taskId: string) => {
         const task = getTaskById.value(taskId);
@@ -117,6 +127,28 @@ export const useTaskStore = defineStore('task', () => {
                         tasks.value[currentIndex] = updatedTask;
                     }
                     // If no significant changes, keep the optimistic update (no re-render needed)
+                }
+            }
+
+            // Refresh streak only when completing the first task of the day
+            if (!wasCompleted) {
+                const streakStore = useStreakStore();
+                if (streakStore.hasLoadedStreak) {
+                    const today = new Date().toISOString().split('T')[0];
+                    const lastActivity = streakStore.lastActivityDate;
+
+                    // Only reload if this is the first task completed today
+                    if (!lastActivity || lastActivity !== today) {
+                        await streakStore.loadStreak();
+
+                        // Also refresh calendar if it's been loaded
+                        if (streakStore.calendarStartDate && streakStore.calendarEndDate) {
+                            await streakStore.loadCalendar(
+                                streakStore.calendarStartDate,
+                                streakStore.calendarEndDate
+                            );
+                        }
+                    }
                 }
             }
         } catch (err) {
@@ -208,6 +240,50 @@ export const useTaskStore = defineStore('task', () => {
         }
     }
 
+    async function moveTaskToSection(taskId: string, targetProjectId: string, targetSectionId: string) {
+        const task = getTaskById.value(taskId);
+        if (!task) {
+            return;
+        }
+
+        // Optimistic local update
+        const existingIndex = tasks.value.findIndex(t => t.id === taskId);
+        const originalTask = existingIndex !== -1 ? { ...tasks.value[existingIndex] } : null;
+
+        const targetTasks = tasks.value
+            .filter(t => t.project_id === targetProjectId && t.section_id === targetSectionId)
+            .sort((a, b) => a.order_index - b.order_index);
+        const nextOrderIndex = targetTasks.length > 0
+            ? targetTasks[targetTasks.length - 1].order_index + 1
+            : 0;
+
+        if (existingIndex !== -1) {
+            tasks.value[existingIndex] = {
+                ...task,
+                project_id: targetProjectId,
+                section_id: targetSectionId,
+                order_index: nextOrderIndex,
+            };
+        }
+
+        try {
+            const updatedTask = await taskService.updateTask(taskId, {
+                project_id: targetProjectId,
+                section_id: targetSectionId,
+            });
+            const idx = tasks.value.findIndex(t => t.id === taskId);
+            if (idx !== -1) {
+                tasks.value[idx] = updatedTask;
+            }
+        } catch (err) {
+            if (existingIndex !== -1 && originalTask) {
+                tasks.value[existingIndex] = originalTask;
+            }
+            error.value = err instanceof Error ? err.message : "Failed to move task";
+            throw err;
+        }
+    }
+
     async function reorderTasks(sectionId: string, reorderedTaskIds: string[]) {
         // Optimistically update the local state
         const tasksInSection = reorderedTaskIds.map(id =>
@@ -226,9 +302,10 @@ export const useTaskStore = defineStore('task', () => {
             }
         });
 
-        // Prepare the reorder payload - use the task's current section_id (which may have been updated)
+        // Prepare the reorder payload - use the task's current section_id and project_id (which may have been updated)
         const reorderPayload: TaskReorderItem[] = tasksInSection.map((task, index) => ({
             id: task.id,
+            project_id: task.project_id,  // Include project_id for cross-project moves
             section_id: task.section_id,  // Use task's section_id which reflects any cross-section moves
             order_index: index,
         }));
@@ -304,11 +381,14 @@ export const useTaskStore = defineStore('task', () => {
         error,
         currentSectionId,
         initialTaskValues,
+        draggedTaskId,
         getTasksBySection,
         getTasksByProject,
         getTaskById,
         getCurrentTask,
         isTaskModalVisible,
+        startDraggingTask,
+        stopDraggingTask,
         setCurrentTask,
         setCurrentSectionId,
         setTaskModalVisible,
@@ -320,6 +400,7 @@ export const useTaskStore = defineStore('task', () => {
         updateTask,
         deleteTask,
         reorderTasks,
+        moveTaskToSection,
         duplicateTask,
         snoozeTask,
         clearProjectTasks,

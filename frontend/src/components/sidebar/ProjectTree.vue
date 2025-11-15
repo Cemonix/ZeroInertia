@@ -175,13 +175,19 @@ watch(
 // Build tree structure from flat projects array
 function buildTree(projectList: Project[], parentId: string | null = null): TreeNode[] {
     return projectList
-        .filter((project) => project.parent_id === parentId)
+        .filter((project) => project.parent_id === parentId && !project.is_inbox)
         .sort((a, b) => a.order_index - b.order_index)
-        .map((project) => ({
-            key: project.id,
-            label: project.title,
-            children: buildTree(projectList, project.id),
-        }));
+        .map((project) => {
+            const isInbox = project.is_inbox;
+            return {
+                key: project.id,
+                label: project.title,
+                data: project,
+                draggable: isInbox ? false : undefined,
+                droppable: isInbox ? false : undefined,
+                children: buildTree(projectList, project.id),
+            } as TreeNode;
+        });
 }
 
 // Flatten tree structure to extract parent_id and order_index
@@ -209,16 +215,25 @@ function onNodeDrop(_event: TreeNodeDropEvent) {
 }
 
 function getProjectMenuItems(node: TreeNode) {
-    return [
+    const projectId = typeof node.key === 'string' ? node.key : String(node.key ?? '');
+    const project = projectId ? projectStore.getProjectById(projectId) : undefined;
+    const isInbox = project?.is_inbox === true;
+
+    const items = [
         {
             label: 'Rename Project',
             command: () => openRenameDialog(node),
         },
-        {
+    ];
+
+    if (!isInbox) {
+        items.push({
             label: 'Delete Project',
             command: () => confirmProjectDeletion(node),
-        },
-    ];
+        });
+    }
+
+    return items;
 }
 
 function setMenuRef(
