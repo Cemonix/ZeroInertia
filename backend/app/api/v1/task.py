@@ -39,6 +39,8 @@ async def create_task(
         priority_id=task_data.priority_id,
         due_datetime=task_data.due_datetime,
         recurrence_type=task_data.recurrence_type,
+        recurrence_interval=task_data.recurrence_interval,
+        recurrence_unit=task_data.recurrence_unit,
         recurrence_days=task_data.recurrence_days,
         label_ids=task_data.label_ids,
         reminder_minutes=task_data.reminder_minutes,

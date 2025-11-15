@@ -35,7 +35,9 @@ class Task(Base):
     duration_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     # Recurrence fields
-    recurrence_type: Mapped[str | None] = mapped_column(String(50), nullable=True)  # daily | weekly | alternate_days
+    recurrence_type: Mapped[str | None] = mapped_column(String(50), nullable=True)  # DEPRECATED: daily | weekly | alternate_days
+    recurrence_interval: Mapped[int | None] = mapped_column(Integer, nullable=True)  # How many units between occurrences
+    recurrence_unit: Mapped[str | None] = mapped_column(String(20), nullable=True)  # days | weeks | months | years
     recurrence_days: Mapped[list[int] | None] = mapped_column(ARRAY(Integer), nullable=True)  # For weekly: 0=Mon, 6=Sun
 
     user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
