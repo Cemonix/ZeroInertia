@@ -26,6 +26,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY ./app ./app
 COPY alembic.ini .
 COPY alembic ./alembic
+COPY scripts ./scripts
 
 # Copy Firebase service account (required for push notifications)
 COPY firebase-service-account.json .

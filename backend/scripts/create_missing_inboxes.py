@@ -1,8 +1,17 @@
+#!/usr/bin/env python3
 """
 Script to create inbox projects for existing users who don't have one.
 Run this once after deploying the inbox feature.
+
+Usage:
+    docker exec zero_inertia_backend python scripts/create_missing_inboxes.py
 """
 import asyncio
+import sys
+from pathlib import Path
+
+# Add parent directory to path so we can import app modules
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from sqlalchemy import select
 

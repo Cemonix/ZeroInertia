@@ -779,8 +779,8 @@ async function saveTask() {
             });
         } else {
             await taskStore.createTask({
-                project_id: props.projectId ?? null,
-                section_id: sectionIdForCreate as string ?? null,
+                project_id: props.projectId != "" ? props.projectId : null,
+                section_id: sectionIdForCreate as string != "" ? sectionIdForCreate as string : null,
                 title: finalTitle,
                 description: description.value,
                 priority_id: priorityId.value,
