@@ -109,6 +109,7 @@ export function formatRecurrence(
             result += isPlural ? "weeks" : "week";
             if (pythonDays && pythonDays.length > 0) {
                 const dayLabels = pythonDays
+                    .filter((day) => day >= 0 && day < PYTHON_WEEKDAY_LABELS.length)
                     .map((day) => PYTHON_WEEKDAY_LABELS[day])
                     .join(" · ");
                 result += ` on ${dayLabels}`;
