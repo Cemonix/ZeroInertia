@@ -77,7 +77,7 @@ export const useTaskStore = defineStore('task', () => {
         const task = getTaskById.value(taskId);
         if (!task) return;
 
-        const wasRecurring = !!task.recurrence_type;
+        const wasRecurring = !!(task.recurrence_interval && task.recurrence_unit);
         const projectId = task.project_id;
         const wasCompleted = task.completed;
 
@@ -339,7 +339,8 @@ export const useTaskStore = defineStore('task', () => {
             priority_id: task.priority_id,
             due_datetime: task.due_datetime,
             duration_minutes: task.duration_minutes ?? null,
-            recurrence_type: task.recurrence_type,
+            recurrence_interval: task.recurrence_interval,
+            recurrence_unit: task.recurrence_unit,
             recurrence_days: task.recurrence_days,
             ...(labelIds !== null ? { label_ids: labelIds } : {}),
         };

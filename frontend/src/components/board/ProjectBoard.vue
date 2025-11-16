@@ -25,40 +25,56 @@
                 class="board-sections"
                 :class="{ 'kanban-view': viewMode === 'kanban' }"
             >
-                <draggable
-                    v-model="draggableSections"
-                    item-key="id"
-                    @start="handleDragStart"
-                    @end="handleDragEnd"
-                    handle=".drag-handle"
-                    animation="200"
-                    ghost-class="section-ghost"
-                >
-                    <template #item="{ element }">
-                        <div v-if="element" :key="element.id">
-                            <BoardSection
-                                class="drag-handle"
-                                :project-id="projectId"
-                                :section="element"
-                            />
+                <template v-if="isBoardLoading">
+                    <div class="board-skeletons">
+                        <div
+                            v-for="n in (viewMode === 'kanban' ? 3 : 2)"
+                            :key="n"
+                            class="board-section-skeleton"
+                        >
+                            <Skeleton width="60%" height="1.4rem" class="skeleton-header" />
+                            <Skeleton width="100%" height="2.5rem" class="skeleton-task" />
+                            <Skeleton width="100%" height="2.5rem" class="skeleton-task" />
+                            <Skeleton width="80%" height="2.5rem" class="skeleton-task" />
                         </div>
-                    </template>
-                </draggable>
-                <div v-if="viewMode === 'kanban'" class="add-section-card">
-                    <Button
-                        @click="isSectionCreateVisible = true"
-                        label="Add Section"
-                        text
-                        class="add-section-inline-btn"
+                    </div>
+                </template>
+                <template v-else>
+                    <draggable
+                        v-model="draggableSections"
+                        item-key="id"
+                        @start="handleDragStart"
+                        @end="handleDragEnd"
+                        handle=".drag-handle"
+                        animation="200"
+                        ghost-class="section-ghost"
                     >
-                        <template #icon>
-                            <FontAwesomeIcon icon="plus" />
+                        <template #item="{ element }">
+                            <div v-if="element" :key="element.id">
+                                <BoardSection
+                                    class="drag-handle"
+                                    :project-id="projectId"
+                                    :section="element"
+                                />
+                            </div>
                         </template>
-                    </Button>
-                </div>
+                    </draggable>
+                    <div v-if="viewMode === 'kanban'" class="add-section-card">
+                        <Button
+                            @click="isSectionCreateVisible = true"
+                            label="Add Section"
+                            text
+                            class="add-section-inline-btn"
+                        >
+                            <template #icon>
+                                <FontAwesomeIcon icon="plus" />
+                            </template>
+                        </Button>
+                    </div>
+                </template>
             </div>
             <Button
-                v-if="viewMode === 'list'"
+                v-if="viewMode === 'list' && !isBoardLoading"
                 @click="isSectionCreateVisible = true"
                 class="add-section-btn"
                 label="Add Section"
@@ -93,6 +109,7 @@ import type { Section } from "@/models/section";
 import { useToast } from "primevue";
 import SelectButton from "primevue/selectbutton";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
+import Skeleton from "primevue/skeleton";
 
 const toast = useToast();
 
@@ -111,6 +128,7 @@ const taskStore = useTaskStore();
 const labelStore = useLabelStore();
 
 const isSectionCreateVisible = ref(false);
+const isBoardLoading = ref(false);
 
 // View mode state - per-project
 const VIEW_MODE_STORAGE_PREFIX = "board.viewMode";
@@ -159,9 +177,9 @@ watch(
 const draggableSections = ref<Section[]>([]);
 const isDragging = ref(false);
 
-// Watch sections from store and sync to local draggable array
+// Watch sections from store (per-project) and sync to local draggable array
 watch(
-    () => sectionStore.sortedSections,
+    () => (props.projectId ? sectionStore.getSectionsByProject(props.projectId) : []),
     (newSections) => {
         if (!isDragging.value) {
             draggableSections.value = [...newSections];
@@ -191,20 +209,24 @@ async function handleDragEnd() {
     }
 }
 
-const loadSections = async () => {
-    if (!props.projectId) {
-        sectionStore.clearSections();
-        taskStore.clearTasks();
+let loadToken = 0;
+
+const loadSections = async (projectId: string | null | undefined) => {
+    const currentToken = ++loadToken;
+
+    if (!projectId) {
+        // When no project is selected, clear board-specific state
+        draggableSections.value = [];
+        isBoardLoading.value = false;
         return;
     }
 
-    taskStore.clearProjectTasks(props.projectId);
-    sectionStore.clearProjectSections(props.projectId);
+    isBoardLoading.value = true;
 
     try {
         await Promise.all([
-            sectionStore.loadSectionsForProject(props.projectId),
-            taskStore.loadTasksForProject(props.projectId),
+            sectionStore.loadSectionsForProject(projectId),
+            taskStore.loadTasksForProject(projectId),
             // Load labels at board level to prevent duplicate requests from individual cards
             labelStore.labels.length === 0
                 ? labelStore.loadLabels()
@@ -216,13 +238,17 @@ const loadSections = async () => {
             summary: "Error",
             detail: "Failed to load sections and tasks",
         });
+    } finally {
+        if (currentToken === loadToken) {
+            isBoardLoading.value = false;
+        }
     }
 };
 
 watch(
     () => props.projectId,
-    () => {
-        loadSections();
+    (newProjectId) => {
+        loadSections(newProjectId);
     },
     { immediate: true }
 );
@@ -394,6 +420,36 @@ onBeforeUnmount(() => {
 .add-section-btn {
     margin-top: 1rem;
     width: 100%;
+}
+
+.board-skeletons {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.board-sections.kanban-view .board-skeletons {
+    flex-direction: row;
+    gap: 1rem;
+}
+
+.board-section-skeleton {
+    background: var(--p-content-background);
+    border-radius: 8px;
+    padding: 1rem;
+    border: 1px solid var(--p-content-border-color);
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.skeleton-header {
+    margin-bottom: 0.75rem;
+}
+
+.skeleton-task {
+    margin-bottom: 0.5rem;
 }
 
 /* Inline add-section tile for Kanban view */

@@ -26,7 +26,6 @@ export interface Task {
     due_datetime: string | null;
     duration_minutes: number | null;
     reminder_minutes: number | null;
-    recurrence_type: string | null; // DEPRECATED
     recurrence_interval: number | null;
     recurrence_unit: TaskRecurrenceUnit | null;
     recurrence_days: number[] | null; // For weekly: 0=Mon, 6=Sun (Python weekday convention)
@@ -46,7 +45,6 @@ export interface TaskCreateInput {
     due_datetime?: string | null;
     duration_minutes?: number | null;
     reminder_minutes?: number | null;
-    recurrence_type?: string | null; // DEPRECATED
     recurrence_interval?: number | null;
     recurrence_unit?: TaskRecurrenceUnit | null;
     recurrence_days?: number[] | null;
@@ -64,7 +62,6 @@ export interface TaskUpdateInput {
     due_datetime?: string | null;
     duration_minutes?: number | null;
     reminder_minutes?: number | null;
-    recurrence_type?: string | null; // DEPRECATED
     recurrence_interval?: number | null;
     recurrence_unit?: TaskRecurrenceUnit | null;
     recurrence_days?: number[] | null;

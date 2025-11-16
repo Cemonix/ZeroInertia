@@ -29,7 +29,7 @@
             </div>
         </div>
 
-        <div v-if="loading" class="loading-state">
+        <div v-if="isTodayLoading" class="loading-state">
             <i class="pi pi-spin pi-spinner" style="font-size: 2rem"></i>
             <p>Loading tasks...</p>
         </div>
@@ -123,7 +123,7 @@ const taskStore = useTaskStore();
 const labelStore = useLabelStore();
 const priorityStore = usePriorityStore();
 
-const loading = computed(() => taskStore.loading);
+const isTodayLoading = ref(false);
 const error = computed(() => taskStore.error);
 
 const formattedDate = computed(() => {
@@ -198,11 +198,16 @@ watch(viewMode, (newMode) => {
 });
 
 onMounted(async () => {
-    await Promise.all([
-        taskStore.loadAllTasks(),
-        labelStore.labels.length === 0 ? labelStore.loadLabels() : Promise.resolve(),
-        priorityStore.priorities.length === 0 ? priorityStore.loadPriorities() : Promise.resolve(),
-    ]);
+    isTodayLoading.value = true;
+    try {
+        await Promise.all([
+            taskStore.loadAllTasks(),
+            labelStore.labels.length === 0 ? labelStore.loadLabels() : Promise.resolve(),
+            priorityStore.priorities.length === 0 ? priorityStore.loadPriorities() : Promise.resolve(),
+        ]);
+    } finally {
+        isTodayLoading.value = false;
+    }
 });
 </script>
 
