@@ -85,7 +85,7 @@ const UNIT_OPTIONS: { label: string; value: TaskRecurrenceUnit }[] = [
 ];
 
 // Local state (using JS convention for days)
-const localInterval = ref<number | null>(props.interval ?? 1);
+const localInterval = ref<number | null>(props.interval);
 const localUnit = ref<TaskRecurrenceUnit | null>(props.unit);
 const localDays = ref<number[]>(
     props.days ? pythonDaysToJsDays(props.days) : []
@@ -97,6 +97,8 @@ const hasRecurrence = computed(() => localInterval.value !== null && localUnit.v
 watch(localInterval, (newVal) => {
     if (newVal !== null && newVal > 0) {
         emit("update:interval", newVal);
+    } else if (newVal === null) {
+        emit("update:interval", null);
     }
 });
 
@@ -126,7 +128,7 @@ watch(
 watch(
     () => props.interval,
     (newVal) => {
-        localInterval.value = newVal ?? 1;
+        localInterval.value = newVal;
     }
 );
 
@@ -140,7 +142,12 @@ watch(
 watch(
     () => props.days,
     (newVal) => {
-        localDays.value = newVal ? pythonDaysToJsDays(newVal) : [];
+        const convertedDays = newVal ? pythonDaysToJsDays(newVal) : [];
+        const isSame = convertedDays.length === localDays.value.length &&
+            convertedDays.every((day, idx) => day === localDays.value[idx]);
+        if (!isSame) {
+            localDays.value = convertedDays;
+        }
     }
 );
 
