@@ -6,7 +6,22 @@ import { env } from '@/config/env';
 
 const API_BASE_URL = env.API_BASE_URL || 'http://localhost:8000';
 
-export const mockTasks: Task[] = [
+function isLoginBody(body: unknown): body is { email: string; password: string } {
+    return (
+        typeof body === 'object' &&
+        body !== null &&
+        'email' in body &&
+        'password' in body &&
+        typeof body.email === 'string' &&
+        typeof body.password === 'string'
+    );
+}
+
+function isTaskBody(body: unknown): body is Partial<Task> {
+    return typeof body === 'object' && body !== null;
+}
+
+export const createMockTasks = (): Task[] => [
     {
         id: 'task-1',
         title: 'Test Task 1',
@@ -53,7 +68,7 @@ export const mockTasks: Task[] = [
     },
 ];
 
-export const mockProjects: Project[] = [
+export const createMockProjects = (): Project[] => [
     {
         id: 'project-1',
         parent_id: null,
@@ -65,7 +80,7 @@ export const mockProjects: Project[] = [
     },
 ];
 
-export const mockSections: Section[] = [
+export const createMockSections = (): Section[] => [
     {
         id: 'section-1',
         title: 'To Do',
@@ -84,6 +99,16 @@ export const mockSections: Section[] = [
     },
 ];
 
+let mockTasks = createMockTasks();
+const mockProjects = createMockProjects();
+const mockSections = createMockSections();
+
+export const resetMockTasks = () => {
+    mockTasks = createMockTasks();
+};
+
+export const getMockTasks = () => mockTasks;
+
 export const handlers = [
     http.get(`${API_BASE_URL}/csrf`, () => {
         return HttpResponse.json({ csrf_token: 'mock-csrf-token' });
@@ -98,7 +123,14 @@ export const handlers = [
     }),
 
     http.post(`${API_BASE_URL}/api/v1/auth/login`, async ({ request }) => {
-        const body = await request.json() as { email: string; password: string };
+        const body = await request.json();
+
+        if (!isLoginBody(body)) {
+            return HttpResponse.json(
+                { detail: 'Invalid request body' },
+                { status: 400 }
+            );
+        }
 
         if (body.email === 'test@example.com' && body.password === 'password123') {
             return HttpResponse.json({
@@ -160,7 +192,15 @@ export const handlers = [
     }),
 
     http.post(`${API_BASE_URL}/api/v1/tasks`, async ({ request }) => {
-        const body = await request.json() as Partial<Task>;
+        const body = await request.json();
+
+        if (!isTaskBody(body)) {
+            return HttpResponse.json(
+                { detail: 'Invalid request body' },
+                { status: 400 }
+            );
+        }
+
         const newTask: Task = {
             id: `task-${Date.now()}`,
             title: body.title || 'New Task',
@@ -196,7 +236,15 @@ export const handlers = [
             );
         }
 
-        const body = await request.json() as Partial<Task>;
+        const body = await request.json();
+
+        if (!isTaskBody(body)) {
+            return HttpResponse.json(
+                { detail: 'Invalid request body' },
+                { status: 400 }
+            );
+        }
+
         mockTasks[taskIndex] = {
             ...mockTasks[taskIndex],
             ...body,

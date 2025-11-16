@@ -40,7 +40,7 @@ src/tests/
 npm run test
 
 # Run tests in watch mode (during development)
-npm run test
+npm run test -- --watch
 
 # Run tests with coverage
 npm run coverage
@@ -145,17 +145,21 @@ await flushPromises();
 
 ## Mock Data
 
-Mock data is exported from `mocks/handlers.ts` and can be manipulated in tests:
+Mock data is managed through factory functions in `mocks/handlers.ts` to ensure test isolation:
 
 ```typescript
-import { mockTasks } from '../mocks/handlers';
+import { resetMockTasks, createMockTasks } from '../mocks/handlers';
 
 beforeEach(() => {
-    // Reset mock data
-    mockTasks.length = 0;
-    mockTasks.push({ /* fresh test data */ });
+    // Reset mock data to initial state
+    resetMockTasks();
 });
+
+// Or create custom test data
+const customTasks = createMockTasks();
 ```
+
+**Why factory functions?** Directly mutating shared mock arrays can cause test pollution where one test's changes affect another. Factory functions return fresh copies, ensuring true test isolation.
 
 ## MSW (Mock Service Worker)
 
@@ -329,19 +333,12 @@ Coverage reports are generated in `coverage/` directory. Open `coverage/index.ht
 import { describe, it, expect, beforeEach } from 'vitest';
 import { setActivePinia, createPinia } from 'pinia';
 import { useTaskStore } from '@/stores/task';
-import { mockTasks } from '../mocks/handlers';
+import { resetMockTasks } from '../mocks/handlers';
 
 describe('Task Management Integration', () => {
     beforeEach(() => {
         setActivePinia(createPinia());
-        // Reset mock data
-        mockTasks.length = 0;
-        mockTasks.push({
-            id: 'task-1',
-            title: 'Test Task',
-            completed: false,
-            // ... other required fields
-        });
+        resetMockTasks();
     });
 
     it('should load, update, and delete tasks', async () => {
@@ -349,7 +346,7 @@ describe('Task Management Integration', () => {
 
         // Load tasks
         await taskStore.loadTasksForProject('project-1');
-        expect(taskStore.tasks).toHaveLength(1);
+        expect(taskStore.tasks).toHaveLength(2);
 
         // Update task
         await taskStore.updateTask('task-1', { title: 'Updated' });
@@ -357,7 +354,7 @@ describe('Task Management Integration', () => {
 
         // Delete task
         await taskStore.deleteTask('task-1');
-        expect(taskStore.tasks).toHaveLength(0);
+        expect(taskStore.tasks).toHaveLength(1);
     });
 });
 ```

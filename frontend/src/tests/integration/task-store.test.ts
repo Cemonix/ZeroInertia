@@ -1,58 +1,12 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { setActivePinia, createPinia } from 'pinia';
 import { useTaskStore } from '@/stores/task';
-import { mockTasks } from '../mocks/handlers';
+import { resetMockTasks } from '../mocks/handlers';
 
 describe('Task Store Integration', () => {
     beforeEach(() => {
         setActivePinia(createPinia());
-        mockTasks.length = 0;
-        mockTasks.push(
-            {
-                id: 'task-1',
-                title: 'Test Task 1',
-                description: 'Description for test task 1',
-                completed: false,
-                archived: false,
-                snooze_count: 0,
-                project_id: 'project-1',
-                section_id: 'section-1',
-                order_index: 0,
-                priority_id: 'priority-medium',
-                due_datetime: null,
-                duration_minutes: null,
-                reminder_minutes: null,
-                recurrence_interval: null,
-                recurrence_unit: null,
-                recurrence_days: null,
-                labels: [],
-                created_at: '2025-01-01T00:00:00Z',
-                updated_at: '2025-01-01T00:00:00Z',
-                archived_at: null,
-            },
-            {
-                id: 'task-2',
-                title: 'Test Task 2',
-                description: 'Description for test task 2',
-                completed: true,
-                archived: false,
-                snooze_count: 0,
-                project_id: 'project-1',
-                section_id: 'section-1',
-                order_index: 1,
-                priority_id: 'priority-high',
-                due_datetime: '2025-12-31T12:00:00Z',
-                duration_minutes: 60,
-                reminder_minutes: 15,
-                recurrence_interval: null,
-                recurrence_unit: null,
-                recurrence_days: null,
-                labels: [],
-                created_at: '2025-01-01T00:00:00Z',
-                updated_at: '2025-01-01T00:00:00Z',
-                archived_at: null,
-            }
-        );
+        resetMockTasks();
     });
 
     it('should load tasks for a project successfully', async () => {
