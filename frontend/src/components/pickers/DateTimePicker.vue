@@ -54,7 +54,7 @@
 <script setup lang="ts">
 import { computed, ref, watch, nextTick, onMounted, onBeforeUnmount } from 'vue';
 import DatePicker from 'primevue/datepicker';
-import DurationPicker from '@/components/common/DurationPicker.vue';
+import DurationPicker from '@/components/pickers/DurationPicker.vue';
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
 
 const props = withDefaults(defineProps<{

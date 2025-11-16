@@ -173,50 +173,11 @@
                 title="Labels"
                 width="360px"
             >
-                <div class="label-picker">
-                    <div v-if="labelStore.loading" class="label-picker-empty">
-                        <FontAwesomeIcon icon="spinner" class="spinner" />
-                        <span>Loading labels...</span>
-                    </div>
-                    <div
-                        v-else-if="!labelStore.sortedLabels.length"
-                        class="label-picker-empty"
-                    >
-                        <FontAwesomeIcon icon="tag" class="label-picker-icon" />
-                        <span>No labels yet.</span>
-                        <p>
-                            Use the Labels workspace in the sidebar to create
-                            one.
-                        </p>
-                    </div>
-                    <div v-else class="label-picker-list">
-                        <label
-                            v-for="label in labelStore.sortedLabels"
-                            :key="label.id"
-                            class="label-picker-item"
-                            :for="`label-${label.id}`"
-                        >
-                            <Checkbox
-                                :inputId="`label-${label.id}`"
-                                v-model="selectedLabelIds"
-                                :value="label.id"
-                            />
-                            <span
-                                class="label-picker-swatch"
-                                :style="{ backgroundColor: label.color }"
-                            />
-                            <span class="label-picker-name">{{
-                                label.name
-                            }}</span>
-                            <span
-                                v-if="label.description"
-                                class="label-picker-description"
-                            >
-                                {{ label.description }}
-                            </span>
-                        </label>
-                    </div>
-                </div>
+                <LabelPicker
+                    :labels="labelStore.sortedLabels"
+                    :loading="labelStore.loading"
+                    v-model:selected-ids="selectedLabelIds"
+                />
             </Popover>
 
             <!-- Recurrence Picker Popover -->
@@ -242,30 +203,11 @@
                 title="Reminder"
                 width="360px"
             >
-                <div class="reminder-picker">
-                    <div class="reminder-field">
-                        <label for="reminder-time">Notify me</label>
-                        <Select
-                            id="reminder-time"
-                            v-model="reminderMinutes"
-                            :options="REMINDER_OPTIONS"
-                            optionLabel="label"
-                            optionValue="value"
-                            placeholder="Select reminder time"
-                            size="small"
-                            showClear
-                            variant="outlined"
-                        />
-                    </div>
-                    <div class="reminder-actions">
-                        <Button text size="small" @click="clearReminder"
-                            >Clear</Button
-                        >
-                        <Button size="small" @click="showReminderPicker = false"
-                            >Done</Button
-                        >
-                    </div>
-                </div>
+                <ReminderPicker
+                    :minutes="reminderMinutes"
+                    @update:minutes="reminderMinutes = $event"
+                    @close="showReminderPicker = false"
+                />
             </Popover>
 
             <!-- Footer Actions -->
@@ -285,14 +227,16 @@
 import { ref, watch, computed, type Ref, onMounted, onBeforeUnmount } from "vue";
 import Textarea from "primevue/textarea";
 import Select from "primevue/select";
-import DateTimePicker from "@/components/common/DateTimePicker.vue";
+import DateTimePicker from "@/components/pickers/DateTimePicker.vue";
 import { useTaskStore } from "@/stores/task";
 import { useChecklistStore } from "@/stores/checklist";
 import { usePriorityStore } from "@/stores/priority";
 import { useLabelStore } from "@/stores/label";
 import CheckList from "@/components/common/CheckList.vue";
 import Popover from "@/components/common/Popover.vue";
-import RecurrencePicker from "@/components/common/RecurrencePicker.vue";
+import RecurrencePicker from "@/components/pickers/RecurrencePicker.vue";
+import ReminderPicker from "@/components/pickers/ReminderPicker.vue";
+import LabelPicker from "@/components/pickers/LabelPicker.vue";
 import { useToast } from "primevue";
 import type { Label } from "@/models/label";
 import type { Task, TaskRecurrenceUnit } from "@/models/task";
@@ -412,17 +356,6 @@ onBeforeUnmount(() => {
         clearTimeout(parseTimeout);
     }
 });
-
-const REMINDER_OPTIONS: { label: string; value: number }[] = [
-    { label: "At time of event", value: 0 },
-    { label: "5 minutes before", value: 5 },
-    { label: "10 minutes before", value: 10 },
-    { label: "15 minutes before", value: 15 },
-    { label: "30 minutes before", value: 30 },
-    { label: "1 hour before", value: 60 },
-    { label: "2 hours before", value: 120 },
-    { label: "1 day before", value: 1440 },
-];
 
 // Computed properties for display
 const selectedPriority = computed(() => {
@@ -614,11 +547,6 @@ async function addChecklist() {
     }
 }
 
-function clearReminder() {
-    reminderMinutes.value = null;
-    showReminderPicker.value = false;
-}
-
 async function saveTask() {
     if (title.value.trim() === "") return;
 
@@ -805,6 +733,11 @@ onMounted(async () => {
     .task-modal-footer {
         padding: 0.75rem 1rem;
     }
+
+    .label-chip {
+        font-size: 0.75rem;
+        padding: 0.2rem 0.5rem;
+    }
 }
 
 @media (max-width: 480px) {
@@ -931,93 +864,6 @@ onMounted(async () => {
     gap: 0.5rem;
 }
 
-.label-picker {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-}
-
-.label-picker-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-}
-
-.label-picker-item {
-    display: grid;
-    grid-template-columns: auto 24px 1fr;
-    gap: 0.75rem;
-    align-items: center;
-    font-size: 0.95rem;
-    cursor: pointer;
-    padding: 0.5rem;
-    border-radius: 6px;
-    transition: background-color 0.15s ease;
-}
-
-.label-picker-item:hover {
-    background-color: var(--p-content-hover-background);
-}
-
-.label-picker-swatch {
-    width: 24px;
-    height: 24px;
-    border-radius: 6px;
-    border: 1px solid rgba(0, 0, 0, 0.12);
-}
-
-.label-picker-name {
-    font-weight: 600;
-    color: var(--p-text-color);
-}
-
-.label-picker-description {
-    grid-column: 2 / span 2;
-    font-size: 0.8125rem;
-    color: var(--p-text-muted-color);
-}
-
-/* Mobile label picker */
-@media (max-width: 480px) {
-    .label-picker-item {
-        padding: 0.75rem 0.5rem;
-        gap: 0.625rem;
-    }
-
-    .label-picker-swatch {
-        width: 28px;
-        height: 28px;
-    }
-
-    .label-picker-name {
-        font-size: 0.9375rem;
-    }
-
-    .label-chip {
-        font-size: 0.75rem;
-        padding: 0.2rem 0.5rem;
-    }
-}
-
-.label-picker-empty {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    align-items: center;
-    text-align: center;
-    color: var(--p-text-muted-color);
-}
-
-.label-picker-empty .spinner {
-    font-size: 1.5rem;
-    animation: spin 1s linear infinite;
-}
-
-.label-picker-icon {
-    font-size: 1.5rem;
-    color: var(--p-primary-color);
-}
-
 /* Match Select styling with outlined buttons */
 .action-buttons-row :deep(.p-select) {
     border-color: var(--p-button-outlined-primary-border-color);
@@ -1139,31 +985,6 @@ onMounted(async () => {
 }
 
 .recurrence-actions {
-    display: flex;
-    justify-content: space-between;
-    gap: 0.5rem;
-    padding-top: 0.5rem;
-}
-
-.reminder-picker {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-}
-
-.reminder-field {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.reminder-field label {
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--p-text-color);
-}
-
-.reminder-actions {
     display: flex;
     justify-content: space-between;
     gap: 0.5rem;

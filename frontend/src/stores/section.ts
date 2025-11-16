@@ -8,7 +8,15 @@ export const useSectionStore = defineStore('section', () => {
     const loading = ref(false);
     const error = ref<string | null>(null);
 
-    // Computed getter for sections sorted by order_index
+    // Get sections for a specific project, sorted by order_index
+    const getSectionsByProject = computed(() => {
+        return (projectId: string) =>
+            sections.value
+                .filter(section => section.project_id === projectId)
+                .sort((a, b) => a.order_index - b.order_index);
+    });
+
+    // Keep sortedSections for backwards compatibility (across all projects)
     const sortedSections = computed(() => {
         return [...sections.value].sort((a, b) => a.order_index - b.order_index);
     });
@@ -17,10 +25,12 @@ export const useSectionStore = defineStore('section', () => {
         loading.value = true;
         error.value = null;
         try {
-            sections.value = await sectionService.getSections(projectId);
+            const projectSections = await sectionService.getSections(projectId);
+            const others = sections.value.filter(s => s.project_id !== projectId);
+            sections.value = [...others, ...projectSections];
         } catch (err) {
             error.value = err instanceof Error ? err.message : 'Failed to load sections';
-            sections.value = [];
+            // Keep existing cache on failure to avoid UI flicker
         } finally {
             loading.value = false;
         }
@@ -113,7 +123,7 @@ export const useSectionStore = defineStore('section', () => {
     function clearProjectSections(projectId: string) {
         sections.value = sections.value.filter(s => s.project_id !== projectId);
     }
-    
+
     function clearSections() {
         sections.value = [];
     }
@@ -121,6 +131,7 @@ export const useSectionStore = defineStore('section', () => {
     return {
         sections,
         sortedSections,
+        getSectionsByProject,
         loading,
         error,
         loadSectionsForProject,

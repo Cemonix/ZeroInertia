@@ -44,7 +44,8 @@ const handleCreate = async () => {
     }
 
     try {
-        const nextOrderIndex = sectionStore.sections.length;
+        const currentSections = sectionStore.getSectionsByProject(props.projectId);
+        const nextOrderIndex = currentSections.length;
         await sectionStore.createSection({
             title,
             project_id: props.projectId,

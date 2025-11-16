@@ -17,7 +17,6 @@ class TaskCreate(BaseModel):
     due_datetime: datetime | None = None
     reminder_minutes: int | None = None  # Minutes before due_datetime to send notification
     duration_minutes: int | None = None  # Estimated time to complete task in minutes
-    recurrence_type: str | None = None  # DEPRECATED: daily | weekly | alternate_days
     recurrence_interval: int | None = None  # How many units between occurrences
     recurrence_unit: str | None = None  # days | weeks | months | years
     recurrence_days: list[int] | None = None  # For weekly: 0=Mon, 6=Sun (Python weekday convention)
@@ -36,7 +35,6 @@ class TaskUpdate(BaseModel):
     due_datetime: datetime | None = None
     reminder_minutes: int | None = None  # Minutes before due_datetime to send notification
     duration_minutes: int | None = None  # Estimated time to complete task in minutes
-    recurrence_type: str | None = None  # DEPRECATED
     recurrence_interval: int | None = None
     recurrence_unit: str | None = None
     recurrence_days: list[int] | None = None
@@ -58,7 +56,6 @@ class TaskResponse(BaseModel):
     due_datetime: datetime | None
     reminder_minutes: int | None
     duration_minutes: int | None
-    recurrence_type: str | None  # DEPRECATED
     recurrence_interval: int | None
     recurrence_unit: str | None
     recurrence_days: list[int] | None
