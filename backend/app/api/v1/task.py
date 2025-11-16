@@ -1,6 +1,7 @@
+from datetime import datetime
 from uuid import UUID
 
-from fastapi import Depends, status
+from fastapi import Depends, Query, status
 from fastapi.routing import APIRouter
 from sqlalchemy.ext.asyncio.session import AsyncSession
 
@@ -83,6 +84,23 @@ async def get_tasks(
         page=pagination.page,
         page_size=pagination.page_size,
     )
+
+
+@router.get("/by-date", response_model=list[TaskResponse])
+async def get_tasks_by_date_range(
+    date_from: datetime = Query(..., description="Start of date range (inclusive)"),
+    date_to: datetime = Query(..., description="End of date range (exclusive)"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[TaskResponse]:
+    """Get tasks for the authenticated user within a specific date range."""
+    tasks = await task_service.get_tasks_by_date_range(
+        db=db,
+        user_id=current_user.id,
+        date_from=date_from,
+        date_to=date_to,
+    )
+    return [TaskResponse.model_validate(task) for task in tasks]
 
 
 @router.get("/counts", response_model=TaskCountsByProjectResponse, status_code=status.HTTP_200_OK)

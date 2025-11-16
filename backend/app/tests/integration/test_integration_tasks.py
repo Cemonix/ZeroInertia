@@ -4,6 +4,7 @@ Integration tests for task management endpoints.
 Tests cover:
 - Task CRUD operations
 - Task filtering by project
+- Task filtering by date range
 - Task completion and archiving
 - Task ordering and reordering
 - Permission checks (user can only access their own tasks)
@@ -1113,3 +1114,449 @@ class TestRecurringTasks:
 
         # Verify due date moved forward by one day
         assert new_task["due_datetime"] == "2025-01-16T17:00:00Z"
+
+
+class TestTasksByDateRange:
+    """Test task filtering by date range functionality."""
+
+    async def test_get_tasks_by_date_range_single_day(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+        test_project: Project,
+        test_section: Section,
+    ) -> None:
+        """Test fetching tasks for a single day."""
+        today = datetime.now(timezone.utc).replace(hour=10, minute=0, second=0, microsecond=0)
+
+        task1 = Task(
+            title="Task for today",
+            user_id=test_user.id,
+            project_id=test_project.id,
+            section_id=test_section.id,
+            due_datetime=today,
+            order_index=0,
+            completed=False,
+            archived=False,
+        )
+        db_session.add(task1)
+        await db_session.commit()
+
+        start_of_day = today.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_of_day = start_of_day + timedelta(days=1)
+
+        response = await authenticated_client.get(
+            "/api/v1/tasks/by-date",
+            params={
+                "date_from": start_of_day.isoformat(),
+                "date_to": end_of_day.isoformat(),
+            },
+        )
+
+        assert response.status_code == 200
+        tasks = response.json()
+        assert len(tasks) == 1
+        assert tasks[0]["title"] == "Task for today"
+
+    async def test_get_tasks_by_date_range_multiple_days(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+        test_project: Project,
+        test_section: Section,
+    ) -> None:
+        """Test fetching tasks across multiple days."""
+        base_date = datetime(2025, 11, 17, 10, 0, 0, tzinfo=timezone.utc)
+
+        task1 = Task(
+            title="Day 1 Task",
+            user_id=test_user.id,
+            project_id=test_project.id,
+            section_id=test_section.id,
+            due_datetime=base_date,
+            order_index=0,
+            completed=False,
+            archived=False,
+        )
+        task2 = Task(
+            title="Day 2 Task",
+            user_id=test_user.id,
+            project_id=test_project.id,
+            section_id=test_section.id,
+            due_datetime=base_date + timedelta(days=1),
+            order_index=1,
+            completed=False,
+            archived=False,
+        )
+        task3 = Task(
+            title="Day 3 Task",
+            user_id=test_user.id,
+            project_id=test_project.id,
+            section_id=test_section.id,
+            due_datetime=base_date + timedelta(days=2),
+            order_index=2,
+            completed=False,
+            archived=False,
+        )
+
+        db_session.add_all([task1, task2, task3])
+        await db_session.commit()
+
+        date_from = base_date.replace(hour=0, minute=0, second=0)
+        date_to = date_from + timedelta(days=3)
+
+        response = await authenticated_client.get(
+            "/api/v1/tasks/by-date",
+            params={
+                "date_from": date_from.isoformat(),
+                "date_to": date_to.isoformat(),
+            },
+        )
+
+        assert response.status_code == 200
+        tasks = response.json()
+        assert len(tasks) == 3
+        task_titles = {task["title"] for task in tasks}
+        assert task_titles == {"Day 1 Task", "Day 2 Task", "Day 3 Task"}
+
+    async def test_get_tasks_by_date_range_includes_no_date_tasks(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+        test_project: Project,
+        test_section: Section,
+    ) -> None:
+        """Test that tasks without due dates are included in results."""
+        today = datetime.now(timezone.utc).replace(hour=10, minute=0, second=0, microsecond=0)
+
+        task_with_date = Task(
+            title="Task with date",
+            user_id=test_user.id,
+            project_id=test_project.id,
+            section_id=test_section.id,
+            due_datetime=today,
+            order_index=0,
+            completed=False,
+            archived=False,
+        )
+        task_without_date = Task(
+            title="Task without date",
+            user_id=test_user.id,
+            project_id=test_project.id,
+            section_id=test_section.id,
+            due_datetime=None,
+            order_index=1,
+            completed=False,
+            archived=False,
+        )
+
+        db_session.add_all([task_with_date, task_without_date])
+        await db_session.commit()
+
+        start_of_day = today.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_of_day = start_of_day + timedelta(days=1)
+
+        response = await authenticated_client.get(
+            "/api/v1/tasks/by-date",
+            params={
+                "date_from": start_of_day.isoformat(),
+                "date_to": end_of_day.isoformat(),
+            },
+        )
+
+        assert response.status_code == 200
+        tasks = response.json()
+        assert len(tasks) == 2
+        task_titles = {task["title"] for task in tasks}
+        assert task_titles == {"Task with date", "Task without date"}
+
+    async def test_get_tasks_by_date_range_excludes_completed(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+        test_project: Project,
+        test_section: Section,
+    ) -> None:
+        """Test that completed tasks are excluded from results."""
+        today = datetime.now(timezone.utc).replace(hour=10, minute=0, second=0, microsecond=0)
+
+        active_task = Task(
+            title="Active task",
+            user_id=test_user.id,
+            project_id=test_project.id,
+            section_id=test_section.id,
+            due_datetime=today,
+            order_index=0,
+            completed=False,
+            archived=False,
+        )
+        completed_task = Task(
+            title="Completed task",
+            user_id=test_user.id,
+            project_id=test_project.id,
+            section_id=test_section.id,
+            due_datetime=today,
+            order_index=1,
+            completed=True,
+            archived=False,
+        )
+
+        db_session.add_all([active_task, completed_task])
+        await db_session.commit()
+
+        start_of_day = today.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_of_day = start_of_day + timedelta(days=1)
+
+        response = await authenticated_client.get(
+            "/api/v1/tasks/by-date",
+            params={
+                "date_from": start_of_day.isoformat(),
+                "date_to": end_of_day.isoformat(),
+            },
+        )
+
+        assert response.status_code == 200
+        tasks = response.json()
+        assert len(tasks) == 1
+        assert tasks[0]["title"] == "Active task"
+        assert tasks[0]["completed"] is False
+
+    async def test_get_tasks_by_date_range_excludes_archived(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+        test_project: Project,
+        test_section: Section,
+    ) -> None:
+        """Test that archived tasks are excluded from results."""
+        today = datetime.now(timezone.utc).replace(hour=10, minute=0, second=0, microsecond=0)
+
+        active_task = Task(
+            title="Active task",
+            user_id=test_user.id,
+            project_id=test_project.id,
+            section_id=test_section.id,
+            due_datetime=today,
+            order_index=0,
+            completed=False,
+            archived=False,
+        )
+        archived_task = Task(
+            title="Archived task",
+            user_id=test_user.id,
+            project_id=test_project.id,
+            section_id=test_section.id,
+            due_datetime=today,
+            order_index=1,
+            completed=False,
+            archived=True,
+        )
+
+        db_session.add_all([active_task, archived_task])
+        await db_session.commit()
+
+        start_of_day = today.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_of_day = start_of_day + timedelta(days=1)
+
+        response = await authenticated_client.get(
+            "/api/v1/tasks/by-date",
+            params={
+                "date_from": start_of_day.isoformat(),
+                "date_to": end_of_day.isoformat(),
+            },
+        )
+
+        assert response.status_code == 200
+        tasks = response.json()
+        assert len(tasks) == 1
+        assert tasks[0]["title"] == "Active task"
+        assert tasks[0]["archived"] is False
+
+    async def test_get_tasks_by_date_range_empty_result(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+        test_project: Project,
+        test_section: Section,
+    ) -> None:
+        """Test that empty list is returned when no tasks match the date range."""
+        task = Task(
+            title="Future task",
+            user_id=test_user.id,
+            project_id=test_project.id,
+            section_id=test_section.id,
+            due_datetime=datetime(2026, 1, 1, 10, 0, 0, tzinfo=timezone.utc),
+            order_index=0,
+            completed=False,
+            archived=False,
+        )
+        db_session.add(task)
+        await db_session.commit()
+
+        today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        tomorrow = today + timedelta(days=1)
+
+        response = await authenticated_client.get(
+            "/api/v1/tasks/by-date",
+            params={
+                "date_from": today.isoformat(),
+                "date_to": tomorrow.isoformat(),
+            },
+        )
+
+        assert response.status_code == 200
+        tasks = response.json()
+        assert len(tasks) == 0
+
+    async def test_get_tasks_by_date_range_user_isolation(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+        test_project: Project,
+        test_section: Section,
+    ) -> None:
+        """Test that users can only see their own tasks."""
+        other_user = User(
+            email="other@example.com",
+            oauth_provider="google",
+            oauth_subject_id="other_oauth_id",
+            full_name="Other User",
+        )
+        db_session.add(other_user)
+        await db_session.commit()
+        await db_session.refresh(other_user)
+
+        other_project = Project(
+            title="Other Project",
+            user_id=other_user.id,
+            order_index=0,
+        )
+        db_session.add(other_project)
+        await db_session.commit()
+        await db_session.refresh(other_project)
+
+        other_section = Section(
+            title="Other Section",
+            project_id=other_project.id,
+            user_id=other_user.id,
+            order_index=0,
+        )
+        db_session.add(other_section)
+        await db_session.commit()
+        await db_session.refresh(other_section)
+
+        today = datetime.now(timezone.utc).replace(hour=10, minute=0, second=0, microsecond=0)
+
+        my_task = Task(
+            title="My task",
+            user_id=test_user.id,
+            project_id=test_project.id,
+            section_id=test_section.id,
+            due_datetime=today,
+            order_index=0,
+            completed=False,
+            archived=False,
+        )
+        other_task = Task(
+            title="Other user's task",
+            user_id=other_user.id,
+            project_id=other_project.id,
+            section_id=other_section.id,
+            due_datetime=today,
+            order_index=0,
+            completed=False,
+            archived=False,
+        )
+
+        db_session.add_all([my_task, other_task])
+        await db_session.commit()
+
+        start_of_day = today.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_of_day = start_of_day + timedelta(days=1)
+
+        response = await authenticated_client.get(
+            "/api/v1/tasks/by-date",
+            params={
+                "date_from": start_of_day.isoformat(),
+                "date_to": end_of_day.isoformat(),
+            },
+        )
+
+        assert response.status_code == 200
+        tasks = response.json()
+        assert len(tasks) == 1
+        assert tasks[0]["title"] == "My task"
+        assert tasks[0]["user_id"] == str(test_user.id)
+
+    async def test_get_tasks_by_date_range_boundary_conditions(
+        self,
+        authenticated_client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+        test_project: Project,
+        test_section: Section,
+    ) -> None:
+        """Test boundary conditions (inclusive start, exclusive end)."""
+        base_date = datetime(2025, 11, 17, 0, 0, 0, tzinfo=timezone.utc)
+
+        task_at_start = Task(
+            title="Task at start boundary",
+            user_id=test_user.id,
+            project_id=test_project.id,
+            section_id=test_section.id,
+            due_datetime=base_date,
+            order_index=0,
+            completed=False,
+            archived=False,
+        )
+        task_at_end = Task(
+            title="Task at end boundary",
+            user_id=test_user.id,
+            project_id=test_project.id,
+            section_id=test_section.id,
+            due_datetime=base_date + timedelta(days=1),
+            order_index=1,
+            completed=False,
+            archived=False,
+        )
+
+        db_session.add_all([task_at_start, task_at_end])
+        await db_session.commit()
+
+        response = await authenticated_client.get(
+            "/api/v1/tasks/by-date",
+            params={
+                "date_from": base_date.isoformat(),
+                "date_to": (base_date + timedelta(days=1)).isoformat(),
+            },
+        )
+
+        assert response.status_code == 200
+        tasks = response.json()
+        assert len(tasks) == 1
+        assert tasks[0]["title"] == "Task at start boundary"
+
+    async def test_get_tasks_by_date_range_requires_authentication(
+        self,
+        client: AsyncClient,
+    ) -> None:
+        """Test that unauthenticated requests are rejected."""
+        today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        tomorrow = today + timedelta(days=1)
+
+        response = await client.get(
+            "/api/v1/tasks/by-date",
+            params={
+                "date_from": today.isoformat(),
+                "date_to": tomorrow.isoformat(),
+            },
+        )
+
+        assert response.status_code == 401

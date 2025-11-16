@@ -180,6 +180,43 @@ async def get_tasks(
     return tasks, total
 
 
+async def get_tasks_by_date_range(
+    db: AsyncSession,
+    user_id: UUID,
+    date_from: datetime,
+    date_to: datetime,
+) -> Sequence[Task]:
+    """
+    Retrieve tasks for a specific user within a date range.
+    Includes tasks with due_datetime in range and tasks without a due date.
+
+    Args:
+        db: Database session
+        user_id: User ID to filter tasks
+        date_from: Start of date range (inclusive)
+        date_to: End of date range (exclusive)
+
+    Returns:
+        List of tasks
+    """
+    result = await db.execute(
+        select(Task)
+        .options(selectinload(Task.labels))
+        .where(
+            Task.user_id == user_id,
+            Task.archived.is_(False),
+            Task.completed.is_(False),
+            (
+                (Task.due_datetime >= date_from) & (Task.due_datetime < date_to)
+                | Task.due_datetime.is_(None)
+            )
+        )
+        .order_by(Task.due_datetime.asc().nullslast(), Task.order_index)
+    )
+    tasks = result.scalars().all()
+    return tasks
+
+
 async def get_tasks_by_project(
     db: AsyncSession,
     user_id: UUID,
