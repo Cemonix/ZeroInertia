@@ -41,7 +41,6 @@ async def create_task(
     section_id: UUID | None,
     priority_id: UUID | None = None,
     due_datetime: datetime | None = None,
-    recurrence_type: str | None = None,
     recurrence_interval: int | None = None,
     recurrence_unit: str | None = None,
     recurrence_days: list[int] | None = None,
@@ -101,7 +100,6 @@ async def create_task(
         order_index=next_order_index,
         priority_id=priority_id,
         due_datetime=due_datetime,
-        recurrence_type=recurrence_type,
         recurrence_interval=recurrence_interval,
         recurrence_unit=recurrence_unit,
         recurrence_days=recurrence_days,
@@ -395,7 +393,6 @@ async def _handle_recurring_task_completion(
     saved_section_id = task.section_id
     saved_priority_id = task.priority_id
     saved_due_datetime = task.due_datetime
-    saved_recurrence_type = cast(str, task.recurrence_type)
     saved_recurrence_interval = task.recurrence_interval
     saved_recurrence_unit = task.recurrence_unit
     saved_recurrence_days = task.recurrence_days
@@ -405,7 +402,6 @@ async def _handle_recurring_task_completion(
     # Archive the task and clear recurrence fields
     task.archived = True
     task.archived_at = datetime.now(timezone.utc)
-    task.recurrence_type = None
     task.recurrence_interval = None
     task.recurrence_unit = None
     task.recurrence_days = None
@@ -427,7 +423,6 @@ async def _handle_recurring_task_completion(
         section_id=saved_section_id,
         priority_id=saved_priority_id,
         due_datetime=next_due_date,
-        recurrence_type=saved_recurrence_type,
         recurrence_interval=saved_recurrence_interval,
         recurrence_unit=saved_recurrence_unit,
         recurrence_days=saved_recurrence_days,
