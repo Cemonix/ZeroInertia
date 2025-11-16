@@ -20,7 +20,17 @@
                     class="task-title"
                     :class="{ 'completed-text': task.completed }"
                 >
-                    <FontAwesomeIcon v-if="taskPriority" icon="flag" :style="{ color: taskPriority.color }" class="priority-flag" />
+                    <FontAwesomeIcon
+                        v-if="taskPriority"
+                        icon="flag"
+                        :style="{ color: taskPriority.color }"
+                        class="priority-flag"
+                    />
+                    <FontAwesomeIcon
+                        v-if="hasChecklist"
+                        icon="check-square"
+                        class="task-checklist-icon"
+                    />
                     <span class="task-title-text">{{ task.title }}</span>
                     <span v-if="isRecurring" class="recurring-pill">
                         <FontAwesomeIcon icon="repeat" />
@@ -40,13 +50,19 @@
                         {{ label.name }}
                     </span>
                 </div>
-                <div v-if="task.due_datetime" class="task-due-date" :class="{ 'overdue': isOverdue, 'tomorrow': isTomorrow, 'future': isFuture }">
-                    <FontAwesomeIcon icon="calendar" />
-                    <span>{{ formattedDueDate }}</span>
-                </div>
-                <div v-if="reminderLabel" class="task-reminder">
-                    <FontAwesomeIcon icon="bell" />
-                    <span>{{ reminderLabel }}</span>
+                <div class="task-meta-row">
+                    <div
+                        v-if="task.due_datetime"
+                        class="task-due-date"
+                        :class="{ 'overdue': isOverdue, 'tomorrow': isTomorrow, 'future': isFuture }"
+                    >
+                        <FontAwesomeIcon icon="calendar" />
+                        <span>{{ formattedDueDate }}</span>
+                    </div>
+                    <div v-if="reminderLabel" class="task-reminder">
+                        <FontAwesomeIcon icon="bell" />
+                        <span>{{ reminderLabel }}</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -88,6 +104,7 @@ import type { Task } from "@/models/task";
 import { useTaskStore } from "@/stores/task";
 import { usePriorityStore } from "@/stores/priority";
 import { useLabelStore } from "@/stores/label";
+import { useChecklistStore } from "@/stores/checklist";
 import type { Label } from "@/models/label";
 import { formatRecurrence } from "@/utils/recurrenceUtils";
 import type { MenuItem } from "primevue/menuitem";
@@ -97,6 +114,7 @@ import TaskMoveModal from "@/components/tasks/TaskMoveModal.vue";
 const taskStore = useTaskStore();
 const priorityStore = usePriorityStore();
 const labelStore = useLabelStore();
+const checklistStore = useChecklistStore();
 const toast = useToast();
 
 
@@ -134,6 +152,12 @@ const taskLabels = computed<Label[]>(() => {
     }
 
     return [];
+});
+
+const hasChecklist = computed(() => {
+    const taskId = props.task.id;
+    const lists = checklistStore.getChecklistsByTask(taskId);
+    return lists.length > 0;
 });
 
 const recurrenceSummary = computed(() => {
@@ -541,7 +565,21 @@ const reminderLabel = computed(() => {
     font-size: 0.8rem;
     color: var(--p-primary-color);
     opacity: 0.75;
+}
+
+.task-meta-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     margin-top: 0.25rem;
+}
+
+.task-checklist-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--p-text-muted-color);
+    font-size: 0.8rem;
 }
 
 /* Ensure menu trigger is visible on touch devices */

@@ -22,6 +22,16 @@ export const taskService = {
         return response.data;
     },
 
+    async getTasksByDateRange(dateFrom: Date, dateTo: Date): Promise<Task[]> {
+        const response = await apiClient.get<Task[]>(`${API_URL}/by-date`, {
+            params: {
+                date_from: dateFrom.toISOString(),
+                date_to: dateTo.toISOString(),
+            },
+        });
+        return response.data;
+    },
+
     async createTask(task: TaskCreateInput): Promise<Task> {
         const response = await apiClient.post(API_URL, task);
         return response.data;

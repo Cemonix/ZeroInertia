@@ -43,8 +43,8 @@
             <!-- Calendar View -->
             <TodayCalendar
                 v-if="viewMode === 'calendar'"
-                :tasks="allTodayTasks"
-                :current-date="new Date()"
+                :current-date="currentViewDate"
+                @update:current-date="handleDateChange"
             />
 
             <!-- List View -->
@@ -118,6 +118,7 @@ const loadViewMode = (): ViewMode => {
 };
 
 const viewMode = ref<ViewMode>(loadViewMode());
+const currentViewDate = ref<Date>(new Date());
 
 const taskStore = useTaskStore();
 const labelStore = useLabelStore();
@@ -125,6 +126,10 @@ const priorityStore = usePriorityStore();
 
 const isTodayLoading = ref(false);
 const error = computed(() => taskStore.error);
+
+const handleDateChange = (newDate: Date) => {
+    currentViewDate.value = newDate;
+};
 
 const formattedDate = computed(() => {
     const today = new Date();
@@ -174,20 +179,6 @@ const todayTasks = computed((): Task[] => {
         // Sort by due time, earliest first
         return new Date(a.due_datetime!).getTime() - new Date(b.due_datetime!).getTime();
     });
-});
-
-// Get tasks without a due date (treat as all-day tasks for calendar)
-const tasksWithoutDate = computed((): Task[] => {
-    return taskStore.tasks.filter(task =>
-        !task.completed &&
-        !task.archived &&
-        task.due_datetime === null
-    );
-});
-
-// Combined tasks for calendar view (includes overdue + today + no-date tasks)
-const allTodayTasks = computed((): Task[] => {
-    return [...overdueTasks.value, ...todayTasks.value, ...tasksWithoutDate.value];
 });
 
 // Save viewMode to localStorage whenever it changes

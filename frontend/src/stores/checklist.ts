@@ -47,10 +47,13 @@ export const useChecklistStore = defineStore('checklist', () => {
         loading.value = true;
         error.value = null;
         try {
-            checklists.value = await checklistService.getChecklistsByTask(taskId);
+            const taskChecklists = await checklistService.getChecklistsByTask(taskId);
+            // Merge checklists for this task with any existing checklists
+            const others = checklists.value.filter(c => c.task_id !== taskId);
+            checklists.value = [...others, ...taskChecklists];
         } catch (err) {
             error.value = err instanceof Error ? err.message : 'Failed to load checklists';
-            checklists.value = [];
+            // Keep existing cache on failure to avoid UI flicker
         } finally {
             loading.value = false;
         }

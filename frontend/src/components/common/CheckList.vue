@@ -85,12 +85,12 @@
             <div class="checklist-item add-item" v-if="showAddInput">
                 <Checkbox disabled :binary="true" />
                 <InputText
+                    ref="newItemInputRef"
                     v-model="newItemText"
                     @blur="handleAddBlur"
                     @keyup.enter="addItem"
                     @keyup.esc="cancelAdd"
                     placeholder="Add an item"
-                    autofocus
                     class="item-input"
                 />
                 <div class="item-actions">
@@ -114,7 +114,7 @@
                 v-else
                 text
                 size="small"
-                @click="showAddInput = true"
+                @click="openAddInput"
                 class="add-item-button"
             >
                <FontAwesomeIcon icon="plus" /> Add an item
@@ -124,7 +124,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed } from 'vue';
+import { ref, computed, nextTick } from 'vue';
 import { useChecklistStore } from '@/stores/checklist';
 import { useToast } from "primevue";
 
@@ -142,6 +142,12 @@ const checklistStore = useChecklistStore();
 const showAddInput = ref(false);
 const newItemText = ref('');
 const editingItems = ref<Record<string, { editing: boolean; originalText: string }>>({});
+
+interface FocusableComponent {
+    $el: HTMLElement;
+}
+
+const newItemInputRef = ref<FocusableComponent | null>(null);
 
 // Computed properties from store
 const checklist = computed(() => checklistStore.getChecklistById(props.checklistId));
@@ -228,6 +234,13 @@ async function addItem() {
     } catch (err) {
         toast.add({ severity: "error", summary: "Error", detail: "Failed to add item" });
     }
+}
+
+async function openAddInput() {
+    showAddInput.value = true;
+    await nextTick();
+    const el = newItemInputRef.value?.$el;
+    el?.focus();
 }
 
 function handleAddBlur() {

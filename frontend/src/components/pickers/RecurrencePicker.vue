@@ -9,7 +9,7 @@
                     :min="1"
                     :max="99"
                     showButtons
-                    placeholder="1"
+                    placeholder="Interval"
                 />
             </div>
             <div class="recurrence-field">
@@ -48,7 +48,14 @@
             <Button text size="small" :disabled="!hasRecurrence" @click="clearRecurrence">
                 Clear
             </Button>
-            <Button size="small" @click="$emit('close')">Done</Button>
+            <Button
+                size="small"
+                :disabled="!hasRecurrence"
+                :title="!hasRecurrence ? 'Set interval and unit first' : ''"
+                @click="$emit('close')"
+            >
+                Done
+            </Button>
         </div>
     </div>
 </template>
@@ -91,7 +98,13 @@ const localDays = ref<number[]>(
     props.days ? pythonDaysToJsDays(props.days) : []
 );
 
-const hasRecurrence = computed(() => localInterval.value !== null && localUnit.value !== null);
+const hasRecurrence = computed(() => {
+    return (
+        localInterval.value !== null &&
+        localInterval.value > 0 &&
+        localUnit.value !== null
+    );
+});
 
 // Watch local changes and emit to parent
 watch(localInterval, (newVal) => {

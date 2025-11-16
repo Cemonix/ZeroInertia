@@ -23,6 +23,7 @@
             @event-resize-end="handleEventResize"
             @event-create="handleEventCreate"
             @ready="onCalendarReady"
+            @view-change="handleViewChange"
         >
             <template #event="{ event }">
                 <div class="calendar-event-content" :class="{ 'compact-event': event.isCompact }">
@@ -81,7 +82,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 // @ts-expect-error - vue-cal doesn't have proper TypeScript declarations
 import { VueCal } from 'vue-cal';
 import 'vue-cal/style.css';
@@ -146,7 +147,6 @@ interface VueCalReadyPayload {
 }
 
 interface Props {
-    tasks: Task[];
     currentDate?: Date;
 }
 
@@ -154,19 +154,54 @@ const props = withDefaults(defineProps<Props>(), {
     currentDate: () => new Date(),
 });
 
+const emit = defineEmits<{
+    'update:currentDate': [date: Date];
+}>();
+
 const taskStore = useTaskStore();
 const priorityStore = usePriorityStore();
 const toast = useToast();
 const { isDarkMode } = useTheme();
 
 const vuecalRef = ref<InstanceType<typeof VueCal> | null>(null);
+const tasks = ref<Task[]>([]);
+const isLoadingTasks = ref(false);
+const currentLoadedDate = ref<string>('');
 
 const timeFrom = 0;
 const timeTo = 24 * 60;
 
+// Load tasks for a specific date
+async function loadTasksForDate(date: Date) {
+    const dateKey = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+
+    // Avoid loading the same date twice
+    if (currentLoadedDate.value === dateKey) {
+        return;
+    }
+
+    isLoadingTasks.value = true;
+    try {
+        const startOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0);
+        const endOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1, 0, 0, 0);
+
+        tasks.value = await taskStore.loadTasksByDateRange(startOfDay, endOfDay);
+        currentLoadedDate.value = dateKey;
+    } catch (error) {
+        toast.add({
+            severity: 'error',
+            summary: 'Failed to load tasks',
+            detail: 'Please try again',
+            life: 3000,
+        });
+    } finally {
+        isLoadingTasks.value = false;
+    }
+}
+
 // Transform tasks into vue-cal events format
 const calendarEvents = computed(() => {
-    const events = props.tasks.map(task => {
+    const events = tasks.value.map(task => {
         // If no due_datetime, treat as all-day event for today
         let startDate: Date;
         let isAllDay: boolean;
@@ -371,12 +406,56 @@ const onCalendarReady = ({ view }: VueCalReadyPayload) => {
     view.scrollToTime(scrollToMinutes);
 };
 
-// Watch for date changes to update calendar view
-watch(() => props.currentDate, (newDate: Date | undefined) => {
-    if (vuecalRef.value && newDate) {
-        // TODO: Update vue-cal to show the new date
-        // This might require calling a method on the vue-cal instance
+const handleViewChange = (payload: any) => {
+    // Vue-cal passes the view object with start/end dates
+    let newDate: Date;
+
+    if (payload.start) {
+        newDate = new Date(payload.start);
+    } else if (payload.startDate) {
+        newDate = new Date(payload.startDate);
+    } else if (payload.view?.start) {
+        newDate = new Date(payload.view.start);
+    } else if (payload.date) {
+        newDate = new Date(payload.date);
+    } else {
+        console.warn('Vue-cal view-change: unknown payload structure', payload);
+        return;
     }
+
+    // Ensure we have a valid date
+    if (isNaN(newDate.getTime())) {
+        console.warn('Vue-cal view-change: invalid date', newDate);
+        return;
+    }
+
+    emit('update:currentDate', newDate);
+    loadTasksForDate(newDate);
+};
+
+watch(() => props.currentDate, (newDate: Date | undefined, oldDate: Date | undefined) => {
+    if (newDate) {
+        // Check if date actually changed to avoid infinite loops
+        const newKey = `${newDate.getFullYear()}-${newDate.getMonth()}-${newDate.getDate()}`;
+        const oldKey = oldDate ? `${oldDate.getFullYear()}-${oldDate.getMonth()}-${oldDate.getDate()}` : '';
+
+        if (newKey !== oldKey) {
+            loadTasksForDate(newDate);
+
+            // Update vue-cal's view if we have a reference
+            if (vuecalRef.value && typeof vuecalRef.value.switchToNarrower === 'function') {
+                try {
+                    vuecalRef.value.switchToNarrower(newDate);
+                } catch (e) {
+                    // Silently ignore if method doesn't exist or fails
+                }
+            }
+        }
+    }
+});
+
+onMounted(() => {
+    loadTasksForDate(props.currentDate);
 });
 </script>
 

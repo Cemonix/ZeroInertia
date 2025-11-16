@@ -66,37 +66,45 @@ export const useProjectStore = defineStore("project", () => {
         loading.value = true;
         error.value = null;
         try {
-            // Create project at the top (order_index: 0)
+            // Use provided order_index, or default to 0 (top)
+            const orderIndex = projectData.order_index ?? 0;
+            const parentId = projectData.parent_id ?? null;
+
+            // Create project at the specified position
             const newProject = await projectService.createProject({
                 title: projectData.title as string,
-                order_index: 0,
-                parent_id: projectData.parent_id ?? null,
+                order_index: orderIndex,
+                parent_id: parentId,
             });
 
-            // Shift other root-level projects down (before adding new project)
-            const rootProjects = projects.value
-                .filter((p) => p.parent_id === null)
-                .sort((a, b) => a.order_index - b.order_index);
+            // Only shift siblings if creating at the top (order_index 0)
+            // For custom positions, the caller should handle shifting
+            if (orderIndex === 0) {
+                // Shift other projects with same parent down
+                const siblings = projects.value
+                    .filter((p) => p.parent_id === parentId)
+                    .sort((a, b) => a.order_index - b.order_index);
 
-            if (rootProjects.length > 0) {
-                const updates = rootProjects.map((p, index) => ({
-                    id: p.id,
-                    parent_id: p.parent_id,
-                    order_index: index + 1,
-                }));
+                if (siblings.length > 0) {
+                    const updates = siblings.map((p, index) => ({
+                        id: p.id,
+                        parent_id: p.parent_id,
+                        order_index: index + 1,
+                    }));
 
-                // Update local state
-                updates.forEach((update) => {
-                    const project = projects.value.find((p) => p.id === update.id);
-                    if (project) {
-                        project.order_index = update.order_index;
-                    }
-                });
+                    // Update local state
+                    updates.forEach((update) => {
+                        const project = projects.value.find((p) => p.id === update.id);
+                        if (project) {
+                            project.order_index = update.order_index;
+                        }
+                    });
 
-                await projectService.reorderProjects(updates);
+                    await projectService.reorderProjects(updates);
+                }
             }
 
-            // Add new project to the array after reordering others
+            // Add new project to the array
             projects.value.push(newProject);
 
             return newProject;
