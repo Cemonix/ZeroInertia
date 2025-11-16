@@ -762,7 +762,8 @@ class TestRecurringTasks:
                 "project_id": str(test_project.id),
                 "section_id": str(test_section.id),
                 "due_datetime": "2025-01-15T09:00:00Z",
-                "recurrence_type": "daily",
+                "recurrence_interval": 1,
+                "recurrence_unit": "days",
                 "recurrence_days": None,
             },
         )
@@ -782,7 +783,8 @@ class TestRecurringTasks:
         completed_task = complete_response.json()
         assert completed_task["completed"] is True
         assert completed_task["archived"] is True
-        assert completed_task["recurrence_type"] is None  # Cleared on archived task
+        assert completed_task["recurrence_interval"] is None  # Cleared on archived task
+        assert completed_task["recurrence_unit"] is None
 
         # Get all tasks - should not include the archived one
         list_response = await authenticated_client.get(
@@ -798,7 +800,7 @@ class TestRecurringTasks:
         # Should have a new recurring task instance
         recurring_tasks = [
             task for task in active_tasks
-            if task["title"] == "Daily Standup" and task["recurrence_type"] == "daily"
+            if task["title"] == "Daily Standup" and task["recurrence_interval"] == 1 and task["recurrence_unit"] == "days"
         ]
         assert len(recurring_tasks) == 1
         new_task = recurring_tasks[0]
@@ -809,7 +811,8 @@ class TestRecurringTasks:
         assert new_task["description"] == original_task["description"]
         assert new_task["completed"] is False
         assert new_task["archived"] is False
-        assert new_task["recurrence_type"] == "daily"
+        assert new_task["recurrence_interval"] == 1
+        assert new_task["recurrence_unit"] == "days"
         # Due date should be one day later
         assert new_task["due_datetime"] == "2025-01-16T09:00:00Z"
 
@@ -829,7 +832,8 @@ class TestRecurringTasks:
                 "project_id": str(test_project.id),
                 "section_id": str(test_section.id),
                 "due_datetime": "2025-01-13T14:00:00Z",  # Monday
-                "recurrence_type": "weekly",
+                "recurrence_interval": 1,
+                "recurrence_unit": "weeks",
                 "recurrence_days": [0, 4],  # Monday=0, Friday=4
             },
         )
@@ -861,7 +865,7 @@ class TestRecurringTasks:
         # Should have a new recurring task instance
         recurring_tasks = [
             task for task in active_tasks
-            if task["title"] == "Team Meeting" and task["recurrence_type"] == "weekly"
+            if task["title"] == "Team Meeting" and task["recurrence_unit"] == "weeks"
         ]
         assert len(recurring_tasks) == 1
         new_task = recurring_tasks[0]
@@ -870,7 +874,8 @@ class TestRecurringTasks:
         assert new_task["id"] != original_task_id
         assert new_task["completed"] is False
         assert new_task["archived"] is False
-        assert new_task["recurrence_type"] == "weekly"
+        assert new_task["recurrence_interval"] == 1
+        assert new_task["recurrence_unit"] == "weeks"
         assert new_task["recurrence_days"] == [0, 4]
         # Due date should be Friday (next occurrence)
         assert new_task["due_datetime"] == "2025-01-17T14:00:00Z"
@@ -890,7 +895,8 @@ class TestRecurringTasks:
                 "project_id": str(test_project.id),
                 "section_id": str(test_section.id),
                 "due_datetime": "2025-01-15T06:00:00Z",
-                "recurrence_type": "alternate_days",
+                "recurrence_interval": 2,
+                "recurrence_unit": "days",
                 "recurrence_days": None,
             },
         )
@@ -919,7 +925,7 @@ class TestRecurringTasks:
 
         recurring_tasks = [
             task for task in active_tasks
-            if task["title"] == "Exercise" and task["recurrence_type"] == "alternate_days"
+            if task["title"] == "Exercise" and task["recurrence_interval"] == 2 and task["recurrence_unit"] == "days"
         ]
         assert len(recurring_tasks) == 1
         new_task = recurring_tasks[0]
@@ -970,7 +976,8 @@ class TestRecurringTasks:
                 "project_id": str(test_project.id),
                 "section_id": str(test_section.id),
                 "due_datetime": "2025-01-15T10:00:00Z",
-                "recurrence_type": "daily",
+                "recurrence_interval": 1,
+                "recurrence_unit": "days",
             },
         )
         original_task_id = create_response.json()["id"]
@@ -989,7 +996,7 @@ class TestRecurringTasks:
         active_tasks = data["items"]
         new_task = [
             task for task in active_tasks
-            if task["title"] == "Daily Task" and task["recurrence_type"] == "daily"
+            if task["title"] == "Daily Task" and task["recurrence_interval"] == 1 and task["recurrence_unit"] == "days"
         ][0]
         new_task_id = new_task["id"]
 
@@ -1053,7 +1060,8 @@ class TestRecurringTasks:
                 "project_id": str(test_project.id),
                 "section_id": str(test_section.id),
                 "due_datetime": "2025-01-15T17:00:00Z",
-                "recurrence_type": "daily",
+                "recurrence_interval": 1,
+                "recurrence_unit": "days",
                 "label_ids": [label1["id"], label2["id"]],
             },
         )
@@ -1090,7 +1098,7 @@ class TestRecurringTasks:
         # Find the new recurring task instance
         recurring_tasks = [
             task for task in active_tasks
-            if task["title"] == "Daily Report" and task["recurrence_type"] == "daily"
+            if task["title"] == "Daily Report" and task["recurrence_interval"] == 1 and task["recurrence_unit"] == "days"
         ]
         assert len(recurring_tasks) == 1
         new_task = recurring_tasks[0]
