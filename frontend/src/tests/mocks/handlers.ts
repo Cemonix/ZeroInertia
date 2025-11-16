@@ -2,6 +2,7 @@ import { http, HttpResponse } from 'msw';
 import type { Task } from '@/models/task';
 import type { Project } from '@/models/project';
 import type { Section } from '@/models/section';
+import type { CheckList, CheckListItem } from '@/models/checklist';
 import { env } from '@/config/env';
 
 const API_BASE_URL = env.API_BASE_URL || 'http://localhost:8000';
@@ -102,12 +103,56 @@ export const createMockSections = (): Section[] => [
 let mockTasks = createMockTasks();
 const mockProjects = createMockProjects();
 const mockSections = createMockSections();
+let mockChecklists: CheckList[] = [];
+
+export const createMockChecklists = (): CheckList[] => [
+    {
+        id: 'checklist-1',
+        task_id: 'task-1',
+        title: 'Test Checklist 1',
+        order_index: 0,
+        created_at: '2025-01-01T00:00:00Z',
+        updated_at: '2025-01-01T00:00:00Z',
+        items: [
+            {
+                id: 'item-1',
+                checklist_id: 'checklist-1',
+                text: 'First item',
+                completed: false,
+                order_index: 0,
+                created_at: '2025-01-01T00:00:00Z',
+                updated_at: '2025-01-01T00:00:00Z',
+            },
+            {
+                id: 'item-2',
+                checklist_id: 'checklist-1',
+                text: 'Second item',
+                completed: true,
+                order_index: 1,
+                created_at: '2025-01-01T00:00:00Z',
+                updated_at: '2025-01-01T00:00:00Z',
+            },
+        ],
+    },
+];
+
+const syncChecklistItems = () => {
+    // Items are already synced within checklists.items
+    // This function exists for compatibility but doesn't need to do anything
+};
 
 export const resetMockTasks = () => {
     mockTasks = createMockTasks();
 };
 
 export const getMockTasks = () => mockTasks;
+
+export const resetMockChecklists = () => {
+    mockChecklists = createMockChecklists();
+    syncChecklistItems();
+};
+
+export const getMockChecklists = () => mockChecklists;
 
 export const handlers = [
     http.get(`${API_BASE_URL}/csrf`, () => {
@@ -178,6 +223,37 @@ export const handlers = [
             page_size: 500,
             pages: 1,
         });
+    }),
+
+    http.get(`${API_BASE_URL}/api/v1/tasks/by-date`, ({ request }) => {
+        const url = new URL(request.url);
+        const dateFrom = url.searchParams.get('date_from');
+        const dateTo = url.searchParams.get('date_to');
+
+        if (!dateFrom || !dateTo) {
+            return HttpResponse.json(
+                { detail: 'date_from and date_to parameters are required' },
+                { status: 400 }
+            );
+        }
+
+        const startDate = new Date(dateFrom);
+        const endDate = new Date(dateTo);
+
+        const filteredTasks = mockTasks.filter(task => {
+            if (task.completed || task.archived) {
+                return false;
+            }
+
+            if (!task.due_datetime) {
+                return true;
+            }
+
+            const taskDate = new Date(task.due_datetime);
+            return taskDate >= startDate && taskDate < endDate;
+        });
+
+        return HttpResponse.json(filteredTasks);
     }),
 
     http.get(`${API_BASE_URL}/api/v1/tasks/:id`, ({ params }) => {
@@ -292,5 +368,204 @@ export const handlers = [
         }
 
         return HttpResponse.json(filteredSections);
+    }),
+
+    // Checklist endpoints
+    http.get(`${API_BASE_URL}/api/v1/checklists`, ({ request }) => {
+        const url = new URL(request.url);
+        const taskId = url.searchParams.get('task_id');
+
+        let items = [...mockChecklists];
+        if (taskId) {
+            items = items.filter(checklist => checklist.task_id === taskId);
+        }
+
+        return HttpResponse.json(items);
+    }),
+
+    http.get(`${API_BASE_URL}/api/v1/checklists/:id`, ({ params }) => {
+        const checklist = mockChecklists.find(c => c.id === params.id);
+        if (!checklist) {
+            return HttpResponse.json(
+                { detail: 'Checklist not found' },
+                { status: 404 }
+            );
+        }
+        return HttpResponse.json(checklist);
+    }),
+
+    http.post(`${API_BASE_URL}/api/v1/checklists`, async ({ request }) => {
+        const body = await request.json() as Partial<CheckList>;
+
+        if (!body || typeof body.task_id !== 'string' || typeof body.title !== 'string') {
+            return HttpResponse.json(
+                { detail: 'Invalid checklist body' },
+                { status: 400 }
+            );
+        }
+
+        const newChecklist: CheckList = {
+            id: `checklist-${Date.now()}`,
+            task_id: body.task_id,
+            title: body.title,
+            order_index: mockChecklists.length,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            items: [],
+        };
+
+        mockChecklists.push(newChecklist);
+        return HttpResponse.json(newChecklist, { status: 201 });
+    }),
+
+    http.patch(`${API_BASE_URL}/api/v1/checklists/:id`, async ({ params, request }) => {
+        const index = mockChecklists.findIndex(c => c.id === params.id);
+        if (index === -1) {
+            return HttpResponse.json(
+                { detail: 'Checklist not found' },
+                { status: 404 }
+            );
+        }
+
+        const body = await request.json() as Partial<CheckList>;
+        mockChecklists[index] = {
+            ...mockChecklists[index],
+            ...body,
+            updated_at: new Date().toISOString(),
+        };
+
+        return HttpResponse.json(mockChecklists[index]);
+    }),
+
+    http.delete(`${API_BASE_URL}/api/v1/checklists/:id`, ({ params }) => {
+        const index = mockChecklists.findIndex(c => c.id === params.id);
+        if (index === -1) {
+            return HttpResponse.json(
+                { detail: 'Checklist not found' },
+                { status: 404 }
+            );
+        }
+
+        mockChecklists.splice(index, 1);
+        syncChecklistItems();
+        return HttpResponse.json(null, { status: 204 });
+    }),
+
+    http.post(`${API_BASE_URL}/api/v1/checklists/reorder`, async ({ request }) => {
+        const body = await request.json() as { id: string; order_index: number }[];
+
+        body.forEach(({ id, order_index }) => {
+            const checklist = mockChecklists.find(c => c.id === id);
+            if (checklist) {
+                checklist.order_index = order_index;
+            }
+        });
+
+        mockChecklists.sort((a, b) => a.order_index - b.order_index);
+        return HttpResponse.json({ success: true });
+    }),
+
+    http.post(`${API_BASE_URL}/api/v1/checklists/:id/items`, async ({ params, request }) => {
+        const checklist = mockChecklists.find(c => c.id === params.id);
+        if (!checklist) {
+            return HttpResponse.json(
+                { detail: 'Checklist not found' },
+                { status: 404 }
+            );
+        }
+
+        const body = await request.json() as Partial<CheckListItem>;
+        if (!body || typeof body.text !== 'string') {
+            return HttpResponse.json(
+                { detail: 'Invalid checklist item body' },
+                { status: 400 }
+            );
+        }
+
+        const newItem: CheckListItem = {
+            id: `item-${Date.now()}`,
+            checklist_id: checklist.id,
+            text: body.text,
+            completed: false,
+            order_index: (checklist.items?.length ?? 0),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        };
+
+        checklist.items = [...(checklist.items || []), newItem];
+        syncChecklistItems();
+
+        return HttpResponse.json(newItem, { status: 201 });
+    }),
+
+    http.patch(`${API_BASE_URL}/api/v1/checklists/:id/items/:itemId`, async ({ params, request }) => {
+        const checklist = mockChecklists.find(c => c.id === params.id);
+        if (!checklist || !checklist.items) {
+            return HttpResponse.json(
+                { detail: 'Checklist not found' },
+                { status: 404 }
+            );
+        }
+
+        const itemIndex = checklist.items.findIndex(i => i.id === params.itemId);
+        if (itemIndex === -1) {
+            return HttpResponse.json(
+                { detail: 'Checklist item not found' },
+                { status: 404 }
+            );
+        }
+
+        const body = await request.json() as Partial<CheckListItem>;
+
+        checklist.items[itemIndex] = {
+            ...checklist.items[itemIndex],
+            ...body,
+            updated_at: new Date().toISOString(),
+        };
+
+        syncChecklistItems();
+        return HttpResponse.json(checklist.items[itemIndex]);
+    }),
+
+    http.delete(`${API_BASE_URL}/api/v1/checklists/:id/items/:itemId`, ({ params }) => {
+        const checklist = mockChecklists.find(c => c.id === params.id);
+        if (!checklist || !checklist.items) {
+            return HttpResponse.json(
+                { detail: 'Checklist not found' },
+                { status: 404 }
+            );
+        }
+
+        checklist.items = checklist.items.filter(i => i.id !== params.itemId);
+        syncChecklistItems();
+
+        return HttpResponse.json(null, { status: 204 });
+    }),
+
+    http.post(`${API_BASE_URL}/api/v1/checklists/:id/items/reorder`, async ({ params, request }) => {
+        const checklist = mockChecklists.find(c => c.id === params.id);
+        if (!checklist || !checklist.items) {
+            return HttpResponse.json(
+                { detail: 'Checklist not found' },
+                { status: 404 }
+            );
+        }
+
+        const body = await request.json() as { id: string; order_index: number }[];
+
+        const itemsMap = new Map(checklist.items.map(item => [item.id, item]));
+        const reordered: CheckListItem[] = [];
+
+        body.forEach(({ id, order_index }) => {
+            const item = itemsMap.get(id);
+            if (item) {
+                reordered[order_index] = { ...item, order_index };
+            }
+        });
+
+        checklist.items = reordered.filter(Boolean);
+        syncChecklistItems();
+
+        return HttpResponse.json({ success: true });
     }),
 ];

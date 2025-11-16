@@ -28,7 +28,7 @@
                 <template v-if="isBoardLoading">
                     <div class="board-skeletons">
                         <div
-                            v-for="n in (viewMode === 'kanban' ? 3 : 2)"
+                            v-for="n in skeletonSectionCount"
                             :key="n"
                             class="board-section-skeleton"
                         >
@@ -98,7 +98,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, onBeforeUnmount } from "vue";
+import { ref, watch, onMounted, onBeforeUnmount, computed } from "vue";
 import draggable from "vuedraggable";
 import BoardSection from "./BoardSection.vue";
 import SectionCreateModal from "./SectionCreateModal.vue";
@@ -154,6 +154,23 @@ const viewModeOptions = [
     { label: "List", value: "list", icon: "list" },
     { label: "Kanban", value: "kanban", icon: "table-columns" },
 ];
+
+// Number of skeleton columns to render while loading
+const skeletonSectionCount = computed(() => {
+    if (!props.projectId) {
+        return viewMode.value === "kanban" ? 3 : 2;
+    }
+
+    const sectionsForProject = sectionStore.getSectionsByProject(props.projectId) as Section[];
+    const sectionCount = sectionsForProject.length;
+
+    if (viewMode.value === "kanban") {
+        // Match existing sections when possible, otherwise fall back
+        return sectionCount > 0 ? sectionCount : 3;
+    }
+
+    return sectionCount > 0 ? sectionCount : 2;
+});
 
 // Save view mode preference to localStorage per-project
 watch(viewMode, (newMode) => {
@@ -432,6 +449,7 @@ onBeforeUnmount(() => {
 .board-sections.kanban-view .board-skeletons {
     flex-direction: row;
     gap: 1rem;
+    align-items: flex-start;
 }
 
 .board-section-skeleton {
@@ -439,10 +457,17 @@ onBeforeUnmount(() => {
     border-radius: 8px;
     padding: 1rem;
     border: 1px solid var(--p-content-border-color);
-    flex: 1 1 0;
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+}
+
+.board-sections.kanban-view .board-section-skeleton {
+    min-width: 340px;
+    max-width: 400px;
+    flex-shrink: 0;
+    max-height: calc(100vh - 225px);
+    box-sizing: border-box;
 }
 
 .skeleton-header {

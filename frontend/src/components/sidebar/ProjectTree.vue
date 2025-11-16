@@ -70,6 +70,38 @@
                 </div>
             </div>
         </Dialog>
+        <Dialog
+            v-model:visible="isCreateBelowDialogVisible"
+            header="Create Project"
+            modal
+            :style="{ width: '420px' }"
+            :pt="{ content: { style: { padding: '1.5rem' } } }"
+            @hide="onCreateBelowDialogHide"
+        >
+            <div class="rename-project-form">
+                <label for="project-create-input">Project name</label>
+                <InputText
+                    id="project-create-input"
+                    v-model="newProjectTitle"
+                    autofocus
+                    @keyup.enter="handleCreateProjectBelow"
+                />
+                <div class="rename-project-actions">
+                    <Button
+                        label="Cancel"
+                        text
+                        type="button"
+                        @click="isCreateBelowDialogVisible = false"
+                    />
+                    <Button
+                        label="Create"
+                        type="button"
+                        :disabled="!newProjectTitle.trim()"
+                        @click="handleCreateProjectBelow"
+                    />
+                </div>
+            </div>
+        </Dialog>
     </div>
 </template>
 
@@ -112,6 +144,11 @@ const isRenameDialogVisible = ref(false);
 const renameProjectTitle = ref('');
 const projectBeingRenamed = ref<TreeNode | null>(null);
 const originalProjectTitle = ref('');
+
+// Create project below dialog state
+const isCreateBelowDialogVisible = ref(false);
+const newProjectTitle = ref('');
+const projectToCreateBelow = ref<TreeNode | null>(null);
 
 // Local task counts mapped by project id
 const taskCounts = ref<Record<string, number>>({});
@@ -221,6 +258,10 @@ function getProjectMenuItems(node: TreeNode) {
 
     const items = [
         {
+            label: 'Create project below',
+            command: () => createProjectBelow(node),
+        },
+        {
             label: 'Rename Project',
             command: () => openRenameDialog(node),
         },
@@ -326,6 +367,83 @@ async function deleteProject(node: TreeNode) {
         });
     } catch (error) {
         toast.add({ severity: "error", summary: "Error", detail: "Failed to delete project" });
+    }
+}
+
+function createProjectBelow(node: TreeNode) {
+    projectToCreateBelow.value = node;
+    newProjectTitle.value = '';
+    isCreateBelowDialogVisible.value = true;
+}
+
+function onCreateBelowDialogHide() {
+    projectToCreateBelow.value = null;
+    newProjectTitle.value = '';
+}
+
+async function handleCreateProjectBelow() {
+    const node = projectToCreateBelow.value;
+    if (!node || !node.key) {
+        isCreateBelowDialogVisible.value = false;
+        return;
+    }
+
+    const trimmedTitle = newProjectTitle.value.trim();
+    if (!trimmedTitle) {
+        isCreateBelowDialogVisible.value = false;
+        return;
+    }
+
+    const projectId = typeof node.key === 'string' ? node.key : String(node.key ?? '');
+    const project = projectId ? projectStore.getProjectById(projectId) : undefined;
+
+    if (!project) {
+        isCreateBelowDialogVisible.value = false;
+        return;
+    }
+
+    try {
+        // Get all siblings (projects with the same parent)
+        const siblings = projectStore.projects
+            .filter((p) => p.parent_id === project.parent_id && p.id !== project.id)
+            .sort((a, b) => a.order_index - b.order_index);
+
+        // Calculate new order indices: shift projects after current one
+        const updates: ProjectReorderItem[] = [];
+
+        siblings.forEach((p) => {
+            if (p.order_index > project.order_index) {
+                updates.push({
+                    id: p.id,
+                    parent_id: p.parent_id,
+                    order_index: p.order_index + 1,
+                });
+            }
+        });
+
+        // If we have projects to shift, update them first
+        if (updates.length > 0) {
+            await projectStore.handleTreeReorder(updates);
+        }
+
+        // Now create the new project at the position right after the current project
+        await projectStore.createProject({
+            title: trimmedTitle,
+            parent_id: project.parent_id,
+            order_index: project.order_index + 1,
+        });
+
+        toast.add({
+            severity: "success",
+            summary: "Project created",
+            detail: `"${trimmedTitle}" created below.`,
+            life: 3000,
+        });
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to create project";
+        toast.add({ severity: "error", summary: "Error", detail: message });
+    } finally {
+        isCreateBelowDialogVisible.value = false;
     }
 }
 

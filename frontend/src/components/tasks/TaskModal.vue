@@ -477,7 +477,6 @@ async function handleModalOpen() {
 }
 
 function handleModalClose() {
-    checklistStore.clearChecklists();
     showLabelPicker.value = false;
     showRecurrencePicker.value = false;
     showReminderPicker.value = false;

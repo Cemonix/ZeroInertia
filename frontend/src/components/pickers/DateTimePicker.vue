@@ -7,7 +7,7 @@
         :showIcon="showIcon"
         :showClear="showClear"
         iconDisplay="input"
-        :showTime="!!time"
+        :showTime="true"
         hourFormat="24"
         :inputId="timeInputId + '-picker'"
     >
@@ -170,6 +170,14 @@ const dateForPicker = computed<Date | null>({
             return;
         }
         date.value = new Date(val.getFullYear(), val.getMonth(), val.getDate());
+
+        // Ensure time is always set when date is selected
+        if (!time.value) {
+            const now = new Date();
+            const hh = String(now.getHours()).padStart(2, '0');
+            const mm = String(now.getMinutes()).padStart(2, '0');
+            time.value = `${hh}:${mm}`;
+        }
     },
 });
 

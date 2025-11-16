@@ -193,6 +193,20 @@ export const useTaskStore = defineStore('task', () => {
         }
     }
 
+    async function loadTasksByDateRange(dateFrom: Date, dateTo: Date): Promise<Task[]> {
+        loading.value = true;
+        error.value = null;
+        try {
+            const fetchedTasks = await taskService.getTasksByDateRange(dateFrom, dateTo);
+            return fetchedTasks;
+        } catch (err) {
+            error.value = err instanceof Error ? err.message : 'Failed to load tasks by date';
+            return [];
+        } finally {
+            loading.value = false;
+        }
+    }
+
     async function createTask(taskData: TaskCreateInput) {
         loading.value = true;
         error.value = null;
@@ -397,6 +411,7 @@ export const useTaskStore = defineStore('task', () => {
         toggleTaskComplete,
         loadTasksForProject,
         loadAllTasks,
+        loadTasksByDateRange,
         createTask,
         updateTask,
         deleteTask,
