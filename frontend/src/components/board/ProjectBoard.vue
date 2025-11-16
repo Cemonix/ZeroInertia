@@ -42,6 +42,7 @@
                 <template v-else>
                     <draggable
                         v-model="draggableSections"
+                        class="sections-draggable"
                         item-key="id"
                         @start="handleDragStart"
                         @end="handleDragEnd"
@@ -385,7 +386,7 @@ onBeforeUnmount(() => {
 }
 
 /* Make draggable wrapper inherit flex layout in kanban view */
-.board-sections.kanban-view > :first-child {
+.board-sections.kanban-view > .sections-draggable {
     display: flex;
     flex-direction: row;
     gap: 1rem;

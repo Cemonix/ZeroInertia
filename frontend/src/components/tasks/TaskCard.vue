@@ -439,7 +439,7 @@ const reminderLabel = computed(() => {
     background: rgba(59, 130, 246, 0.15);
     color: var(--p-primary-color);
     flex-shrink: 0;
-    max-width: 11rem;
+    max-width: 7rem;
 }
 
 .recurring-pill span:last-child {
