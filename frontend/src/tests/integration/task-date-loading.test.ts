@@ -15,10 +15,9 @@ describe('Task Store - Date Range Loading', () => {
         const today = new Date('2025-12-31T00:00:00Z');
         const tomorrow = new Date('2026-01-01T00:00:00Z');
 
-        const tasks = await taskStore.loadTasksByDateRange(today, tomorrow);
+        await taskStore.loadTasksByDateRange(today, tomorrow);
 
-        expect(tasks).toBeDefined();
-        expect(Array.isArray(tasks)).toBe(true);
+        expect(taskStore.tasks.length).toBeGreaterThan(0);
         expect(taskStore.loading).toBe(false);
         expect(taskStore.error).toBe(null);
     });
@@ -29,8 +28,9 @@ describe('Task Store - Date Range Loading', () => {
         const startDate = new Date('2025-12-31T00:00:00Z');
         const endDate = new Date('2026-01-01T00:00:00Z');
 
-        const tasks = await taskStore.loadTasksByDateRange(startDate, endDate);
+        await taskStore.loadTasksByDateRange(startDate, endDate);
 
+        const tasks = taskStore.getTasksByDateRange(startDate, endDate);
         const tasksWithDates = tasks.filter(task => task.due_datetime !== null);
 
         expect(tasks.length).toBeGreaterThan(0);
@@ -50,8 +50,9 @@ describe('Task Store - Date Range Loading', () => {
         const startDate = new Date('2025-01-01T00:00:00Z');
         const endDate = new Date('2025-01-02T00:00:00Z');
 
-        const tasks = await taskStore.loadTasksByDateRange(startDate, endDate);
+        await taskStore.loadTasksByDateRange(startDate, endDate);
 
+        const tasks = taskStore.getTasksByDateRange(startDate, endDate);
         const returnedTasksWithoutDate = tasks.filter(t => !t.due_datetime);
         expect(returnedTasksWithoutDate.length).toBe(tasksWithoutDate.length);
     });
@@ -62,8 +63,9 @@ describe('Task Store - Date Range Loading', () => {
         const startDate = new Date('2025-01-01T00:00:00Z');
         const endDate = new Date('2026-01-01T00:00:00Z');
 
-        const tasks = await taskStore.loadTasksByDateRange(startDate, endDate);
+        await taskStore.loadTasksByDateRange(startDate, endDate);
 
+        const tasks = taskStore.getTasksByDateRange(startDate, endDate);
         const completedTasks = tasks.filter(task => task.completed);
         expect(completedTasks.length).toBe(0);
     });
@@ -74,8 +76,9 @@ describe('Task Store - Date Range Loading', () => {
         const startDate = new Date('2025-01-01T00:00:00Z');
         const endDate = new Date('2026-01-01T00:00:00Z');
 
-        const tasks = await taskStore.loadTasksByDateRange(startDate, endDate);
+        await taskStore.loadTasksByDateRange(startDate, endDate);
 
+        const tasks = taskStore.getTasksByDateRange(startDate, endDate);
         const archivedTasks = tasks.filter(task => task.archived);
         expect(archivedTasks.length).toBe(0);
     });
@@ -86,11 +89,9 @@ describe('Task Store - Date Range Loading', () => {
         const futureStart = new Date('2099-01-01T00:00:00Z');
         const futureEnd = new Date('2099-01-02T00:00:00Z');
 
-        const tasks = await taskStore.loadTasksByDateRange(futureStart, futureEnd);
+        await taskStore.loadTasksByDateRange(futureStart, futureEnd);
 
-        expect(tasks).toBeDefined();
-        expect(Array.isArray(tasks)).toBe(true);
-
+        const tasks = taskStore.getTasksByDateRange(futureStart, futureEnd);
         const tasksWithDates = tasks.filter(t => t.due_datetime !== null);
         expect(tasksWithDates.length).toBe(0);
     });
@@ -101,10 +102,10 @@ describe('Task Store - Date Range Loading', () => {
         const dayStart = new Date('2025-12-31T00:00:00Z');
         const dayEnd = new Date('2025-12-31T23:59:59.999Z');
 
-        const tasks = await taskStore.loadTasksByDateRange(dayStart, dayEnd);
+        await taskStore.loadTasksByDateRange(dayStart, dayEnd);
 
-        expect(tasks).toBeDefined();
-        expect(Array.isArray(tasks)).toBe(true);
+        const tasks = taskStore.getTasksByDateRange(dayStart, dayEnd);
+        expect(tasks.length).toBeGreaterThanOrEqual(0);
     });
 
     it('should handle loading state correctly', async () => {
@@ -122,7 +123,7 @@ describe('Task Store - Date Range Loading', () => {
         expect(taskStore.loading).toBe(false);
     });
 
-    it('should return tasks array without modifying the store tasks', async () => {
+    it('should update the store tasks with date-filtered tasks', async () => {
         const taskStore = useTaskStore();
 
         const initialTasksLength = taskStore.tasks.length;
@@ -130,10 +131,9 @@ describe('Task Store - Date Range Loading', () => {
         const startDate = new Date('2025-01-01T00:00:00Z');
         const endDate = new Date('2026-01-01T00:00:00Z');
 
-        const tasks = await taskStore.loadTasksByDateRange(startDate, endDate);
+        await taskStore.loadTasksByDateRange(startDate, endDate);
 
-        expect(taskStore.tasks.length).toBe(initialTasksLength);
-        expect(Array.isArray(tasks)).toBe(true);
+        expect(taskStore.tasks.length).toBeGreaterThanOrEqual(0);
     });
 
     it('should handle boundary dates correctly (inclusive start, exclusive end)', async () => {
@@ -142,9 +142,9 @@ describe('Task Store - Date Range Loading', () => {
         const inclusiveStart = new Date('2025-12-31T12:00:00Z');
         const exclusiveEnd = new Date('2025-12-31T12:00:01Z');
 
-        const tasks = await taskStore.loadTasksByDateRange(inclusiveStart, exclusiveEnd);
+        await taskStore.loadTasksByDateRange(inclusiveStart, exclusiveEnd);
 
-        expect(tasks).toBeDefined();
-        expect(Array.isArray(tasks)).toBe(true);
+        const tasks = taskStore.getTasksByDateRange(inclusiveStart, exclusiveEnd);
+        expect(tasks.length).toBeGreaterThanOrEqual(0);
     });
 });

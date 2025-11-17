@@ -32,6 +32,15 @@ export const useTaskStore = defineStore('task', () => {
         return (taskId: string) => tasks.value.find(task => task.id === taskId) || null;
     });
 
+    const getTasksByDateRange = computed(() => {
+        return (dateFrom: Date, dateTo: Date) =>
+            tasks.value.filter(task => {
+                if (!task.due_datetime) return true;
+                const taskDate = new Date(task.due_datetime);
+                return taskDate >= dateFrom && taskDate < dateTo;
+            });
+    });
+
     const getCurrentTask = computed(() => currentTask.value);
 
     const setCurrentTask = (task: Task | null) => {
@@ -193,15 +202,14 @@ export const useTaskStore = defineStore('task', () => {
         }
     }
 
-    async function loadTasksByDateRange(dateFrom: Date, dateTo: Date): Promise<Task[]> {
+    async function loadTasksByDateRange(dateFrom: Date, dateTo: Date) {
         loading.value = true;
         error.value = null;
         try {
             const fetchedTasks = await taskService.getTasksByDateRange(dateFrom, dateTo);
-            return fetchedTasks;
+            tasks.value = fetchedTasks;
         } catch (err) {
             error.value = err instanceof Error ? err.message : 'Failed to load tasks by date';
-            return [];
         } finally {
             loading.value = false;
         }
@@ -400,6 +408,7 @@ export const useTaskStore = defineStore('task', () => {
         getTasksBySection,
         getTasksByProject,
         getTaskById,
+        getTasksByDateRange,
         getCurrentTask,
         isTaskModalVisible,
         startDraggingTask,

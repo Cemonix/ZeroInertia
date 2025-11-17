@@ -69,37 +69,13 @@
 
         <!-- Quick actions (shown on hover) -->
         <div class="task-actions">
-            <Button
-                text
-                rounded
-                size="small"
-                class="task-menu-trigger"
-                aria-haspopup="true"
-                :aria-controls="menuId"
-                @click.stop="toggleTaskMenu"
-                aria-label="Task options"
-            >
-                <template #icon>
-                    <FontAwesomeIcon icon="ellipsis" />
-                </template>
-            </Button>
-            <Menu
-                :id="menuId"
-                ref="taskMenu"
-                :model="taskMenuItems"
-                :popup="true"
-            />
+            <TaskQuickActions :task="task" />
         </div>
-
-        <TaskMoveModal
-            v-model:visible="showMoveModal"
-            :task="task"
-        />
     </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed } from "vue";
 import type { Task } from "@/models/task";
 import { useTaskStore } from "@/stores/task";
 import { usePriorityStore } from "@/stores/priority";
@@ -107,9 +83,8 @@ import { useLabelStore } from "@/stores/label";
 import { useChecklistStore } from "@/stores/checklist";
 import type { Label } from "@/models/label";
 import { formatRecurrence } from "@/utils/recurrenceUtils";
-import type { MenuItem } from "primevue/menuitem";
 import { useToast } from "primevue/usetoast";
-import TaskMoveModal from "@/components/tasks/TaskMoveModal.vue";
+import TaskQuickActions from "@/components/tasks/TaskQuickActions.vue";
 
 const taskStore = useTaskStore();
 const priorityStore = usePriorityStore();
@@ -123,16 +98,6 @@ interface Props {
 }
 
 const props = defineProps<Props>();
-
-type TaskMenuInstance = {
-    toggle: (event: MouseEvent) => void;
-    hide: () => void;
-};
-
-const taskMenu = ref<TaskMenuInstance | null>(null);
-const showMoveModal = ref(false);
-
-const menuId = computed(() => `task_menu_${props.task.id}`);
 
 // Get the full priority object for this task
 const taskPriority = computed(() => {
@@ -282,96 +247,27 @@ const handleCardClick = (event: MouseEvent) => {
     taskStore.openTaskModal(props.task.section_id, props.task);
 };
 
-const handleToggleComplete = () => {
-    taskStore.toggleTaskComplete(props.task.id);
-};
-
-const closeMenu = () => {
-    taskMenu.value?.hide();
-};
-
-const handleDelete = async () => {
-    closeMenu();
-    await taskStore.deleteTask(props.task.id);
-};
-
-const handleDuplicate = async () => {
-    closeMenu();
-    await taskStore.duplicateTask(props.task.id);
-};
-
-const handleSnooze = async () => {
-    closeMenu();
+const handleToggleComplete = async () => {
+    const wasCompleted = props.task.completed;
     try {
-        const updatedTask = await taskStore.snoozeTask(props.task.id);
-        if (updatedTask?.due_datetime) {
-            const dueDate = new Date(updatedTask.due_datetime);
-            const formatted = dueDate.toLocaleString(undefined, {
-                month: "short",
-                day: "numeric",
-                hour: "2-digit",
-                minute: "2-digit",
-            });
+        await taskStore.toggleTaskComplete(props.task.id);
+        if (!wasCompleted) {
             toast.add({
-                severity: "info",
-                summary: "Task snoozed",
-                detail: `Next due ${formatted}`,
-                life: 3500,
-            });
-        } else {
-            toast.add({
-                severity: "info",
-                summary: "Task snoozed",
-                detail: "Task snoozed successfully.",
-                life: 3500,
+                severity: "success",
+                summary: "Task completed",
+                detail: `"${props.task.title}" marked as complete.`,
+                life: 3000,
             });
         }
     } catch (error) {
-        const message = error instanceof Error ? error.message : "Failed to snooze task";
         toast.add({
             severity: "error",
-            summary: "Error",
-            detail: message,
-            life: 4000,
+            summary: "Failed to update task",
+            detail: error instanceof Error ? error.message : "Unknown error",
+            life: 3000,
         });
     }
 };
-
-const toggleTaskMenu = (event: MouseEvent) => {
-    taskMenu.value?.toggle(event);
-};
-
-const taskMenuItems = computed<MenuItem[]>(() => {
-    const items: MenuItem[] = [];
-
-    if (props.task.due_datetime && !props.task.completed) {
-        items.push({
-            label: "Snooze Task",
-            command: () => handleSnooze(),
-        });
-    }
-
-    items.push({
-        label: "Move to project",
-        command: () => {
-            closeMenu();
-            showMoveModal.value = true;
-        },
-    });
-
-    items.push(
-        {
-            label: "Duplicate Task",
-            command: () => handleDuplicate(),
-        },
-        {
-            label: "Delete Task",
-            command: () => handleDelete(),
-        },
-    );
-
-    return items;
-});
 
 const formatReminderLabel = (minutes: number) => {
     if (minutes === 0) return "Reminder at due time";
@@ -510,12 +406,12 @@ const reminderLabel = computed(() => {
     align-items: center;
 }
 
-.task-menu-trigger {
+.task-actions :deep(.task-menu-trigger) {
     opacity: 0;
     transition: opacity 0.2s;
 }
 
-.task-card:hover .task-menu-trigger {
+.task-card:hover .task-actions :deep(.task-menu-trigger) {
     opacity: 1;
 }
 
@@ -584,7 +480,7 @@ const reminderLabel = computed(() => {
 
 /* Ensure menu trigger is visible on touch devices */
 @media (hover: none) {
-    .task-menu-trigger {
+    .task-actions :deep(.task-menu-trigger) {
         opacity: 1;
     }
 }
