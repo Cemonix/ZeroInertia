@@ -48,32 +48,29 @@
                         >
                             {{ formatEventTime(event) }}
                         </span>
-                    </div>
-                    <div class="event-meta" v-if="!event.isCompact">
-                        <span class="event-time">
-                            {{ formatEventTime(event) }}
-                        </span>
-                        <div v-if="event.labels && event.labels.length" class="event-labels">
-                            <span
-                                v-for="label in event.labels"
-                                :key="label.id"
-                                class="event-label"
-                                :style="{ backgroundColor: label.color }"
-                                :title="label.name"
-                            ></span>
+                        <div class="event-actions">
+                            <TaskQuickActions
+                                :task="event.task"
+                                @deleted="handleTaskDeleted"
+                                @snoozed="handleTaskSnoozed"
+                            />
                         </div>
                     </div>
-                    <div
-                        v-else-if="event.labels && event.labels.length"
-                        class="event-labels event-labels-compact"
-                    >
-                        <span
-                            v-for="label in event.labels"
-                            :key="label.id"
-                            class="event-label"
-                            :style="{ backgroundColor: label.color }"
-                            :title="label.name"
-                        ></span>
+                    <div class="event-meta" v-if="!event.isCompact">
+                        <div class="event-meta-left">
+                            <span class="event-time">
+                                {{ formatEventTime(event) }}
+                            </span>
+                            <div v-if="event.labels && event.labels.length" class="event-labels">
+                                <span
+                                    v-for="label in event.labels"
+                                    :key="label.id"
+                                    class="event-label"
+                                    :style="{ backgroundColor: label.color }"
+                                    :title="label.name"
+                                ></span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </template>
@@ -87,6 +84,7 @@ import { ref, computed, watch, onMounted } from 'vue';
 import { VueCal } from 'vue-cal';
 import 'vue-cal/style.css';
 import Checkbox from 'primevue/checkbox';
+import TaskQuickActions from '@/components/tasks/TaskQuickActions.vue';
 import type { Task } from '@/models/task';
 import type { Priority } from '@/models/priority';
 import type { Label } from '@/models/label';
@@ -164,9 +162,9 @@ const toast = useToast();
 const { isDarkMode } = useTheme();
 
 const vuecalRef = ref<InstanceType<typeof VueCal> | null>(null);
-const tasks = ref<Task[]>([]);
-const isLoadingTasks = ref(false);
 const currentLoadedDate = ref<string>('');
+const isResizing = ref(false);
+const isDragging = ref(false);
 
 const timeFrom = 0;
 const timeTo = 24 * 60;
@@ -180,12 +178,11 @@ async function loadTasksForDate(date: Date) {
         return;
     }
 
-    isLoadingTasks.value = true;
     try {
         const startOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0);
         const endOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1, 0, 0, 0);
 
-        tasks.value = await taskStore.loadTasksByDateRange(startOfDay, endOfDay);
+        await taskStore.loadTasksByDateRange(startOfDay, endOfDay);
         currentLoadedDate.value = dateKey;
     } catch (error) {
         toast.add({
@@ -194,14 +191,17 @@ async function loadTasksForDate(date: Date) {
             detail: 'Please try again',
             life: 3000,
         });
-    } finally {
-        isLoadingTasks.value = false;
     }
 }
 
 // Transform tasks into vue-cal events format
 const calendarEvents = computed(() => {
-    const events = tasks.value.map(task => {
+    const currentDate = props.currentDate || new Date();
+    const startOfDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), 0, 0, 0);
+    const endOfDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate() + 1, 0, 0, 0);
+
+    const tasksForDate = taskStore.getTasksByDateRange(startOfDay, endOfDay);
+    const events = tasksForDate.map(task => {
         // If no due_datetime, treat as all-day event for today
         let startDate: Date;
         let isAllDay: boolean;
@@ -219,7 +219,7 @@ const calendarEvents = computed(() => {
 
         const scheduledDurationMinutes =
             !isAllDay && task.duration_minutes && task.duration_minutes > 0
-                ? task.duration_minutes
+                ? Math.max(task.duration_minutes, 30)
                 : 30;
 
         let endDate: Date;
@@ -261,7 +261,7 @@ const calendarEvents = computed(() => {
             backgroundColor = labels[0].color + 'cc';
         }
 
-        const isCompact = !isAllDay && scheduledDurationMinutes <= 15;
+        const isCompact = !isAllDay && scheduledDurationMinutes <= 30;
 
         return {
             start,
@@ -303,11 +303,39 @@ function formatEventTime(event: VueCalEvent): string {
     return `${formatTime(start)} - ${formatTime(end)}`;
 }
 
-const handleToggleComplete = (event: VueCalEvent) => {
-    taskStore.toggleTaskComplete(event.taskId);
+const handleToggleComplete = async (event: VueCalEvent) => {
+    const taskId = event.taskId;
+
+    try {
+        await taskStore.toggleTaskComplete(taskId);
+    } catch (error) {
+        toast.add({
+            severity: 'error',
+            summary: 'Failed to update task',
+            detail: 'Please try again',
+            life: 3000,
+        });
+    }
+};
+
+const handleTaskDeleted = () => {
+    // The task store already handles the deletion, no local state to update
+};
+
+const handleTaskSnoozed = async () => {
+    if (props.currentDate) {
+        await loadTasksForDate(props.currentDate);
+    }
 };
 
 const handleEventClick = ({ event }: VueCalEventClickPayload) => {
+    // Don't open modal if we just finished resizing or dragging
+    if (isResizing.value || isDragging.value) {
+        isResizing.value = false;
+        isDragging.value = false;
+        return;
+    }
+
     const task = event.task;
     // Open task modal with the task's section
     taskStore.openTaskModal(task.section_id, task);
@@ -315,6 +343,7 @@ const handleEventClick = ({ event }: VueCalEventClickPayload) => {
 
 // Handle event drag & drop - update task due_datetime
 const handleEventDrop = async ({ event }: VueCalEventDropPayload) => {
+    isDragging.value = true;
     const task = event.task;
     const newDueDateTime = typeof event.start === 'string' ? new Date(event.start) : event.start;
 
@@ -334,6 +363,7 @@ const handleEventDrop = async ({ event }: VueCalEventDropPayload) => {
             life: 3000,
         });
     } catch (error) {
+        isDragging.value = false;
         toast.add({
             severity: 'error',
             summary: 'Failed to reschedule task',
@@ -346,6 +376,7 @@ const handleEventDrop = async ({ event }: VueCalEventDropPayload) => {
 };
 
 const handleEventResize = async ({ event }: VueCalEventResizePayload) => {
+    isResizing.value = true;
     const task = event.task;
     const startTime = typeof event.start === 'string' ? new Date(event.start) : event.start;
     const endTime = typeof event.end === 'string' ? new Date(event.end) : event.end;
@@ -363,6 +394,7 @@ const handleEventResize = async ({ event }: VueCalEventResizePayload) => {
             life: 3000,
         });
     } catch (error) {
+        isResizing.value = false;
         toast.add({
             severity: 'error',
             summary: 'Failed to update duration',
@@ -579,8 +611,9 @@ onMounted(() => {
 .event-title-row {
     display: flex;
     align-items: center;
-    gap: 2px;
+    gap: 4px;
     font-weight: 500;
+    width: 100%;
 }
 
 .event-priority-flag {
@@ -603,6 +636,13 @@ onMounted(() => {
     justify-content: space-between;
     gap: 6px;
     font-size: 0.75rem;
+}
+
+.event-meta-left {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
 }
 
 .event-time {
@@ -645,6 +685,14 @@ onMounted(() => {
     margin-top: 2px;
 }
 
+.event-footer-compact {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+    margin-top: 2px;
+}
+
 .event-label {
     width: 12px;
     height: 12px;
@@ -670,6 +718,45 @@ onMounted(() => {
     top: 50%;
     left: 35%;
     transform: translate(-50%, -50%);
+}
+
+.event-actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+.event-actions :deep(.task-menu-trigger),
+.event-actions :deep(.p-button) {
+    opacity: 0;
+    transition: opacity 0.2s;
+    color: #ffffff !important;
+    background-color: rgba(0, 0, 0, 0.1) !important;
+    backdrop-filter: blur(4px);
+}
+
+.event-actions :deep(.task-menu-trigger:hover),
+.event-actions :deep(.p-button:hover) {
+    background-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+.event-actions :deep(.task-menu-trigger svg),
+.event-actions :deep(.p-button svg) {
+    color: #ffffff !important;
+}
+
+.calendar-event-content:hover .event-actions :deep(.task-menu-trigger),
+.calendar-event-content:hover .event-actions :deep(.p-button) {
+    opacity: 1;
+}
+
+@media (hover: none) {
+    .event-actions :deep(.task-menu-trigger),
+    .event-actions :deep(.p-button) {
+        opacity: 1;
+    }
 }
 
 /* All-day bar styling */

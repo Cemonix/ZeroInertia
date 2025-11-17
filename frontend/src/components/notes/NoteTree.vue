@@ -2,7 +2,7 @@
     <div class="tree-container">
         <Tree
             class="note-tree"
-            :value="treeNodes"
+            v-model:value="treeNodes"
             selectionMode="single"
             v-model:selectionKeys="selectedNoteKeys"
             draggableNodes
@@ -42,6 +42,7 @@
 </template>
 
 <script lang="ts" setup>
+import { ref, watchEffect, type Ref } from "vue";
 import Tree from "primevue/tree";
 import Button from "primevue/button";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
@@ -51,12 +52,36 @@ import { useNoteStore } from "@/stores/note";
 import { storeToRefs } from "pinia";
 import type { TreeNode } from "primevue/treenode";
 import type { TreeNodeDropEvent } from "primevue/tree";
+import type { Note } from "@/models/note";
 
 const noteStore = useNoteStore();
 const confirm = useConfirm();
 const toast = useToast();
 
-const { treeNodes, selectedNoteKeys } = storeToRefs(noteStore);
+const { selectedNoteKeys } = storeToRefs(noteStore);
+const treeNodes: Ref<TreeNode[]> = ref([]);
+
+const buildTree = (notes: Note[], parentId: string | null = null): TreeNode[] => {
+    return notes
+        .filter((note) => note.parent_id === parentId)
+        .sort((a, b) => {
+            if (a.order_index !== b.order_index) {
+                return a.order_index - b.order_index;
+            }
+            return a.title.localeCompare(b.title);
+        })
+        .map((note) => ({
+            key: note.id,
+            label: note.title || "Untitled",
+            data: note,
+            children: buildTree(notes, note.id),
+        }));
+};
+
+watchEffect(() => {
+    const currentNotes = noteStore.notes;
+    treeNodes.value = buildTree(currentNotes);
+});
 
 const createChildNote = async (parentId?: TreeNode["key"]) => {
     if (typeof parentId !== "string") {

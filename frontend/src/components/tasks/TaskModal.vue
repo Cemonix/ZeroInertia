@@ -584,6 +584,12 @@ async function saveTask() {
                 recurrence_days: recurrenceDays.value,
                 reminder_minutes: reminderMinutes.value,
             });
+            toast.add({
+                severity: "success",
+                summary: "Task updated",
+                detail: `"${finalTitle}" has been updated.`,
+                life: 3000,
+            });
         } else {
             await taskStore.createTask({
                 project_id: props.projectId != "" ? props.projectId : null,
@@ -598,6 +604,12 @@ async function saveTask() {
                 recurrence_unit: recurrenceUnit.value,
                 recurrence_days: recurrenceDays.value,
                 reminder_minutes: reminderMinutes.value,
+            });
+            toast.add({
+                severity: "success",
+                summary: "Task created",
+                detail: `"${finalTitle}" has been added.`,
+                life: 3000,
             });
         }
 

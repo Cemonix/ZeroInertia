@@ -234,6 +234,7 @@ const formatTimestamp = (isoString: string) => {
     height: 100%;
     min-height: 0;
     overflow-y: auto;
+    background-color: var(--p-input-background);
 }
 
 .markdown-preview {

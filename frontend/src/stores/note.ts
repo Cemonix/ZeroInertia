@@ -1,34 +1,9 @@
 import { defineStore } from "pinia";
 import { computed, ref, watch } from "vue";
-import type { TreeNode } from "primevue/treenode";
 import type { TreeSelectionKeys } from "primevue/tree";
 import type { Note, NoteInput, NoteReorderItem, NoteUpdateInput } from "@/models/note";
 import { noteService } from "@/services/noteService";
 import type { PaginationParams } from "@/models/pagination";
-
-interface NoteTreeNode extends TreeNode {
-    key: string;
-    label: string;
-    data: Note;
-    children?: NoteTreeNode[];
-}
-
-const buildTree = (notes: Note[], parentId: string | null = null): NoteTreeNode[] => {
-    return notes
-        .filter((note) => note.parent_id === parentId)
-        .sort((a, b) => {
-            if (a.order_index !== b.order_index) {
-                return a.order_index - b.order_index;
-            }
-            return a.title.localeCompare(b.title);
-        })
-        .map((note) => ({
-            key: note.id,
-            label: note.title || "Untitled",
-            data: note,
-            children: buildTree(notes, note.id),
-        }));
-};
 
 export const useNoteStore = defineStore("note", () => {
     const notes = ref<Note[]>([]);
@@ -36,8 +11,6 @@ export const useNoteStore = defineStore("note", () => {
     const selectedNoteKeys = ref<TreeSelectionKeys | undefined>(undefined);
     const loading = ref(false);
     const error = ref<string | null>(null);
-
-    const treeNodes = computed<NoteTreeNode[]>(() => buildTree(notes.value));
 
     const activeNote = computed<Note | null>(() => {
         if (!selectedNoteId.value) return null;
@@ -183,7 +156,6 @@ export const useNoteStore = defineStore("note", () => {
 
     return {
         notes,
-        treeNodes,
         selectedNoteId,
         selectedNoteKeys,
         activeNote,
