@@ -109,6 +109,7 @@ interface VueCalEvent {
     labels: Label[];
     task: Task;
     isCompact: boolean;
+    actualDurationMinutes: number;
 }
 
 interface VueCalEventClickPayload {
@@ -217,10 +218,12 @@ const calendarEvents = computed(() => {
             isAllDay = startDate.getHours() === 0 && startDate.getMinutes() === 0 && startDate.getSeconds() === 0;
         }
 
-        const scheduledDurationMinutes =
+        const actualDurationMinutes =
             !isAllDay && task.duration_minutes && task.duration_minutes > 0
-                ? Math.max(task.duration_minutes, 30)
+                ? task.duration_minutes
                 : 30;
+
+        const scheduledDurationMinutes = Math.max(actualDurationMinutes, 30);
 
         let endDate: Date;
         let start: Date | string;
@@ -278,6 +281,7 @@ const calendarEvents = computed(() => {
             labels,
             task,
             isCompact,
+            actualDurationMinutes,
         };
     });
 
@@ -292,7 +296,7 @@ function formatEventTime(event: VueCalEvent): string {
     }
 
     const start = new Date(event.start);
-    const end = new Date(event.end);
+    const actualEnd = new Date(start.getTime() + event.actualDurationMinutes * 60000);
 
     const formatTime = (date: Date): string => {
         const hours = String(date.getHours()).padStart(2, '0');
@@ -300,7 +304,7 @@ function formatEventTime(event: VueCalEvent): string {
         return `${hours}:${minutes}`;
     };
 
-    return `${formatTime(start)} - ${formatTime(end)}`;
+    return `${formatTime(start)} - ${formatTime(actualEnd)}`;
 }
 
 const handleToggleComplete = async (event: VueCalEvent) => {
@@ -755,7 +759,7 @@ onMounted(() => {
 @media (hover: none) {
     .event-actions :deep(.task-menu-trigger),
     .event-actions :deep(.p-button) {
-        opacity: 1;
+        opacity: 1 !important;
     }
 }
 

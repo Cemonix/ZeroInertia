@@ -100,32 +100,16 @@
 
             <!-- Main Content Area -->
             <div class="task-main">
-                <div class="form-field">
-                    <label for="title">Title</label>
-                    <InputText
-                        id="title"
-                        v-model="title"
-                        @keyup.enter="saveTask"
-                        placeholder="Task name (use @ for dates, e.g., 'Meeting @tomorrow 3pm')"
-                        autofocus
-                    />
-                    <div v-if="detectedDateText" class="date-detection-hint">
-                        <FontAwesomeIcon icon="calendar" />
-                        <span>Due date set: <strong>{{ detectedDateText }}</strong></span>
-                        <button
-                            type="button"
-                            class="clear-detection-btn"
-                            @click="clearDetectedDate"
-                            title="Clear due date"
-                        >
-                            <FontAwesomeIcon icon="times" />
-                        </button>
-                    </div>
-                </div>
-                <div class="form-field">
-                    <label for="description">Description</label>
-                    <Textarea id="description" v-model="description" rows="4" />
-                </div>
+                <TaskForm
+                    v-model:title="title"
+                    v-model:description="description"
+                    v-model:project-id="selectedProjectId"
+                    v-model:section-id="selectedSectionId"
+                    :detected-date-text="detectedDateText"
+                    :loading="isLoading"
+                    @clear-detected-date="clearDetectedDate"
+                    @save="saveTask"
+                />
 
                 <!-- Checklists Section -->
                 <div
@@ -225,18 +209,20 @@
 
 <script lang="ts" setup>
 import { ref, watch, computed, type Ref, onMounted, onBeforeUnmount } from "vue";
-import Textarea from "primevue/textarea";
 import Select from "primevue/select";
 import DateTimePicker from "@/components/pickers/DateTimePicker.vue";
 import { useTaskStore } from "@/stores/task";
 import { useChecklistStore } from "@/stores/checklist";
 import { usePriorityStore } from "@/stores/priority";
 import { useLabelStore } from "@/stores/label";
+import { useProjectStore } from "@/stores/project";
+import { useSectionStore } from "@/stores/section";
 import CheckList from "@/components/common/CheckList.vue";
 import Popover from "@/components/common/Popover.vue";
 import RecurrencePicker from "@/components/pickers/RecurrencePicker.vue";
 import ReminderPicker from "@/components/pickers/ReminderPicker.vue";
 import LabelPicker from "@/components/pickers/LabelPicker.vue";
+import TaskForm from "@/components/tasks/TaskForm.vue";
 import { useToast } from "primevue";
 import type { Label } from "@/models/label";
 import type { Task, TaskRecurrenceUnit } from "@/models/task";
@@ -253,6 +239,8 @@ const taskStore = useTaskStore();
 const checklistStore = useChecklistStore();
 const priorityStore = usePriorityStore();
 const labelStore = useLabelStore();
+const projectStore = useProjectStore();
+const sectionStore = useSectionStore();
 
 const isLoading = ref(false);
 const title = ref("");
@@ -261,6 +249,10 @@ const taskCompleted = ref(false);
 const priorityId: Ref<string | null> = ref(null);
 const dueDateTimeString: Ref<string | null> = ref(null);
 const durationMinutes: Ref<number | null> = ref(null);
+
+// Project and Section selection
+const selectedProjectId: Ref<string | null> = ref(null);
+const selectedSectionId: Ref<string | null> = ref(null);
 
 // UI state for popovers
 const showAddChecklist = ref(false);
@@ -417,6 +409,10 @@ function loadTaskData(task: Task) {
         task.label_ids?.slice() ??
         (task.labels ? task.labels.map((label) => label.id) : []);
 
+    // Load project and section
+    selectedProjectId.value = task.project_id;
+    selectedSectionId.value = task.section_id;
+
     // Load recurrence from task fields
     recurrenceInterval.value = task.recurrence_interval;
     recurrenceUnit.value = task.recurrence_unit;
@@ -428,7 +424,16 @@ function loadTaskData(task: Task) {
 
 function applyInitialValues() {
     const initialValues = taskStore.initialTaskValues;
-    if (!initialValues) return;
+    if (!initialValues) {
+        // No initial values from store, use props for project/section
+        if (props.projectId) {
+            selectedProjectId.value = props.projectId;
+        }
+        if (taskStore.currentSectionId) {
+            selectedSectionId.value = taskStore.currentSectionId;
+        }
+        return;
+    }
 
     if (initialValues.due_datetime) {
         dueDateTimeString.value = initialValues.due_datetime;
@@ -448,6 +453,17 @@ function applyInitialValues() {
     if (initialValues.label_ids) {
         selectedLabelIds.value = initialValues.label_ids.slice();
     }
+    // Apply project and section from initial values if provided
+    if (initialValues.project_id !== undefined) {
+        selectedProjectId.value = initialValues.project_id;
+    } else if (props.projectId) {
+        selectedProjectId.value = props.projectId;
+    }
+    if (initialValues.section_id !== undefined) {
+        selectedSectionId.value = initialValues.section_id;
+    } else if (taskStore.currentSectionId) {
+        selectedSectionId.value = taskStore.currentSectionId;
+    }
 }
 
 async function handleModalOpen() {
@@ -464,15 +480,47 @@ async function handleModalOpen() {
         }
     }
 
+    // Load projects if not already loaded
+    if (!projectStore.projects.length) {
+        try {
+            await projectStore.loadProjects();
+        } catch (error) {
+            toast.add({
+                severity: "error",
+                summary: "Error",
+                detail: "Failed to load projects",
+            });
+        }
+    }
+
     const currentTask = taskStore.getCurrentTask;
     if (currentTask) {
         // Editing existing task
         loadTaskData(currentTask);
         await loadChecklists(currentTask.id);
+
+        // Load sections for the task's project
+        if (currentTask.project_id) {
+            try {
+                await sectionStore.loadSectionsForProject(currentTask.project_id);
+            } catch (error) {
+                // Silently fail - sections are optional
+            }
+        }
     } else {
         // Creating new task
         resetForm();
         applyInitialValues();
+
+        // Load sections for the pre-selected project if any
+        const projectId = props.projectId || selectedProjectId.value;
+        if (projectId) {
+            try {
+                await sectionStore.loadSectionsForProject(projectId);
+            } catch (error) {
+                // Silently fail - sections are optional
+            }
+        }
     }
 }
 
@@ -502,6 +550,20 @@ watch(
             recurrenceInterval.value = null;
             recurrenceUnit.value = null;
             recurrenceDays.value = null;
+        }
+    }
+);
+
+// Watch selected project to load sections
+watch(
+    () => selectedProjectId.value,
+    async (newProjectId) => {
+        if (newProjectId) {
+            try {
+                await sectionStore.loadSectionsForProject(newProjectId);
+            } catch (error) {
+                // Silently fail - sections are optional
+            }
         }
     }
 );
@@ -563,9 +625,6 @@ async function saveTask() {
     }
 
     const currentTask = taskStore.getCurrentTask;
-    const sectionIdForCreate = currentTask
-        ? currentTask.section_id
-        : taskStore.currentSectionId;
 
     isLoading.value = true;
 
@@ -575,6 +634,8 @@ async function saveTask() {
                 title: finalTitle,
                 description: description.value,
                 completed: taskCompleted.value,
+                project_id: selectedProjectId.value ?? undefined,
+                section_id: selectedSectionId.value ?? undefined,
                 priority_id: priorityId.value,
                 due_datetime: dueDateTimeString.value,
                 duration_minutes: durationMinutes.value,
@@ -592,8 +653,8 @@ async function saveTask() {
             });
         } else {
             await taskStore.createTask({
-                project_id: props.projectId != "" ? props.projectId : null,
-                section_id: sectionIdForCreate as string != "" ? sectionIdForCreate as string : null,
+                project_id: selectedProjectId.value,
+                section_id: selectedSectionId.value,
                 title: finalTitle,
                 description: description.value,
                 priority_id: priorityId.value,
@@ -635,6 +696,8 @@ function resetForm() {
     priorityId.value = null;
     dueDateTimeString.value = null;
     durationMinutes.value = null;
+    selectedProjectId.value = null;
+    selectedSectionId.value = null;
     showAddChecklist.value = false;
     newChecklistTitle.value = "";
     selectedLabelIds.value = [];
@@ -690,18 +753,6 @@ onMounted(async () => {
     overflow-y: auto;
 }
 
-.form-field {
-    display: flex;
-    flex-direction: column;
-    margin-bottom: 1.5rem;
-}
-
-.form-field label {
-    display: block;
-    margin-bottom: 0.5rem;
-    font-weight: 500;
-}
-
 /* Mobile responsive styles */
 @media (max-width: 768px) {
     :deep(.task-modal-dialog) {
@@ -731,10 +782,6 @@ onMounted(async () => {
 
     .task-main {
         padding: 0.75rem 1rem;
-    }
-
-    .form-field {
-        margin-bottom: 1rem;
     }
 
     .selected-labels {
@@ -1011,62 +1058,4 @@ onMounted(async () => {
     }
 }
 
-/* Natural language date detection hint */
-.date-detection-hint {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-top: 0.375rem;
-    padding: 0.5rem 0.625rem;
-    background: var(--p-content-background);
-    border: 1px solid var(--p-content-border-color);
-    border-radius: 6px;
-    font-size: 0.8125rem;
-    color: var(--p-text-color);
-    animation: slideDown 0.2s ease-out;
-}
-
-.date-detection-hint svg {
-    color: var(--p-text-muted-color);
-    font-size: 0.875rem;
-}
-
-.date-detection-hint strong {
-    color: var(--p-text-color);
-    font-weight: 500;
-}
-
-.clear-detection-btn {
-    margin-left: auto;
-    background: none;
-    border: none;
-    padding: 0.25rem;
-    cursor: pointer;
-    color: var(--p-text-muted-color);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 4px;
-    transition: all 0.15s ease;
-}
-
-.clear-detection-btn:hover {
-    background: var(--p-highlight-background);
-    color: var(--p-highlight-color);
-}
-
-.clear-detection-btn svg {
-    font-size: 0.75rem;
-}
-
-@keyframes slideDown {
-    from {
-        opacity: 0;
-        transform: translateY(-10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
 </style>

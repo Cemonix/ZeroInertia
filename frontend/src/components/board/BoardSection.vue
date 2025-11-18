@@ -2,6 +2,13 @@
     <div class="board-section" v-bind="attrs">
         <!-- Section Header -->
         <div class="section-header">
+            <button
+                type="button"
+                class="section-drag-handle"
+                aria-label="Reorder section"
+            >
+                <FontAwesomeIcon icon="grip-vertical" />
+            </button>
             <div class="section-info" @click="toggleCollapse">
                 <FontAwesomeIcon
                     :icon="isCollapsed ? 'chevron-right' : 'chevron-down'"
@@ -44,14 +51,15 @@
                 group="tasks"
                 item-key="id"
                 @change="handleDragChange"
-                handle=".task-card"
+                handle=".task-drag-handle"
                 animation="200"
                 ghost-class="task-ghost"
-                :delay="200"
-                :delay-on-touch-only="true"
             >
                 <template #item="{element}">
-                    <TaskCard :task="element" />
+                    <TaskCard 
+                        :task="element"
+                        :show-drag-handle="true"
+                    />
                 </template>
             </draggable>
 
@@ -275,6 +283,28 @@ function handleDeleteSection() {
     align-items: center;
     padding-bottom: 0.75rem;
     gap: 0.5rem;
+}
+
+.section-drag-handle {
+    border: none;
+    background: transparent;
+    padding: 0.15rem 0.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: grab;
+    color: var(--p-text-color);
+    opacity: 0.6;
+    touch-action: none;
+    user-select: none;
+}
+
+.section-drag-handle:active {
+    cursor: grabbing;
+}
+
+.section-drag-handle :deep(svg) {
+    font-size: 0.85rem;
 }
 
 .section-divider {

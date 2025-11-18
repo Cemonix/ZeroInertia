@@ -10,9 +10,13 @@
 import { onMounted } from 'vue';
 import { useToast } from 'primevue/usetoast';
 import { setupForegroundMessageListener } from '@/services/notificationService';
+import { useTaskStore } from '@/stores/task';
+import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts';
 import apiClient from '@/services/apiClient';
 
 const toast = useToast();
+const taskStore = useTaskStore();
+const { register } = useKeyboardShortcuts();
 
 // Set up foreground notification listener when app mounts
 onMounted(async () => {
@@ -41,5 +45,18 @@ onMounted(async () => {
     } catch (error) {
         console.error('Failed to setup foreground notification listener:', error);
     }
+
+    // Register global keyboard shortcuts
+    register({
+        key: 'a',
+        ctrl: true,
+        meta: true,
+        handler: () => {
+            if (!taskStore.isTaskModalVisible) {
+                taskStore.openTaskModal(null);
+            }
+        },
+        description: 'Quick add task',
+    });
 });
 </script>

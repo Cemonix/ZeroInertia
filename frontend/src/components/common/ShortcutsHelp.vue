@@ -42,25 +42,29 @@
             </section>
 
             <section class="section">
-                <h4>Planned</h4>
+                <h4>Global Shortcuts</h4>
                 <ul>
+                    <li>
+                        <span class="keys">
+                            <span class="kbd">Ctrl</span>
+                            <span class="join">+</span>
+                            <span class="kbd">A</span>
+                        </span>
+                        <span class="desc">Quick add task</span>
+                    </li>
                     <li>
                         <span class="keys">
                             <span class="kbd">Ctrl</span>
                             <span class="join">/</span>
                         </span>
                         <span class="desc">Open shortcuts help</span>
-                        <Tag value="Coming Soon" severity="secondary" />
                     </li>
-                    <li>
-                        <span class="keys">
-                            <span class="kbd">Ctrl</span>
-                            <span class="join">+</span>
-                            <span class="kbd">N</span>
-                        </span>
-                        <span class="desc">Quick add task</span>
-                        <Tag value="Coming Soon" severity="secondary" />
-                    </li>
+                </ul>
+            </section>
+
+            <section class="section">
+                <h4>Planned</h4>
+                <ul>
                     <li>
                         <span class="keys">
                             <span class="kbd">Ctrl</span>

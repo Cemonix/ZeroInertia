@@ -46,17 +46,13 @@
                         item-key="id"
                         @start="handleDragStart"
                         @end="handleDragEnd"
-                        handle=".drag-handle"
+                        handle=".section-drag-handle"
                         animation="200"
                         ghost-class="section-ghost"
                     >
                         <template #item="{ element }">
                             <div v-if="element" :key="element.id">
-                                <BoardSection
-                                    class="drag-handle"
-                                    :project-id="projectId"
-                                    :section="element"
-                                />
+                                <BoardSection :project-id="projectId" :section="element" />
                             </div>
                         </template>
                     </draggable>
@@ -312,6 +308,31 @@ function endPan() {
     }
 }
 
+// Touch support for horizontal scrolling on mobile
+function onTouchStart(e: TouchEvent) {
+    if (viewMode.value !== "kanban") return;
+    const container = boardSectionsRef.value;
+    if (!container) return;
+
+    isPanning.value = true;
+    panStartX = e.touches[0].clientX;
+    panScrollLeft = container.scrollLeft;
+}
+
+function onTouchMove(e: TouchEvent) {
+    if (!isPanning.value) return;
+    const container = boardSectionsRef.value;
+    if (!container) return;
+
+    const dx = e.touches[0].clientX - panStartX;
+    container.scrollLeft = panScrollLeft - dx;
+}
+
+function onTouchEnd() {
+    if (!isPanning.value) return;
+    isPanning.value = false;
+}
+
 function onWheelHorizontal(e: WheelEvent) {
     if (viewMode.value !== "kanban") return;
     const container = boardSectionsRef.value;
@@ -330,6 +351,9 @@ onMounted(() => {
     window.addEventListener("mouseup", endPan);
     container.addEventListener("mouseleave", endPan);
     container.addEventListener("wheel", onWheelHorizontal, { passive: false });
+    container.addEventListener("touchstart", onTouchStart, { passive: true });
+    container.addEventListener("touchmove", onTouchMove, { passive: false });
+    container.addEventListener("touchend", onTouchEnd);
 });
 
 onBeforeUnmount(() => {
@@ -338,6 +362,9 @@ onBeforeUnmount(() => {
         container.removeEventListener("mousedown", tryStartPan);
         container.removeEventListener("mouseleave", endPan);
         container.removeEventListener("wheel", onWheelHorizontal as any);
+        container.removeEventListener("touchstart", onTouchStart as any);
+        container.removeEventListener("touchmove", onTouchMove as any);
+        container.removeEventListener("touchend", onTouchEnd);
     }
     window.removeEventListener("mousemove", onPanMove);
     window.removeEventListener("mouseup", endPan);

@@ -61,6 +61,7 @@
                         v-for="task in overdueTasks"
                         :key="task.id"
                         :task="task"
+                        :show-drag-handle="false"
                     />
                 </TransitionGroup>
             </div>
@@ -77,6 +78,7 @@
                         v-for="task in todayTasks"
                         :key="task.id"
                         :task="task"
+                        :show-drag-handle="false"
                     />
                 </TransitionGroup>
             </div>
@@ -88,6 +90,22 @@
                 <p>You're all caught up! Enjoy your day.</p>
             </div>
             </div>
+            <!-- Floating quick-add button (list view only, after tasks load).
+                 Teleport to body so it's not affected by parent transforms. -->
+            <Teleport to="body">
+                <Button
+                    v-if="viewMode === 'list' && hasLoadedTasks"
+                    class="today-quick-add-button"
+                    rounded
+                    aria-label="Add task"
+                    title="Add task"
+                    @click="handleQuickAddClick"
+                >
+                    <template #icon>
+                        <FontAwesomeIcon icon="plus" />
+                    </template>
+                </Button>
+            </Teleport>
         </div>
     </div>
 
@@ -124,11 +142,17 @@ const taskStore = useTaskStore();
 const labelStore = useLabelStore();
 const priorityStore = usePriorityStore();
 
-const isTodayLoading = ref(false);
+const isTodayLoading = ref(true);
+const hasLoadedTasks = ref(false);
 const error = computed(() => taskStore.error);
 
 const handleDateChange = (newDate: Date) => {
     currentViewDate.value = newDate;
+};
+
+const handleQuickAddClick = () => {
+    // Open task modal for quick creation; project/section will be decided in the modal logic
+    taskStore.openTaskModal(null);
 };
 
 const formattedDate = computed(() => {
@@ -198,6 +222,7 @@ onMounted(async () => {
         ]);
     } finally {
         isTodayLoading.value = false;
+        hasLoadedTasks.value = true;
     }
 });
 </script>
@@ -297,6 +322,25 @@ onMounted(async () => {
     flex: 1;
     min-height: 0;
     overflow: hidden;
+}
+
+.today-quick-add-button {
+    position: fixed;
+    right: 1.5rem;
+    bottom: 1.5rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    background: var(--p-primary-color);
+    color: #ffffff;
+    border-radius: 999px;
+    width: 3.25rem;
+    height: 3.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.today-quick-add-button:hover {
+    background: color-mix(in srgb, var(--p-primary-color) 90%, #ffffff 10%);
 }
 
 .task-group {

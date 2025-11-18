@@ -105,6 +105,7 @@ import { useUiStore } from "@/stores/ui";
 import { useAuthStore } from "@/stores/auth";
 import { useStreakStore } from "@/stores/streak";
 import { useTheme } from "@/composables/useTheme";
+import { useKeyboardShortcuts } from "@/composables/useKeyboardShortcuts";
 import NotificationToggle from "@/components/common/NotificationToggle.vue";
 import ShortcutsHelp from "@/components/common/ShortcutsHelp.vue";
 
@@ -123,6 +124,7 @@ const userMenu = ref();
 const uiStore = useUiStore();
 const { isSidebarCollapsed } = storeToRefs(uiStore);
 const { isDarkMode, toggleTheme, initializeTheme } = useTheme();
+const { register } = useKeyboardShortcuts();
 const showNotificationSettings = ref(false);
 const showShortcuts = ref(false);
 const isMobileView = ref(false);
@@ -244,6 +246,16 @@ onMounted(() => {
         // Watch for changes
         watch([isMobileView, isSidebarCollapsed], updateBodyOverflow);
     }
+
+    // Register keyboard shortcut to open shortcuts help
+    register({
+        key: '/',
+        ctrl: true,
+        handler: () => {
+            showShortcuts.value = true;
+        },
+        description: 'Open shortcuts help',
+    });
 });
 
 onUnmounted(() => {
