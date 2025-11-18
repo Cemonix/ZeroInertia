@@ -119,7 +119,7 @@ def upgrade() -> None:
             b.id,
             m.user_id,
             m.title,
-            b.author,
+            COALESCE(b.author, 'Unknown'),
             m.status,
             NULL as genre,
             m.started_at,

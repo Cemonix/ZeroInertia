@@ -295,3 +295,30 @@ class TestMediaDuplicateCheck:
         assert "Spider-Man" in titles
         assert "Spider-Man: Homecoming" in titles
         assert "The Amazing Spider-Man" in titles
+
+    async def test_duplicate_check_includes_item_itself_when_editing(
+        self, authenticated_client: AsyncClient, db_session: AsyncSession, test_user: User
+    ) -> None:
+        """Test duplicate check includes the item itself (filtering happens in frontend)."""
+        book = Book(
+            title="Existing Book Title",
+            creator="Author Name",
+            status="completed",
+            user_id=test_user.id,
+        )
+        db_session.add(book)
+        await db_session.commit()
+        await db_session.refresh(book)
+
+        # When editing this book, searching for its own title should return itself
+        response = await authenticated_client.get(
+            "/api/v1/media/duplicate-check",
+            params={"title": "Existing Book Title"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["books"]) == 1
+        assert data["books"][0]["id"] == str(book.id)
+        assert data["books"][0]["title"] == "Existing Book Title"
+        # Frontend is responsible for filtering out the current item when editing
