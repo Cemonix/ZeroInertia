@@ -155,6 +155,46 @@ export const resetMockChecklists = () => {
 export const getMockChecklists = () => mockChecklists;
 
 export const handlers = [
+    http.get(`${API_BASE_URL}/api/v1/priorities`, () => {
+        return HttpResponse.json([
+            {
+                id: 'priority-low',
+                name: 'Low',
+                level: 1,
+                color: '#3b82f6',
+            },
+            {
+                id: 'priority-medium',
+                name: 'Medium',
+                level: 2,
+                color: '#f59e0b',
+            },
+            {
+                id: 'priority-high',
+                name: 'High',
+                level: 3,
+                color: '#ef4444',
+            },
+        ]);
+    }),
+
+    http.get(`${API_BASE_URL}/api/v1/labels`, () => {
+        return HttpResponse.json([
+            {
+                id: 'label-1',
+                name: 'Work',
+                color: '#3b82f6',
+                order_index: 0,
+            },
+            {
+                id: 'label-2',
+                name: 'Personal',
+                color: '#10b981',
+                order_index: 1,
+            },
+        ]);
+    }),
+
     http.get(`${API_BASE_URL}/csrf`, () => {
         return HttpResponse.json({ csrf_token: 'mock-csrf-token' });
     }),

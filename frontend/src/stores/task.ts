@@ -35,7 +35,14 @@ export const useTaskStore = defineStore('task', () => {
     const getTasksByDateRange = computed(() => {
         return (dateFrom: Date, dateTo: Date) =>
             tasks.value.filter(task => {
-                if (!task.due_datetime) return true;
+                // Exclude completed and archived tasks for active views (Today calendar, etc.)
+                if (task.completed || task.archived) {
+                    return false;
+                }
+                // Tasks without a due date are always included in the range
+                if (!task.due_datetime) {
+                    return true;
+                }
                 const taskDate = new Date(task.due_datetime);
                 return taskDate >= dateFrom && taskDate < dateTo;
             });

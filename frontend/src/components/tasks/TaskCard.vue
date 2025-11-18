@@ -5,12 +5,21 @@
         @click="handleCardClick"
     >
         <div class="task-content">
+            <!-- Drag handle for reordering -->
+            <button
+                v-if="shouldShowDragHandle"
+                type="button"
+                class="task-drag-handle"
+                aria-label="Reorder task"
+            >
+                <FontAwesomeIcon icon="grip-vertical" />
+            </button>
+
             <!-- Checkbox for completion status -->
-            <div class="task-checkbox" @click.stop>
+            <div class="task-checkbox" @click.stop="handleToggleComplete">
                 <Checkbox
                     :model-value="task.completed"
                     binary
-                    @update:model-value="handleToggleComplete"
                 />
             </div>
 
@@ -95,9 +104,12 @@ const toast = useToast();
 
 interface Props {
     task: Task;
+    showDragHandle?: boolean;
 }
 
 const props = defineProps<Props>();
+
+const shouldShowDragHandle = computed(() => props.showDragHandle !== false);
 
 // Get the full priority object for this task
 const taskPriority = computed(() => {
@@ -239,7 +251,8 @@ const handleCardClick = (event: MouseEvent) => {
     const target = event.target as HTMLElement;
     if (
         target.closest(".task-checkbox") ||
-        target.closest(".task-actions")
+        target.closest(".task-actions") ||
+        target.closest(".task-drag-handle")
     ) {
         return;
     }
@@ -346,6 +359,29 @@ const reminderLabel = computed(() => {
 .task-title-text {
     flex: 1;
     min-width: 0;
+}
+
+.task-drag-handle {
+    flex-shrink: 0;
+    border: none;
+    background: transparent;
+    padding: 0.15rem 0.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: grab;
+    color: var(--p-text-muted-color);
+    opacity: 0.7;
+    touch-action: none;
+    user-select: none;
+}
+
+.task-drag-handle:active {
+    cursor: grabbing;
+}
+
+.task-drag-handle :deep(svg) {
+    font-size: 0.8rem;
 }
 
 .recurring-pill {
@@ -481,7 +517,7 @@ const reminderLabel = computed(() => {
 /* Ensure menu trigger is visible on touch devices */
 @media (hover: none) {
     .task-actions :deep(.task-menu-trigger) {
-        opacity: 1;
+        opacity: 1 !important;
     }
 }
 </style>
