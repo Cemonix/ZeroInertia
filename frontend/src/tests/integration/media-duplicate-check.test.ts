@@ -168,4 +168,18 @@ describe('Media Duplicate Check Integration', () => {
         // Should not throw error
         expect(Array.isArray(result)).toBe(true);
     });
+
+    it('should return results that need filtering when editing same item', async () => {
+        const mockMedia = getMockMedia();
+        const book = mockMedia.find(m => m.media_type === 'book') as BookMediaItem;
+
+        // When editing, the API will return the item itself as a duplicate
+        const result = await mediaService.checkDuplicateTitle(book.title);
+
+        // Should include the item itself (filtering happens in the component)
+        const foundSelf = result.find(m =>
+            m.media_type === book.media_type && m.title === book.title
+        );
+        expect(foundSelf).toBeDefined();
+    });
 });

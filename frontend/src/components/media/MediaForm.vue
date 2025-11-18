@@ -338,8 +338,15 @@ watch(
 
         duplicateTimeout = setTimeout(async () => {
             try {
-                duplicateMatches.value =
-                    await mediaService.checkDuplicateTitle(trimmed);
+                const results = await mediaService.checkDuplicateTitle(trimmed);
+                // When editing, filter out the current item from duplicates
+                if (props.item) {
+                    duplicateMatches.value = results.filter(
+                        match => !(match.media_type === props.item!.media_type && match.title === props.item!.title)
+                    );
+                } else {
+                    duplicateMatches.value = results;
+                }
             } catch {
                 duplicateMatches.value = [];
             }
