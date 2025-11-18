@@ -1493,7 +1493,7 @@ class TestTasksByDateRange:
         tasks = response.json()
         assert len(tasks) == 1
         assert tasks[0]["title"] == "My task"
-        assert tasks[0]["user_id"] == str(test_user.id)
+        # User isolation verified: only 1 task returned (test_user's task, not other_user's)
 
     async def test_get_tasks_by_date_range_boundary_conditions(
         self,

@@ -1,239 +1,349 @@
 <template>
-    <div class="media-table">
-        <DataTable
-            :value="items"
-            :loading="loading"
-            dataKey="id"
-            responsiveLayout="scroll"
-            size="small"
-        >
-            <Column field="title" header="Title" sortable />
-
-            <!-- Show Type column only when viewing all media -->
-            <Column v-if="!type" field="media_type" header="Type" sortable>
-                <template #body="{ data }">
-                    <Tag :value="formatType(data.media_type)" />
-                </template>
-            </Column>
-
-            <Column field="status" header="Status" sortable>
-                <template #body="{ data }">
-                    <Tag
-                        :value="formatStatus(data.status)"
-                        :severity="statusSeverity(data.status)"
-                    />
-                </template>
-            </Column>
-
-            <Column field="rating" header="Rating" sortable>
-                <template #body="{ data }">
-                    <span v-if="data.rating !== null">{{ data.rating }}</span>
-                    <span v-else class="text-muted">—</span>
-                </template>
-            </Column>
-
-            <Column field="started_at" header="Started" sortable />
-            <Column field="completed_at" header="Completed" sortable />
-
-            <!-- Type-specific columns for books -->
-            <Column
-                v-if="type === 'book'"
-                field="author"
-                header="Author"
-                sortable
-            />
-            <Column
-                v-if="type === 'book'"
-                field="pages"
-                header="Pages"
-                sortable
-            />
-            <Column v-if="type === 'book'" field="isbn" header="ISBN" />
-            <Column
-                v-if="type === 'book'"
-                field="publisher"
-                header="Publisher"
-            />
-
-            <!-- Type-specific columns for movies -->
-            <Column
-                v-if="type === 'movie'"
-                field="director"
-                header="Director"
-                sortable
-            />
-            <Column
-                v-if="type === 'movie'"
-                field="duration_minutes"
-                header="Duration (min)"
-                sortable
-            />
-            <Column
-                v-if="type === 'movie'"
-                field="release_year"
-                header="Year"
-                sortable
-            />
-            <Column v-if="type === 'movie'" field="genre" header="Genre" />
-
-            <!-- Type-specific columns for games -->
-            <Column
-                v-if="type === 'game'"
-                field="platform"
-                header="Platform"
-                sortable
-            />
-            <Column
-                v-if="type === 'game'"
-                field="developer"
-                header="Developer"
-            />
-            <Column
-                v-if="type === 'game'"
-                field="playtime_hours"
-                header="Playtime (h)"
-                sortable
-            />
-            <Column v-if="type === 'game'" field="genre" header="Genre" />
-            <Column v-if="type === 'game'" field="is_100_percent" header="100%">
-                <template #body="{ data }">
-                    <span>{{ data.is_100_percent ? "Yes" : "No" }}</span>
-                </template>
-            </Column>
-
-            <!-- Type-specific columns for shows -->
-            <Column
-                v-if="type === 'show'"
-                field="season_number"
-                header="Season"
-                sortable
-            />
-            <Column
-                v-if="type === 'show'"
-                field="episodes"
-                header="Episodes"
-                sortable
-            />
-            <Column v-if="type === 'show'" field="creator" header="Creator" />
-            <Column
-                v-if="type === 'show'"
-                field="release_year"
-                header="Year"
-                sortable
-            />
-            <Column v-if="type === 'show'" field="genre" header="Genre" />
-
-            <!-- Generic details column when viewing all media -->
-            <Column v-if="!type" header="Details">
-                <template #body="{ data }">
-                    <span v-if="data.media_type === 'book'">{{ data.author }}</span>
-                    <span v-else-if="data.media_type === 'movie'">{{ data.director }}</span>
-                    <span v-else-if="data.media_type === 'game'">{{ data.platform }}</span>
-                    <span v-else-if="data.media_type === 'show'">Season {{ data.season_number }}</span>
-                    <span v-else>—</span>
-                </template>
-            </Column>
-
-            <Column header="Actions" :exportable="false" style="width: 160px">
-                <template #body="{ data }">
-                    <div class="row-actions">
-                        <Button size="small" text @click="$emit('edit', data)"
-                            >Edit</Button
+    <div class="media-table-wrapper">
+        <table class="media-table">
+            <thead>
+                <tr>
+                    <th class="col-title">Title</th>
+                    <th v-if="type === 'all'" class="col-type">Type</th>
+                    <th v-if="type === 'all' || type === 'book'" class="col-creator">
+                        Creator
+                    </th>
+                    <th class="col-status">Status</th>
+                    <th class="col-genre">Genre</th>
+                    <th v-if="type === 'all' || type === 'game'" class="col-platform">
+                        Platform
+                    </th>
+                    <th class="col-date">Started</th>
+                    <th class="col-date">Completed</th>
+                    <th class="col-actions"></th>
+                </tr>
+            </thead>
+            <tbody>
+                <template v-if="loading && items.length === 0">
+                    <tr
+                        v-for="n in 3"
+                        :key="`skeleton-${n}`"
+                    >
+                        <td class="cell-title">
+                            <div class="title-main">
+                                <Skeleton
+                                    width="70%"
+                                    height="1rem"
+                                    class="skeleton-line"
+                                />
+                            </div>
+                            <div class="title-notes">
+                                <Skeleton
+                                    width="50%"
+                                    height="0.8rem"
+                                    class="skeleton-line secondary"
+                                />
+                            </div>
+                        </td>
+                        <td
+                            v-if="type === 'all'"
+                            class="cell-type"
                         >
+                            <Skeleton
+                                width="50%"
+                                height="0.8rem"
+                                class="skeleton-line"
+                            />
+                        </td>
+                        <td
+                            v-if="type === 'all' || type === 'book'"
+                            class="cell-creator"
+                        >
+                            <Skeleton
+                                width="60%"
+                                height="0.8rem"
+                                class="skeleton-line"
+                            />
+                        </td>
+                        <td class="cell-status">
+                            <Skeleton
+                                width="4.5rem"
+                                height="1.4rem"
+                                class="skeleton-pill"
+                            />
+                        </td>
+                        <td class="cell-genre">
+                            <Skeleton
+                                width="40%"
+                                height="0.8rem"
+                                class="skeleton-line"
+                            />
+                        </td>
+                        <td
+                            v-if="type === 'all' || type === 'game'"
+                            class="cell-platform"
+                        >
+                            <Skeleton
+                                width="50%"
+                                height="0.8rem"
+                                class="skeleton-line"
+                            />
+                        </td>
+                        <td class="cell-date">
+                            <Skeleton
+                                width="60%"
+                                height="0.8rem"
+                                class="skeleton-line"
+                            />
+                        </td>
+                        <td class="cell-date">
+                            <Skeleton
+                                width="60%"
+                                height="0.8rem"
+                                class="skeleton-line"
+                            />
+                        </td>
+                        <td class="cell-actions">
+                            <Skeleton
+                                width="70%"
+                                height="1.2rem"
+                                class="skeleton-line"
+                            />
+                        </td>
+                    </tr>
+                </template>
+                <tr v-else-if="items.length === 0">
+                    <td :colspan="columnCount" class="empty-cell">
+                        No media items in this view.
+                    </td>
+                </tr>
+                <tr
+                    v-for="item in items"
+                    :key="item.id"
+                >
+                    <td class="cell-title">
+                        <div class="title-main">{{ item.title }}</div>
+                        <div v-if="item.notes" class="title-notes">
+                            {{ item.notes }}
+                        </div>
+                    </td>
+                    <td
+                        v-if="type === 'all'"
+                        class="cell-type"
+                    >
+                        {{ formatMediaType(item.media_type) }}
+                    </td>
+                    <td
+                        v-if="type === 'all' || type === 'book'"
+                        class="cell-creator"
+                    >
+                        <span v-if="item.media_type === 'book'">
+                            {{ item.creator }}
+                        </span>
+                    </td>
+                    <td class="cell-status">
+                        <Tag
+                            :value="formatStatus(item.status)"
+                            :severity="statusSeverity(item.status)"
+                            class="status-tag"
+                        />
+                    </td>
+                    <td class="cell-genre">
+                        <span v-if="item.genre">{{ item.genre }}</span>
+                    </td>
+                    <td
+                        v-if="type === 'all' || type === 'game'"
+                        class="cell-platform"
+                    >
+                        <span v-if="item.media_type === 'game'">
+                            {{ item.platform }}
+                        </span>
+                    </td>
+                    <td class="cell-date">
+                        <span v-if="item.started_at">
+                            {{ formatDate(item.started_at) }}
+                        </span>
+                    </td>
+                    <td class="cell-date">
+                        <span v-if="item.completed_at">
+                            {{ formatDate(item.completed_at) }}
+                        </span>
+                    </td>
+                    <td class="cell-actions">
                         <Button
-                            size="small"
                             text
-                            severity="danger"
-                            @click="confirmDelete(data)"
-                            >Delete</Button
+                            size="small"
+                            @click="$emit('edit', item)"
                         >
-                    </div>
-                </template>
-            </Column>
-        </DataTable>
+                            Edit
+                        </Button>
+                        <Button
+                            text
+                            size="small"
+                            severity="danger"
+                            @click="$emit('delete', item)"
+                        >
+                            Delete
+                        </Button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
     </div>
-    <ConfirmDialog />
-    <Toast />
 </template>
 
 <script setup lang="ts">
-import { useConfirm } from 'primevue/useconfirm';
-import { useToast } from 'primevue/usetoast';
-import DataTable from 'primevue/datatable';
-import Column from 'primevue/column';
-import Tag from 'primevue/tag';
-import type { MediaItem, MediaStatus, MediaType } from '@/models/media';
+import { computed } from "vue";
+import Tag from "primevue/tag";
+import Button from "primevue/button";
+import Skeleton from "primevue/skeleton";
+import type { MediaItem, MediaStatus, MediaType } from "@/models/media";
+import { format, parseISO } from "date-fns";
 
-const emit = defineEmits<{
-    (e: 'edit', item: MediaItem): void;
-    (e: 'delete', item: MediaItem): void;
-}>();
-
-defineProps<{
+interface Props {
     items: MediaItem[];
-    loading?: boolean;
-    type?: MediaType;
-}>();
+    loading: boolean;
+    type: "all" | MediaType;
+}
 
-const confirm = useConfirm();
-const toast = useToast();
+interface Emits {
+    (e: "edit", item: MediaItem): void;
+    (e: "delete", item: MediaItem): void;
+}
 
-function formatType(type: MediaType): string {
+defineEmits<Emits>();
+const props = defineProps<Props>();
+
+const columnCount = computed(() => {
+    let count = 6; // title, status, genre, started, completed, actions
+    if (props.type === "all") {
+        count += 2; // type + creator
+    } else if (props.type === "book") {
+        count += 1; // creator
+    }
+    if (props.type === "all" || props.type === "game") {
+        count += 1; // platform
+    }
+    return count;
+});
+
+const formatStatus = (status: MediaStatus): string => {
+    switch (status) {
+        case "planned":
+            return "Planned";
+        case "in_progress":
+            return "In Progress";
+        case "completed":
+            return "Completed";
+        case "dropped":
+            return "Dropped";
+    }
+};
+
+const statusSeverity = (status: MediaStatus): string => {
+    switch (status) {
+        case "planned":
+            return "secondary";
+        case "in_progress":
+            return "warn";
+        case "completed":
+            return "success";
+        case "dropped":
+            return "danger";
+    }
+};
+
+const formatMediaType = (type: MediaType): string => {
     switch (type) {
-        case 'book': return 'Book';
-        case 'movie': return 'Movie';
-        case 'game': return 'Game';
-        case 'show': return 'Show';
+        case "book":
+            return "Book";
+        case "game":
+            return "Game";
+        case "movie":
+            return "Movie";
+        case "show":
+            return "Show";
     }
-}
+};
 
-function formatStatus(status: MediaStatus): string {
-    switch (status) {
-        case 'planned': return 'Planned';
-        case 'in_progress': return 'In Progress';
-        case 'completed': return 'Completed';
-        case 'dropped': return 'Dropped';
+const formatDate = (dateStr: string | null): string => {
+    if (!dateStr) return "";
+    try {
+        return format(parseISO(dateStr), "MMM d, yyyy");
+    } catch {
+        return dateStr;
     }
-}
-
-function statusSeverity(status: MediaStatus) {
-    switch (status) {
-        case 'planned': return 'info';
-        case 'in_progress': return 'warning';
-        case 'completed': return 'success';
-        case 'dropped': return 'danger';
-    }
-}
-
-function confirmDelete(item: MediaItem) {
-    confirm.require({
-        message: `Delete \"${item.title}\"? This cannot be undone.`,
-        header: 'Delete Confirmation',
-        icon: 'pi pi-exclamation-triangle',
-        acceptLabel: 'Delete',
-        acceptClass: 'p-button-danger',
-        rejectLabel: 'Cancel',
-        accept: () => {
-            // bubble up to parent for actual deletion
-            emit('delete', item);
-            toast.add({ severity: 'info', summary: 'Deleted', detail: 'Item removed', life: 2000 });
-        },
-    });
-}
+};
 </script>
 
 <style scoped>
+.media-table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+}
+
 .media-table {
-    background: var(--p-content-background);
-    border: 1px solid var(--p-content-border-color);
-    border-radius: 12px;
-    padding: 0.25rem;
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
 }
-.row-actions {
-    display: flex;
-    gap: 0.25rem;
+
+.media-table thead tr {
+    background-color: var(--p-content-background);
 }
-.text-muted {
+
+.media-table th,
+.media-table td {
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--p-content-border-color);
+    text-align: left;
+    vertical-align: middle;
+}
+
+.col-actions {
+    width: 120px;
+}
+
+.cell-title .title-main {
+    font-weight: 500;
+}
+
+.cell-title .title-notes {
+    margin-top: 0.15rem;
     color: var(--p-text-muted-color);
+    font-size: 0.8rem;
+}
+
+.cell-status :deep(.p-tag) {
+    font-size: 0.8rem;
+}
+
+.status-tag {
+    border-radius: 999px;
+    padding-inline: 0.6rem;
+}
+
+.empty-cell {
+    text-align: center;
+    color: var(--p-text-muted-color);
+    font-style: italic;
+}
+
+.cell-actions {
+    white-space: nowrap;
+}
+
+.skeleton-line {
+    border-radius: 999px;
+}
+
+.skeleton-line.secondary {
+    margin-top: 0.25rem;
+}
+
+.skeleton-pill {
+    border-radius: 999px;
+}
+
+@media (max-width: 768px) {
+    .media-table th,
+    .media-table td {
+        padding: 0.4rem 0.5rem;
+    }
 }
 </style>

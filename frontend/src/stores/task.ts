@@ -6,6 +6,12 @@ import { playTaskCompletedSound } from '@/core/sound';
 import type { PaginationParams } from '@/models/pagination';
 import { useStreakStore } from './streak';
 
+type TaskLoadContext =
+    | { type: 'none' }
+    | { type: 'all' }
+    | { type: 'project'; projectId: string }
+    | { type: 'dateRange' };
+
 export const useTaskStore = defineStore('task', () => {
     const tasks = ref<Task[]>([]);
     const currentTask = ref<Task | null>(null);
@@ -15,6 +21,7 @@ export const useTaskStore = defineStore('task', () => {
     const error = ref<string | null>(null);
     const taskModalVisible = ref(false);
     const draggedTaskId = ref<string | null>(null);
+    const loadContext = ref<TaskLoadContext>({ type: 'none' });
 
     const getTasksBySection = computed(() => {
         return (sectionId: string) =>
@@ -49,6 +56,7 @@ export const useTaskStore = defineStore('task', () => {
     });
 
     const getCurrentTask = computed(() => currentTask.value);
+    const getLoadContext = computed(() => loadContext.value);
 
     const setCurrentTask = (task: Task | null) => {
         currentTask.value = task;
@@ -187,6 +195,7 @@ export const useTaskStore = defineStore('task', () => {
             // Merge project tasks into the store without dropping tasks from other projects
             const others = tasks.value.filter(t => t.project_id !== projectId);
             tasks.value = [...others, ...projectTasks];
+            loadContext.value = { type: 'project', projectId };
         } catch (err) {
             error.value = err instanceof Error ? err.message : 'Failed to load tasks';
             // Don't clear all tasks on failure; keep existing cache to avoid UI flicker
@@ -201,6 +210,7 @@ export const useTaskStore = defineStore('task', () => {
         try {
             const resp = await taskService.getTasks(undefined, pagination);
             tasks.value = resp.items;
+            loadContext.value = { type: 'all' };
         } catch (err) {
             error.value = err instanceof Error ? err.message : 'Failed to load tasks';
             tasks.value = [];
@@ -215,6 +225,7 @@ export const useTaskStore = defineStore('task', () => {
         try {
             const fetchedTasks = await taskService.getTasksByDateRange(dateFrom, dateTo);
             tasks.value = fetchedTasks;
+            loadContext.value = { type: 'dateRange' };
         } catch (err) {
             error.value = err instanceof Error ? err.message : 'Failed to load tasks by date';
         } finally {
@@ -403,6 +414,7 @@ export const useTaskStore = defineStore('task', () => {
 
     function clearTasks() {
         tasks.value = [];
+        loadContext.value = { type: 'none' };
     }
 
     return {
@@ -418,6 +430,7 @@ export const useTaskStore = defineStore('task', () => {
         getTasksByDateRange,
         getCurrentTask,
         isTaskModalVisible,
+        getLoadContext,
         startDraggingTask,
         stopDraggingTask,
         setCurrentTask,

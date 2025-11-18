@@ -74,6 +74,24 @@ Object.defineProperty(window, 'IntersectionObserver', {
     value: MockIntersectionObserver,
 });
 
+class MockResizeObserver {
+    observe = vi.fn();
+    unobserve = vi.fn();
+    disconnect = vi.fn();
+}
+
+Object.defineProperty(window, 'ResizeObserver', {
+    writable: true,
+    configurable: true,
+    value: MockResizeObserver,
+});
+
+Object.defineProperty(global, 'ResizeObserver', {
+    writable: true,
+    configurable: true,
+    value: MockResizeObserver,
+});
+
 Object.defineProperty(global, 'IntersectionObserver', {
     writable: true,
     configurable: true,

@@ -1,3 +1,4 @@
+from datetime import datetime
 from uuid import UUID
 
 from fastapi import Depends, Query, status
@@ -5,7 +6,6 @@ from fastapi.routing import APIRouter
 from sqlalchemy.ext.asyncio.session import AsyncSession
 
 from app.api.v1.auth_deps import get_current_user
-from app.api.v1.pagination_deps import get_pagination_params
 from app.core.database import get_db
 from app.core.exceptions import MediaNotFoundException
 from app.models.user import User
@@ -13,6 +13,7 @@ from app.schemas.media import (
     BookCreate,
     BookResponse,
     BookUpdate,
+    DuplicateCheckResponse,
     GameCreate,
     GameResponse,
     GameUpdate,
@@ -22,8 +23,8 @@ from app.schemas.media import (
     ShowCreate,
     ShowResponse,
     ShowUpdate,
+    YearlyStatsResponse,
 )
-from app.schemas.pagination import PaginatedResponse, PaginationParams
 from app.services import media_service
 
 router = APIRouter()
@@ -32,36 +33,24 @@ router = APIRouter()
 # ===== Book Endpoints =====
 
 
-@router.get("/books", response_model=PaginatedResponse[BookResponse])
+@router.get("/books", response_model=list[BookResponse])
 async def list_books(
-    pagination: PaginationParams = Depends(get_pagination_params),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
     status_filter: str | None = Query(None, alias="status"),
-    rating_min: int | None = Query(None, ge=0, le=100),
-    rating_max: int | None = Query(None, ge=0, le=100),
-    search: str | None = Query(None, min_length=1),
-) -> PaginatedResponse[BookResponse]:
-    """Return books for the authenticated user with pagination."""
-    media_items, total = await media_service.get_all_media(
-        db=db,
-        user_id=current_user.id,
-        media_type="book",
-        status=status_filter,
-        rating_min=rating_min,
-        rating_max=rating_max,
-        search=search,
-        skip=pagination.offset,
-        limit=pagination.limit,
-    )
+) -> list[BookResponse]:
+    """Return all books for the authenticated user."""
+    if status_filter:
+        books = await media_service.get_by_status(
+            db=db,
+            user_id=current_user.id,
+            model=media_service.Book,
+            status=status_filter,
+        )
+    else:
+        books = await media_service.get_all_books(db=db, user_id=current_user.id)
 
-    book_responses = [BookResponse.model_validate(item) for item in media_items]
-    return PaginatedResponse[BookResponse].create(
-        items=book_responses,
-        total=total,
-        page=pagination.page,
-        page_size=pagination.page_size,
-    )
+    return [BookResponse.model_validate(book) for book in books]
 
 
 @router.post("/books", response_model=BookResponse, status_code=status.HTTP_201_CREATED)
@@ -122,36 +111,24 @@ async def delete_book(
 # ===== Movie Endpoints =====
 
 
-@router.get("/movies", response_model=PaginatedResponse[MovieResponse])
+@router.get("/movies", response_model=list[MovieResponse])
 async def list_movies(
-    pagination: PaginationParams = Depends(get_pagination_params),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
     status_filter: str | None = Query(None, alias="status"),
-    rating_min: int | None = Query(None, ge=0, le=100),
-    rating_max: int | None = Query(None, ge=0, le=100),
-    search: str | None = Query(None, min_length=1),
-) -> PaginatedResponse[MovieResponse]:
-    """Return movies for the authenticated user with pagination."""
-    media_items, total = await media_service.get_all_media(
-        db=db,
-        user_id=current_user.id,
-        media_type="movie",
-        status=status_filter,
-        rating_min=rating_min,
-        rating_max=rating_max,
-        search=search,
-        skip=pagination.offset,
-        limit=pagination.limit,
-    )
+) -> list[MovieResponse]:
+    """Return all movies for the authenticated user."""
+    if status_filter:
+        movies = await media_service.get_by_status(
+            db=db,
+            user_id=current_user.id,
+            model=media_service.Movie,
+            status=status_filter,
+        )
+    else:
+        movies = await media_service.get_all_movies(db=db, user_id=current_user.id)
 
-    movie_responses = [MovieResponse.model_validate(item) for item in media_items]
-    return PaginatedResponse[MovieResponse].create(
-        items=movie_responses,
-        total=total,
-        page=pagination.page,
-        page_size=pagination.page_size,
-    )
+    return [MovieResponse.model_validate(movie) for movie in movies]
 
 
 @router.post("/movies", response_model=MovieResponse, status_code=status.HTTP_201_CREATED)
@@ -212,36 +189,24 @@ async def delete_movie(
 # ===== Game Endpoints =====
 
 
-@router.get("/games", response_model=PaginatedResponse[GameResponse])
+@router.get("/games", response_model=list[GameResponse])
 async def list_games(
-    pagination: PaginationParams = Depends(get_pagination_params),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
     status_filter: str | None = Query(None, alias="status"),
-    rating_min: int | None = Query(None, ge=0, le=100),
-    rating_max: int | None = Query(None, ge=0, le=100),
-    search: str | None = Query(None, min_length=1),
-) -> PaginatedResponse[GameResponse]:
-    """Return games for the authenticated user with pagination."""
-    media_items, total = await media_service.get_all_media(
-        db=db,
-        user_id=current_user.id,
-        media_type="game",
-        status=status_filter,
-        rating_min=rating_min,
-        rating_max=rating_max,
-        search=search,
-        skip=pagination.offset,
-        limit=pagination.limit,
-    )
+) -> list[GameResponse]:
+    """Return all games for the authenticated user."""
+    if status_filter:
+        games = await media_service.get_by_status(
+            db=db,
+            user_id=current_user.id,
+            model=media_service.Game,
+            status=status_filter,
+        )
+    else:
+        games = await media_service.get_all_games(db=db, user_id=current_user.id)
 
-    game_responses = [GameResponse.model_validate(item) for item in media_items]
-    return PaginatedResponse[GameResponse].create(
-        items=game_responses,
-        total=total,
-        page=pagination.page,
-        page_size=pagination.page_size,
-    )
+    return [GameResponse.model_validate(game) for game in games]
 
 
 @router.post("/games", response_model=GameResponse, status_code=status.HTTP_201_CREATED)
@@ -302,36 +267,24 @@ async def delete_game(
 # ===== Show Endpoints =====
 
 
-@router.get("/shows", response_model=PaginatedResponse[ShowResponse])
+@router.get("/shows", response_model=list[ShowResponse])
 async def list_shows(
-    pagination: PaginationParams = Depends(get_pagination_params),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
     status_filter: str | None = Query(None, alias="status"),
-    rating_min: int | None = Query(None, ge=0, le=100),
-    rating_max: int | None = Query(None, ge=0, le=100),
-    search: str | None = Query(None, min_length=1),
-) -> PaginatedResponse[ShowResponse]:
-    """Return TV shows for the authenticated user with pagination."""
-    media_items, total = await media_service.get_all_media(
-        db=db,
-        user_id=current_user.id,
-        media_type="show",
-        status=status_filter,
-        rating_min=rating_min,
-        rating_max=rating_max,
-        search=search,
-        skip=pagination.offset,
-        limit=pagination.limit,
-    )
+) -> list[ShowResponse]:
+    """Return all TV shows for the authenticated user."""
+    if status_filter:
+        shows = await media_service.get_by_status(
+            db=db,
+            user_id=current_user.id,
+            model=media_service.Show,
+            status=status_filter,
+        )
+    else:
+        shows = await media_service.get_all_shows(db=db, user_id=current_user.id)
 
-    show_responses = [ShowResponse.model_validate(item) for item in media_items]
-    return PaginatedResponse[ShowResponse].create(
-        items=show_responses,
-        total=total,
-        page=pagination.page,
-        page_size=pagination.page_size,
-    )
+    return [ShowResponse.model_validate(show) for show in shows]
 
 
 @router.post("/shows", response_model=ShowResponse, status_code=status.HTTP_201_CREATED)
@@ -389,48 +342,37 @@ async def delete_show(
     await media_service.delete_show(db=db, show_id=show_id, user_id=current_user.id)
 
 
-# ===== General Media Endpoints =====
+# ===== Utility Endpoints =====
 
 
-@router.get("/", response_model=PaginatedResponse[BookResponse | MovieResponse | GameResponse | ShowResponse])
-async def list_all_media(
-    pagination: PaginationParams = Depends(get_pagination_params),
+@router.get("/duplicate-check", response_model=DuplicateCheckResponse)
+async def check_duplicate_title(
+    title: str = Query(..., min_length=1, description="Title to search for duplicates"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-    media_type: str | None = Query(None, alias="type"),
-    status_filter: str | None = Query(None, alias="status"),
-    rating_min: int | None = Query(None, ge=0, le=100, description="Minimum rating (0-100)"),
-    rating_max: int | None = Query(None, ge=0, le=100, description="Maximum rating (0-100)"),
-    search: str | None = Query(None, min_length=1, description="Search in title and notes"),
-) -> PaginatedResponse[BookResponse | MovieResponse | GameResponse | ShowResponse]:
-    """Return media items for the authenticated user with optional filters and pagination."""
-    media_items, total = await media_service.get_all_media(
+) -> DuplicateCheckResponse:
+    """Check for similar titles across all media types."""
+    duplicates = await media_service.check_duplicate(
         db=db,
         user_id=current_user.id,
-        media_type=media_type,
-        status=status_filter,
-        rating_min=rating_min,
-        rating_max=rating_max,
-        search=search,
-        skip=pagination.offset,
-        limit=pagination.limit,
+        title=title,
     )
+    return DuplicateCheckResponse(**duplicates)
 
-    # Convert to appropriate response models based on media_type
-    responses: list[BookResponse | MovieResponse | GameResponse | ShowResponse] = []
-    for item in media_items:
-        if item.media_type == "book":
-            responses.append(BookResponse.model_validate(item))
-        elif item.media_type == "movie":
-            responses.append(MovieResponse.model_validate(item))
-        elif item.media_type == "game":
-            responses.append(GameResponse.model_validate(item))
-        elif item.media_type == "show":
-            responses.append(ShowResponse.model_validate(item))
 
-    return PaginatedResponse[BookResponse | MovieResponse | GameResponse | ShowResponse].create(
-        items=responses,
-        total=total,
-        page=pagination.page,
-        page_size=pagination.page_size,
+@router.get("/stats/yearly", response_model=YearlyStatsResponse)
+async def get_yearly_stats(
+    year: int | None = Query(None, description="Year to get stats for (defaults to current year)"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> YearlyStatsResponse:
+    """Get completion counts for all media types for a given year."""
+    if year is None:
+        year = datetime.now().year
+
+    stats = await media_service.get_yearly_stats(
+        db=db,
+        user_id=current_user.id,
+        year=year,
     )
+    return YearlyStatsResponse(year=year, **stats)
