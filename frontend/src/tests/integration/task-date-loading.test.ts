@@ -70,6 +70,28 @@ describe('Task Store - Date Range Loading', () => {
         expect(completedTasks.length).toBe(0);
     });
 
+    it('should remove tasks from date range when they are completed', async () => {
+        const taskStore = useTaskStore();
+
+        const startDate = new Date('2025-01-01T00:00:00Z');
+        const endDate = new Date('2026-01-01T00:00:00Z');
+
+        await taskStore.loadTasksByDateRange(startDate, endDate);
+
+        // Sanity check: we have at least one active task in the range
+        const initialTasks = taskStore.getTasksByDateRange(startDate, endDate);
+        expect(initialTasks.length).toBeGreaterThan(0);
+
+        const taskToComplete = initialTasks[0];
+        await taskStore.toggleTaskComplete(taskToComplete.id);
+
+        const tasksAfterCompletion = taskStore.getTasksByDateRange(startDate, endDate);
+        const stillPresent = tasksAfterCompletion.find(t => t.id === taskToComplete.id);
+
+        // After completion, the task should no longer be returned for the date range
+        expect(stillPresent).toBeUndefined();
+    });
+
     it('should exclude archived tasks', async () => {
         const taskStore = useTaskStore();
 
@@ -125,8 +147,6 @@ describe('Task Store - Date Range Loading', () => {
 
     it('should update the store tasks with date-filtered tasks', async () => {
         const taskStore = useTaskStore();
-
-        const initialTasksLength = taskStore.tasks.length;
 
         const startDate = new Date('2025-01-01T00:00:00Z');
         const endDate = new Date('2026-01-01T00:00:00Z');
