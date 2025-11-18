@@ -132,7 +132,7 @@ const projectStore = useProjectStore();
 const authStore = useAuthStore();
 const { selectedProject } = storeToRefs(projectStore);
 const taskStore = useTaskStore();
-const { tasks: taskStoreTasks } = storeToRefs(taskStore);
+const { tasks: taskStoreTasks, getLoadContext } = storeToRefs(taskStore);
 const treeNodes: Ref<TreeNode[]> = ref([]);
 const expandedKeys: Ref<TreeExpandedKeys> = ref({});
 type ProjectMenu = ComponentPublicInstance & {
@@ -154,16 +154,32 @@ const projectToCreateBelow = ref<TreeNode | null>(null);
 const taskCounts = ref<Record<string, number>>({});
 
 function applyPartialCountsFrom(tasks: Task[]) {
-    // Only update counts for the projects present in the given tasks list
-    const updated: Record<string, number> = { ...taskCounts.value };
-    const touched = new Set<string>();
-    for (const t of tasks) {
-        touched.add(t.project_id);
+    const context = getLoadContext.value;
+    if (!context || context.type === 'none' || context.type === 'dateRange') {
+        return;
     }
-    for (const pid of touched) {
-        updated[pid] = tasks.filter(t => t.project_id === pid && !t.completed && !t.archived).length;
+
+    if (context.type === 'all') {
+        const counts: Record<string, number> = {};
+        for (const t of tasks) {
+            if (t.completed || t.archived) {
+                continue;
+            }
+            const pid = t.project_id;
+            counts[pid] = (counts[pid] ?? 0) + 1;
+        }
+        taskCounts.value = counts;
+        return;
     }
-    taskCounts.value = updated;
+
+    if (context.type === 'project') {
+        const projectId = context.projectId;
+        const updated: Record<string, number> = { ...taskCounts.value };
+        updated[projectId] = tasks.filter(
+            t => t.project_id === projectId && !t.completed && !t.archived
+        ).length;
+        taskCounts.value = updated;
+    }
 }
 
 function getTaskCountForProject(projectId: string): number {

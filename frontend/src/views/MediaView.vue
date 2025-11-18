@@ -41,24 +41,30 @@
                         />
                     </div>
                     <div class="field">
-                        <label>Search</label>
-                        <InputText
-                            v-model.trim="search"
-                            placeholder="Title or notes"
+                        <label>Genre</label>
+                        <MultiSelect
+                            v-model="selectedGenres"
+                            :options="availableGenres"
+                            display="chip"
+                            placeholder="All genres"
                         />
                     </div>
                     <div class="field">
-                        <label>Rating range</label>
-                        <Slider
-                            v-model="ratingRange"
-                            range
-                            :min="0"
-                            :max="100"
+                        <label>Platform</label>
+                        <MultiSelect
+                            v-model="selectedPlatforms"
+                            :options="availablePlatforms"
+                            display="chip"
+                            placeholder="All platforms"
+                            :disabled="availablePlatforms.length === 0"
                         />
-                        <div class="range-labels">
-                            <span>{{ ratingRange[0] }}</span>
-                            <span>{{ ratingRange[1] }}</span>
-                        </div>
+                    </div>
+                    <div class="field">
+                        <label>Search</label>
+                        <InputText
+                            v-model.trim="search"
+                            placeholder="Title, creator, or notes"
+                        />
                     </div>
                     <div class="actions">
                         <Button @click="applyFilters" :disabled="loading"
@@ -101,38 +107,159 @@
                 <Button @click="openCreate" aria-label="Add media"
                     >Add Media</Button
                 >
-                <span class="muted" v-if="hasActiveFilters"
-                    >Filters active</span
-                >
+                <div class="toolbar-right">
+                    <span v-if="yearlyStats" class="stats-badge">
+                        {{ yearlyStats.year }}:
+                        {{ yearlyStats.books }} books •
+                        {{ yearlyStats.games }} games •
+                        {{ yearlyStats.movies }} movies •
+                        {{ yearlyStats.shows }} shows
+                    </span>
+                    <span class="muted" v-if="hasActiveFilters"
+                        >Filters active</span
+                    >
+                </div>
             </div>
-            <div
-                v-if="!loading && filteredItems.length === 0"
-                class="empty-state-centered"
-            >
+            <div v-if="!loading && filteredItems.length === 0" class="empty-state-centered">
                 <h3 class="empty-state-title">No Media To Display</h3>
                 <p class="empty-state-subtitle">
                     Add your first item to get started.
                 </p>
             </div>
-            <MediaTable
-                v-else
-                :key="activeCategory"
-                :items="filteredItems"
-                :loading="loading"
-                :type="activeCategory === 'all' ? undefined : activeCategory"
-                @edit="openEdit"
-                @delete="onDelete"
-            />
-            <div v-if="filteredItems.length > 0" class="pagination-bar">
-                <span class="count" v-if="total > 0">{{ filteredItems.length }} / {{ total }}</span>
-                <Button
-                    v-if="hasNext"
-                    :loading="loadingMore"
-                    :disabled="loadingMore"
-                    @click="loadMore"
-                    size="small"
-                >Load more</Button>
-            </div>
+            <template v-else>
+                <div v-if="activeCategory !== 'all'">
+                    <MediaTable
+                        :key="activeCategory"
+                        :items="filteredItems"
+                        :loading="loading"
+                        :type="activeCategory"
+                        @edit="openEdit"
+                        @delete="onDelete"
+                    />
+                    <div v-if="filteredItems.length > 0" class="pagination-bar">
+                        <span class="count" v-if="total > 0">{{ filteredItems.length }} / {{ total }}</span>
+                        <Button
+                            v-if="hasNext"
+                            :loading="loadingMore"
+                            :disabled="loadingMore"
+                            @click="loadMore"
+                            size="small"
+                        >
+                            Load more
+                        </Button>
+                    </div>
+                </div>
+                <div v-else class="media-all-layout">
+                    <div
+                        v-for="type in MEDIA_TYPES"
+                        :key="type.value"
+                        class="media-all-section"
+                    >
+                        <div class="media-all-header">
+                            <span class="media-all-title">{{ type.label }}</span>
+                            <span class="media-all-count">
+                                {{
+                                    filteredItems.filter(
+                                        (i) => i.media_type === type.value
+                                    ).length
+                                }}
+                                items
+                            </span>
+                        </div>
+                        <div class="media-all-list">
+                            <div
+                                v-for="item in filteredItems.filter(
+                                    (i) => i.media_type === type.value
+                                )"
+                                :key="item.id"
+                                class="media-card"
+                            >
+                                <div class="media-card-header">
+                                    <span class="media-card-title">
+                                        {{ item.title }}
+                                    </span>
+                                    <Tag
+                                        :value="formatStatus(item.status)"
+                                        :severity="statusSeverity(item.status)"
+                                        class="status-tag"
+                                    />
+                                </div>
+                                <div class="media-card-meta">
+                                    <span
+                                        v-if="
+                                            item.media_type === 'book' &&
+                                            item.creator
+                                        "
+                                        class="media-card-detail"
+                                    >
+                                        {{ item.creator }}
+                                    </span>
+                                    <span
+                                        v-else-if="
+                                            (item.media_type === 'movie' ||
+                                                item.media_type === 'show') &&
+                                            item.genre
+                                        "
+                                        class="media-card-detail"
+                                    >
+                                        {{ item.genre }}
+                                    </span>
+                                    <span
+                                        v-else-if="
+                                            item.media_type === 'game' &&
+                                            item.platform
+                                        "
+                                        class="media-card-detail"
+                                    >
+                                        {{ item.platform }}
+                                    </span>
+                                </div>
+                                <div class="media-card-dates">
+                                    <span
+                                        v-if="item.started_at"
+                                        class="media-card-date"
+                                    >
+                                        Started {{ item.started_at }}
+                                    </span>
+                                    <span
+                                        v-if="item.completed_at"
+                                        class="media-card-date"
+                                    >
+                                        • Completed {{ item.completed_at }}
+                                    </span>
+                                </div>
+                                <div class="media-card-actions">
+                                    <Button
+                                        size="small"
+                                        text
+                                        @click="openEdit(item)"
+                                    >
+                                        Edit
+                                    </Button>
+                                    <Button
+                                        size="small"
+                                        text
+                                        severity="danger"
+                                        @click="onDelete(item)"
+                                    >
+                                        Delete
+                                    </Button>
+                                </div>
+                            </div>
+                            <div
+                                v-if="
+                                    filteredItems.filter(
+                                        (i) => i.media_type === type.value
+                                    ).length === 0
+                                "
+                                class="media-all-empty"
+                            >
+                                No {{ type.label.toLowerCase() }} yet.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </template>
         </div>
         <MediaForm
             v-model:visible="formVisible"
@@ -143,22 +270,27 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch } from "vue";
+import { onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
 import WorkspaceLayout from "@/layouts/WorkspaceLayout.vue";
 import MediaTable from "@/components/media/MediaTable.vue";
 import MediaForm from "@/components/media/MediaForm.vue";
-import Slider from "primevue/slider";
 import MultiSelect from "primevue/multiselect";
 import InputText from "primevue/inputtext";
+import Tag from "primevue/tag";
 import { MEDIA_STATUSES, MEDIA_TYPES, type MediaType } from "@/models/media";
 import { useMediaStore } from "@/stores/media";
 import { useAuthStore } from "@/stores/auth";
 import { storeToRefs } from "pinia";
+import type { MediaStatus } from "@/models/media";
+import { useConfirm } from "primevue/useconfirm";
+import { useToast } from "primevue";
 
 const authStore = useAuthStore();
 const mediaStore = useMediaStore();
 const router = useRouter();
+const confirm = useConfirm();
+const toast = useToast();
 
 const {
     filteredItems,
@@ -167,23 +299,17 @@ const {
     formVisible,
     editingItem,
     selectedStatuses,
-    ratingMin,
-    ratingMax,
+    selectedGenres,
+    selectedPlatforms,
     search,
     hasActiveFilters,
     activeCategory,
     hasNext,
     total,
+    yearlyStats,
+    availableGenres,
+    availablePlatforms,
 } = storeToRefs(mediaStore);
-
-const ratingRange = ref<[number, number]>([ratingMin.value, ratingMax.value]);
-watch([ratingMin, ratingMax], () => {
-    ratingRange.value = [ratingMin.value, ratingMax.value];
-});
-watch(ratingRange, ([min, max]) => {
-    ratingMin.value = min;
-    ratingMax.value = max;
-});
 
 const goHome = () => {
     if (router.currentRoute.value.path !== "/home") router.push("/home");
@@ -203,9 +329,8 @@ const loadMore = async () => {
 const applyFilters = async () => {
     await reload();
 };
-const clearFilters = async () => {
+const clearFilters = () => {
     mediaStore.clearFilters();
-    await reload();
 };
 
 const setCategory = (category: "all" | MediaType) => {
@@ -215,12 +340,57 @@ const setCategory = (category: "all" | MediaType) => {
 
 const openCreate = () => mediaStore.openCreateForm();
 const openEdit = (item: any) => mediaStore.openEditForm(item);
-const onDelete = async (item: any) => {
-    // Close the form BEFORE deleting if this item is being edited
-    if (editingItem.value && editingItem.value.id === item.id) {
-        mediaStore.closeForm();
+const onDelete = (item: any) => {
+    const label = item.title || "this media item";
+
+    confirm.require({
+        message: `Delete "${label}"? This cannot be undone.`,
+        header: "Confirm Deletion",
+        acceptClass: "p-button-danger",
+        acceptLabel: "Delete",
+        rejectLabel: "Cancel",
+        accept: async () => {
+            try {
+                if (editingItem.value && editingItem.value.id === item.id) {
+                    mediaStore.closeForm();
+                }
+                await mediaStore.remove(item.id, item.media_type);
+            } catch {
+                toast.add({
+                    severity: "error",
+                    summary: "Error",
+                    detail: "Failed to delete media item",
+                    life: 3000,
+                });
+            }
+        },
+    });
+};
+
+const formatStatus = (status: MediaStatus): string => {
+    switch (status) {
+        case "planned":
+            return "Planned";
+        case "in_progress":
+            return "In Progress";
+        case "completed":
+            return "Completed";
+        case "dropped":
+            return "Dropped";
     }
-    await mediaStore.remove(item.id, item.media_type);
+};
+
+const statusSeverity = (status: MediaStatus): string => {
+    switch (status) {
+        case "planned":
+            return "secondary";
+        case "in_progress":
+            return "warn";
+        case "completed":
+            return "success";
+        case "dropped":
+            return "danger";
+    }
 };
 
 onMounted(async () => {
@@ -296,6 +466,18 @@ watch(
     align-items: center;
     margin-bottom: 0.5rem;
 }
+
+.toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.stats-badge {
+    font-size: 0.85rem;
+    color: var(--p-text-muted-color);
+}
+
 .muted {
     color: var(--p-text-muted-color);
     font-size: 0.9rem;
@@ -352,5 +534,87 @@ watch(
 .pagination-bar .count {
     color: var(--p-text-muted-color);
     font-size: 0.9rem;
+}
+
+.media-all-layout {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+    margin-top: 0.75rem;
+}
+
+.media-all-section {
+    background: var(--p-content-background);
+    border-radius: 12px;
+    border: 1px solid var(--p-content-border-color);
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.media-all-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.25rem;
+}
+
+.media-all-title {
+    font-weight: 600;
+}
+
+.media-all-count {
+    font-size: 0.85rem;
+    color: var(--p-text-muted-color);
+}
+
+.media-all-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.media-card {
+    border-radius: 10px;
+    border: 1px solid var(--p-content-border-color);
+    padding: 0.6rem 0.7rem;
+    background: var(--p-content-background);
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.media-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.media-card-title {
+    font-weight: 500;
+}
+
+.media-card-meta {
+    font-size: 0.85rem;
+    color: var(--p-text-muted-color);
+}
+
+.media-card-dates {
+    font-size: 0.8rem;
+    color: var(--p-text-muted-color);
+}
+
+.media-card-actions {
+    display: flex;
+    gap: 0.4rem;
+    margin-top: 0.25rem;
+}
+
+.media-all-empty {
+    font-size: 0.85rem;
+    color: var(--p-text-muted-color);
+    font-style: italic;
 }
 </style>

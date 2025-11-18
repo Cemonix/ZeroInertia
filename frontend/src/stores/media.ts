@@ -1,236 +1,308 @@
-import { defineStore } from 'pinia';
-import { computed, ref } from 'vue';
+import { defineStore } from "pinia";
+import { computed, ref } from "vue";
 import type {
-    MediaCreateInput,
+    MediaFormValues,
     MediaItem,
-    MediaQueryParams,
-    MediaType,
-    MediaUpdateInput,
     MediaStatus,
-} from '@/models/media';
-import { mediaService } from '@/services/mediaService';
+    MediaType,
+    YearlyStats,
+} from "@/models/media";
+import { mediaService } from "@/services/mediaService";
+import { useToast } from "primevue/usetoast";
 
-export const useMediaStore = defineStore('media', () => {
+type Category = "all" | MediaType;
+
+export const useMediaStore = defineStore("media", () => {
+    const toast = useToast();
+
     const items = ref<MediaItem[]>([]);
     const loading = ref(false);
     const loadingMore = ref(false);
     const error = ref<string | null>(null);
+
     const formVisible = ref(false);
     const editingItem = ref<MediaItem | null>(null);
 
-    // Filters
-    const selectedTypes = ref<MediaType[]>([]);
     const selectedStatuses = ref<MediaStatus[]>([]);
-    const ratingMin = ref<number>(0);
-    const ratingMax = ref<number>(100);
-    const search = ref<string>('');
+    const search = ref("");
+    const activeCategory = ref<Category>("all");
 
-    // Category navigation state
-    const activeCategory = ref<'all' | MediaType>('all');
+    const selectedGenres = ref<string[]>([]);
+    const selectedPlatforms = ref<string[]>([]);
 
-    // Pagination
     const page = ref(1);
-    const pageSize = ref(20);
-    const total = ref(0);
-    const hasNext = ref(false);
+    const pageSize = ref(50);
 
-    const queryParams = computed<MediaQueryParams & { page: number; page_size: number }>(() => ({
-        // backend accepts only a single type; when a single is selected we pass it for server-side filtering
-        types: selectedTypes.value.length === 1 ? selectedTypes.value : undefined,
-        status: selectedStatuses.value.length ? selectedStatuses.value : undefined,
-        rating_min: ratingMin.value > 0 ? ratingMin.value : undefined,
-        rating_max: ratingMax.value < 100 ? ratingMax.value : undefined,
-        search: search.value || undefined,
-        sort: 'updated_at',
-        order: 'desc',
-        page: page.value,
-        page_size: pageSize.value,
-    }));
+    const yearlyStats = ref<YearlyStats | null>(null);
 
-    const hasActiveFilters = computed(() =>
-        !!(
-            // do not consider selectedTypes; type is controlled via category
-            selectedStatuses.value.length ||
-            ratingMin.value > 0 ||
-            ratingMax.value < 100 ||
-            search.value
-        )
-    );
-
-    // Server-side filtering: Apply client-side filters only for multiple types/statuses
-    // since backend only supports single type/status per request
-    const filteredItems = computed<MediaItem[]>(() => {
-        let data = items.value.slice();
-
-        // Active category single-type view
-        if (activeCategory.value !== 'all') {
-            data = data.filter(i => i.media_type === activeCategory.value);
-        }
-
-        // Client-side filter for multiple types (backend only supports single type)
-        if (selectedTypes.value.length > 1) {
-            const set = new Set(selectedTypes.value);
-            data = data.filter(i => set.has(i.media_type));
-        }
-
-        // Client-side filter for multiple statuses (backend only supports single status)
-        if (selectedStatuses.value.length > 1) {
-            const set = new Set(selectedStatuses.value);
-            data = data.filter(i => set.has(i.status));
-        }
-
-        // Note: rating and search filters are now handled server-side
-        return data;
+    const hasActiveFilters = computed(() => {
+        return (
+            selectedStatuses.value.length > 0 ||
+            selectedGenres.value.length > 0 ||
+            selectedPlatforms.value.length > 0 ||
+            search.value.trim().length > 0
+        );
     });
 
-    async function load() {
+    const filteredAllItems = computed(() => {
+        let list = [...items.value];
+
+        if (activeCategory.value !== "all") {
+            list = list.filter(
+                (item) => item.media_type === activeCategory.value,
+            );
+        }
+
+        if (selectedStatuses.value.length > 0) {
+            list = list.filter((item) =>
+                selectedStatuses.value.includes(item.status),
+            );
+        }
+
+        if (selectedGenres.value.length > 0) {
+            list = list.filter(
+                (item) =>
+                    item.genre !== null &&
+                    selectedGenres.value.includes(item.genre),
+            );
+        }
+
+        if (selectedPlatforms.value.length > 0) {
+            list = list.filter(
+                (item) =>
+                    item.media_type === "game" &&
+                    item.platform !== null &&
+                    selectedPlatforms.value.includes(item.platform),
+            );
+        }
+
+        const term = search.value.trim().toLowerCase();
+        if (term) {
+            list = list.filter((item) => {
+                const fields: Array<string | null | undefined> = [
+                    item.title,
+                    "creator" in item ? item.creator : null,
+                    item.genre,
+                    "platform" in item ? item.platform : null,
+                    item.notes,
+                ];
+                return fields.some(
+                    (field) =>
+                        field !== null &&
+                        field !== undefined &&
+                        field.toLowerCase().includes(term),
+                );
+            });
+        }
+
+        return list.sort((a, b) => {
+            if (a.created_at < b.created_at) return 1;
+            if (a.created_at > b.created_at) return -1;
+            return 0;
+        });
+    });
+
+    const filteredItems = computed(() => {
+        return filteredAllItems.value.slice(0, page.value * pageSize.value);
+    });
+
+    const total = computed(() => filteredAllItems.value.length);
+    const hasNext = computed(
+        () => filteredItems.value.length < filteredAllItems.value.length,
+    );
+
+    const availableGenres = computed(() => {
+        const values = new Set<string>();
+        for (const item of items.value) {
+            if (item.genre) {
+                values.add(item.genre);
+            }
+        }
+        return Array.from(values).sort((a, b) => a.localeCompare(b));
+    });
+
+    const availablePlatforms = computed(() => {
+        const values = new Set<string>();
+        for (const item of items.value) {
+            if (item.media_type === "game" && item.platform) {
+                values.add(item.platform);
+            }
+        }
+        return Array.from(values).sort((a, b) => a.localeCompare(b));
+    });
+
+    async function load(): Promise<void> {
         loading.value = true;
         error.value = null;
         try {
+            const params =
+                selectedStatuses.value.length === 1
+                    ? { status: selectedStatuses.value[0] }
+                    : undefined;
+
+            const [books, games, movies, shows] = await Promise.all([
+                mediaService.listBooks(params),
+                mediaService.listGames(params),
+                mediaService.listMovies(params),
+                mediaService.listShows(params),
+            ]);
+            items.value = [...books, ...games, ...movies, ...shows];
             page.value = 1;
-            const resp = await mediaService.list(queryParams.value);
-            items.value = resp.items;
-            total.value = resp.total;
-            hasNext.value = resp.has_next;
+
+            try {
+                yearlyStats.value = await mediaService.getYearlyStats();
+            } catch {
+                yearlyStats.value = null;
+            }
         } catch (err) {
-            error.value = err instanceof Error ? err.message : 'Failed to load media';
-            items.value = [];
-            total.value = 0;
-            hasNext.value = false;
+            error.value =
+                err instanceof Error
+                    ? err.message
+                    : "Failed to load media items";
         } finally {
             loading.value = false;
         }
     }
 
-    async function loadMore() {
-        if (loadingMore.value || !hasNext.value) return;
+    async function loadMore(): Promise<void> {
+        if (!hasNext.value) return;
         loadingMore.value = true;
-        error.value = null;
         try {
-            page.value = page.value + 1;
-            const resp = await mediaService.list(queryParams.value);
-            items.value = [...items.value, ...resp.items];
-            total.value = resp.total;
-            hasNext.value = resp.has_next;
-        } catch (err) {
-            error.value = err instanceof Error ? err.message : 'Failed to load more media';
-            // rollback page increase on failure
-            page.value = Math.max(1, page.value - 1);
+            page.value += 1;
         } finally {
             loadingMore.value = false;
         }
     }
 
-    async function create(payload: MediaCreateInput) {
-        loading.value = true;
-        error.value = null;
-        try {
-            const created = await mediaService.create(payload);
-            items.value = [created, ...items.value];
-            return created;
-        } catch (err) {
-            error.value = err instanceof Error ? err.message : 'Failed to create media';
-            throw err;
-        } finally {
-            loading.value = false;
-        }
+    function setActiveCategory(category: Category): void {
+        activeCategory.value = category;
+        page.value = 1;
     }
 
-    async function update(id: string, type: MediaType, payload: MediaUpdateInput) {
-        loading.value = true;
-        error.value = null;
-        try {
-            const updated = await mediaService.update(id, type, payload);
-            items.value = items.value.map((i) => (i.id === id ? updated : i));
-            return updated;
-        } catch (err) {
-            error.value = err instanceof Error ? err.message : 'Failed to update media';
-            throw err;
-        } finally {
-            loading.value = false;
-        }
+    function clearFilters(): void {
+        selectedStatuses.value = [];
+        selectedGenres.value = [];
+        selectedPlatforms.value = [];
+        search.value = "";
+        page.value = 1;
     }
 
-    async function remove(id: string, type: MediaType) {
-        loading.value = true;
-        error.value = null;
-        try {
-            await mediaService.remove(id, type);
-            items.value = items.value.filter((i) => i.id !== id);
-        } catch (err) {
-            error.value = err instanceof Error ? err.message : 'Failed to delete media';
-            throw err;
-        } finally {
-            loading.value = false;
-        }
-    }
-
-    function openCreateForm() {
+    function openCreateForm(): void {
         editingItem.value = null;
         formVisible.value = true;
     }
 
-    function openEditForm(item: MediaItem) {
+    function openEditForm(item: MediaItem): void {
         editingItem.value = item;
         formVisible.value = true;
     }
 
-    function closeForm() {
+    function closeForm(): void {
         formVisible.value = false;
         editingItem.value = null;
     }
 
-    function clearFilters() {
-        // Keep type selection in sync with category
-        selectedTypes.value = activeCategory.value === 'all' ? [] : [activeCategory.value];
-        selectedStatuses.value = [];
-        ratingMin.value = 0;
-        ratingMax.value = 100;
-        search.value = '';
+    async function save(values: MediaFormValues): Promise<void> {
+        try {
+            let saved: MediaItem;
+            if (editingItem.value) {
+                saved = await mediaService.updateMedia(
+                    editingItem.value.id,
+                    editingItem.value.media_type,
+                    values,
+                );
+                const index = items.value.findIndex(
+                    (i) => i.id === editingItem.value?.id,
+                );
+                if (index !== -1) {
+                    items.value[index] = saved;
+                }
+                toast.add({
+                    severity: "success",
+                    summary: "Media updated",
+                    detail: saved.title,
+                    life: 3000,
+                });
+            } else {
+                saved = await mediaService.createMedia(values);
+                items.value = [saved, ...items.value];
+                toast.add({
+                    severity: "success",
+                    summary: "Media added",
+                    detail: saved.title,
+                    life: 3000,
+                });
+            }
+
+            closeForm();
+        } catch (err) {
+            const message =
+                err instanceof Error
+                    ? err.message
+                    : "Failed to save media item";
+            error.value = message;
+            toast.add({
+                severity: "error",
+                summary: "Error",
+                detail: message,
+                life: 4000,
+            });
+            throw err;
+        }
     }
 
-    function setActiveCategory(type: 'all' | MediaType) {
-        activeCategory.value = type;
-        if (type === 'all') {
-            selectedTypes.value = [];
-        } else {
-            selectedTypes.value = [type];
+    async function remove(id: string, type: MediaType): Promise<void> {
+        try {
+            await mediaService.deleteMedia(id, type);
+            items.value = items.value.filter((item) => item.id !== id);
+            toast.add({
+                severity: "success",
+                summary: "Media deleted",
+                life: 2500,
+            });
+        } catch (err) {
+            const message =
+                err instanceof Error
+                    ? err.message
+                    : "Failed to delete media item";
+            error.value = message;
+            toast.add({
+                severity: "error",
+                summary: "Error",
+                detail: message,
+                life: 4000,
+            });
+            throw err;
         }
     }
 
     return {
-        // state
         items,
-        filteredItems,
         loading,
         loadingMore,
         error,
         formVisible,
         editingItem,
-        // filters
-        selectedTypes,
         selectedStatuses,
-        ratingMin,
-        ratingMax,
+        selectedGenres,
+        selectedPlatforms,
         search,
-        queryParams,
-        hasActiveFilters,
         activeCategory,
-        // pagination
-        page,
-        pageSize,
+        hasActiveFilters,
+        filteredItems,
         total,
         hasNext,
-        // actions
+        yearlyStats,
+        availableGenres,
+        availablePlatforms,
         load,
         loadMore,
-        create,
-        update,
-        remove,
+        clearFilters,
+        setActiveCategory,
         openCreateForm,
         openEditForm,
         closeForm,
-        clearFilters,
-        setActiveCategory,
+        save,
+        remove,
     };
 });
