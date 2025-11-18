@@ -1,12 +1,14 @@
 from collections.abc import Sequence
+from datetime import date
+from typing import TypeVar
 from uuid import UUID
 
-from sqlalchemy import func
+from pydantic import BaseModel
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.sql import select
 
 from app.core.exceptions import MediaNotFoundException
-from app.models.media import Book, Game, Media, Movie, Show
+from app.models.media import Book, Game, Movie, Show
 from app.schemas.media import (
     BookCreate,
     BookUpdate,
@@ -19,7 +21,113 @@ from app.schemas.media import (
 )
 from app.services.base_service import apply_updates_async
 
+MediaModel = TypeVar("MediaModel", Book, Game, Movie, Show)
+
 # pyright: reportAny=false
+
+# ===== Generic Service Functions =====
+
+
+async def get_all_by_user(
+    db: AsyncSession,
+    user_id: UUID,
+    model: type[MediaModel],
+) -> Sequence[MediaModel]:
+    """Get all media of a specific type for a user"""
+    result = await db.execute(
+        select(model)
+        .where(model.user_id == user_id)
+        .order_by(model.created_at.desc())
+    )
+    return result.scalars().all()
+
+
+async def get_by_id(
+    db: AsyncSession,
+    media_id: UUID,
+    user_id: UUID,
+    model: type[MediaModel],
+) -> MediaModel | None:
+    """Get a specific media item by ID"""
+    result = await db.execute(
+        select(model).where(model.id == media_id, model.user_id == user_id)
+    )
+    return result.scalars().first()
+
+
+async def get_by_status(
+    db: AsyncSession,
+    user_id: UUID,
+    model: type[MediaModel],
+    status: str,
+) -> Sequence[MediaModel]:
+    """Filter media by status"""
+    result = await db.execute(
+        select(model)
+        .where(model.user_id == user_id, model.status == status)
+        .order_by(model.created_at.desc())
+    )
+    return result.scalars().all()
+
+
+async def create_media(
+    db: AsyncSession,
+    model: type[MediaModel],
+    data: dict[str, object],
+) -> MediaModel:
+    """Generic create for any media type"""
+    media_item = model(**data)
+    db.add(media_item)
+    await db.commit()
+    await db.refresh(media_item)
+    return media_item
+
+
+async def update_media(
+    db: AsyncSession,
+    media_id: UUID,
+    user_id: UUID,
+    model: type[MediaModel],
+    update_schema: BaseModel,
+) -> MediaModel:
+    """Generic update for any media type"""
+    media = await get_by_id(db, media_id, user_id, model)
+    if media is None:
+        raise MediaNotFoundException(str(media_id))
+
+    async def handle_status(_model: object, value: object, _updates: dict[str, object]) -> None:
+        if value is not None:
+            if isinstance(value, str):
+                media.status = value
+            else:
+                media.status = str(value.value) if hasattr(value, "value") else str(value)  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType, reportAttributeAccessIssue]
+
+    _ = await apply_updates_async(
+        model=media,
+        update_schema=update_schema,
+        custom_handlers={"status": handle_status}
+    )
+
+    db.add(media)
+    await db.commit()
+    await db.refresh(media)
+    return media
+
+
+async def delete_media(
+    db: AsyncSession,
+    media_id: UUID,
+    user_id: UUID,
+    model: type[MediaModel],
+) -> None:
+    """Generic delete for any media type"""
+    media = await get_by_id(db, media_id, user_id, model)
+    if media is None:
+        raise MediaNotFoundException(str(media_id))
+
+    await db.delete(media)
+    await db.commit()
+
 
 # ===== Book Service Functions =====
 
@@ -30,24 +138,11 @@ async def create_book(
     book_data: BookCreate,
 ) -> Book:
     """Create a new book for the given user."""
-    new_book = Book(
-        user_id=user_id,
-        media_type="book",
-        title=book_data.title,
-        status=book_data.status.value,
-        rating=book_data.rating,
-        started_at=book_data.started_at,
-        completed_at=book_data.completed_at,
-        notes=book_data.notes,
-        author=book_data.author,
-        pages=book_data.pages,
-        isbn=book_data.isbn,
-        publisher=book_data.publisher,
-    )
-    db.add(new_book)
-    await db.commit()
-    await db.refresh(new_book)
-    return new_book
+    data = book_data.model_dump()
+    data["user_id"] = user_id
+    if "status" in data and hasattr(data["status"], "value"):
+        data["status"] = data["status"].value
+    return await create_media(db, Book, data)
 
 
 async def get_book_by_id(
@@ -56,10 +151,15 @@ async def get_book_by_id(
     user_id: UUID,
 ) -> Book | None:
     """Return a specific book for the user."""
-    result = await db.execute(
-        select(Book).where(Book.id == book_id, Book.user_id == user_id)
-    )
-    return result.scalars().first()
+    return await get_by_id(db, book_id, user_id, Book)
+
+
+async def get_all_books(
+    db: AsyncSession,
+    user_id: UUID,
+) -> Sequence[Book]:
+    """Return all books for the user."""
+    return await get_all_by_user(db, user_id, Book)
 
 
 async def update_book(
@@ -69,26 +169,7 @@ async def update_book(
     book_data: BookUpdate,
 ) -> Book:
     """Update the book with the supplied fields."""
-    book = await get_book_by_id(db=db, book_id=book_id, user_id=user_id)
-    if book is None:
-        raise MediaNotFoundException(str(book_id))
-
-    async def handle_status(_model: object, value: object, _updates: dict[str, object]) -> None:
-        if value is not None and hasattr(value, "value"):
-            book.status = value.value  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
-        elif value is not None:
-            book.status = value  # pyright: ignore[reportAttributeAccessIssue]
-
-    _ = await apply_updates_async(
-        model=book,
-        update_schema=book_data,
-        custom_handlers={"status": handle_status}
-    )
-
-    db.add(book)
-    await db.commit()
-    await db.refresh(book)
-    return book
+    return await update_media(db, book_id, user_id, Book, book_data)
 
 
 async def delete_book(
@@ -97,12 +178,7 @@ async def delete_book(
     user_id: UUID,
 ) -> None:
     """Remove a book."""
-    book = await get_book_by_id(db=db, book_id=book_id, user_id=user_id)
-    if book is None:
-        raise MediaNotFoundException(str(book_id))
-
-    await db.delete(book)
-    await db.commit()
+    await delete_media(db, book_id, user_id, Book)
 
 
 # ===== Movie Service Functions =====
@@ -114,24 +190,11 @@ async def create_movie(
     movie_data: MovieCreate,
 ) -> Movie:
     """Create a new movie for the given user."""
-    new_movie = Movie(
-        user_id=user_id,
-        media_type="movie",
-        title=movie_data.title,
-        status=movie_data.status.value,
-        rating=movie_data.rating,
-        started_at=movie_data.started_at,
-        completed_at=movie_data.completed_at,
-        notes=movie_data.notes,
-        director=movie_data.director,
-        duration_minutes=movie_data.duration_minutes,
-        release_year=movie_data.release_year,
-        genre=movie_data.genre,
-    )
-    db.add(new_movie)
-    await db.commit()
-    await db.refresh(new_movie)
-    return new_movie
+    data = movie_data.model_dump()
+    data["user_id"] = user_id
+    if "status" in data and hasattr(data["status"], "value"):
+        data["status"] = data["status"].value
+    return await create_media(db, Movie, data)
 
 
 async def get_movie_by_id(
@@ -140,10 +203,15 @@ async def get_movie_by_id(
     user_id: UUID,
 ) -> Movie | None:
     """Return a specific movie for the user."""
-    result = await db.execute(
-        select(Movie).where(Movie.id == movie_id, Movie.user_id == user_id)
-    )
-    return result.scalars().first()
+    return await get_by_id(db, movie_id, user_id, Movie)
+
+
+async def get_all_movies(
+    db: AsyncSession,
+    user_id: UUID,
+) -> Sequence[Movie]:
+    """Return all movies for the user."""
+    return await get_all_by_user(db, user_id, Movie)
 
 
 async def update_movie(
@@ -153,26 +221,7 @@ async def update_movie(
     movie_data: MovieUpdate,
 ) -> Movie:
     """Update the movie with the supplied fields."""
-    movie = await get_movie_by_id(db=db, movie_id=movie_id, user_id=user_id)
-    if movie is None:
-        raise MediaNotFoundException(str(movie_id))
-
-    async def handle_status(_model: object, value: object, _updates: dict[str, object]) -> None:
-        if value is not None and hasattr(value, "value"):
-            movie.status = value.value  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
-        elif value is not None:
-            movie.status = value  # pyright: ignore[reportAttributeAccessIssue]
-
-    _ = await apply_updates_async(
-        model=movie,
-        update_schema=movie_data,
-        custom_handlers={"status": handle_status}
-    )
-
-    db.add(movie)
-    await db.commit()
-    await db.refresh(movie)
-    return movie
+    return await update_media(db, movie_id, user_id, Movie, movie_data)
 
 
 async def delete_movie(
@@ -181,12 +230,7 @@ async def delete_movie(
     user_id: UUID,
 ) -> None:
     """Remove a movie."""
-    movie = await get_movie_by_id(db=db, movie_id=movie_id, user_id=user_id)
-    if movie is None:
-        raise MediaNotFoundException(str(movie_id))
-
-    await db.delete(movie)
-    await db.commit()
+    await delete_media(db, movie_id, user_id, Movie)
 
 
 # ===== Game Service Functions =====
@@ -198,25 +242,11 @@ async def create_game(
     game_data: GameCreate,
 ) -> Game:
     """Create a new game for the given user."""
-    new_game = Game(
-        user_id=user_id,
-        media_type="game",
-        title=game_data.title,
-        status=game_data.status.value,
-        rating=game_data.rating,
-        started_at=game_data.started_at,
-        completed_at=game_data.completed_at,
-        notes=game_data.notes,
-        platform=game_data.platform,
-        developer=game_data.developer,
-        playtime_hours=game_data.playtime_hours,
-        genre=game_data.genre,
-        is_100_percent=game_data.is_100_percent,
-    )
-    db.add(new_game)
-    await db.commit()
-    await db.refresh(new_game)
-    return new_game
+    data = game_data.model_dump()
+    data["user_id"] = user_id
+    if "status" in data and hasattr(data["status"], "value"):
+        data["status"] = data["status"].value
+    return await create_media(db, Game, data)
 
 
 async def get_game_by_id(
@@ -225,10 +255,15 @@ async def get_game_by_id(
     user_id: UUID,
 ) -> Game | None:
     """Return a specific game for the user."""
-    result = await db.execute(
-        select(Game).where(Game.id == game_id, Game.user_id == user_id)
-    )
-    return result.scalars().first()
+    return await get_by_id(db, game_id, user_id, Game)
+
+
+async def get_all_games(
+    db: AsyncSession,
+    user_id: UUID,
+) -> Sequence[Game]:
+    """Return all games for the user."""
+    return await get_all_by_user(db, user_id, Game)
 
 
 async def update_game(
@@ -238,26 +273,7 @@ async def update_game(
     game_data: GameUpdate,
 ) -> Game:
     """Update the game with the supplied fields."""
-    game = await get_game_by_id(db=db, game_id=game_id, user_id=user_id)
-    if game is None:
-        raise MediaNotFoundException(str(game_id))
-
-    async def handle_status(_model: object, value: object, _updates: dict[str, object]) -> None:
-        if value is not None and hasattr(value, "value"):
-            game.status = value.value  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
-        elif value is not None:
-            game.status = value  # pyright: ignore[reportAttributeAccessIssue]
-
-    _ = await apply_updates_async(
-        model=game,
-        update_schema=game_data,
-        custom_handlers={"status": handle_status}
-    )
-
-    db.add(game)
-    await db.commit()
-    await db.refresh(game)
-    return game
+    return await update_media(db, game_id, user_id, Game, game_data)
 
 
 async def delete_game(
@@ -266,12 +282,7 @@ async def delete_game(
     user_id: UUID,
 ) -> None:
     """Remove a game."""
-    game = await get_game_by_id(db=db, game_id=game_id, user_id=user_id)
-    if game is None:
-        raise MediaNotFoundException(str(game_id))
-
-    await db.delete(game)
-    await db.commit()
+    await delete_media(db, game_id, user_id, Game)
 
 
 # ===== Show Service Functions =====
@@ -283,25 +294,11 @@ async def create_show(
     show_data: ShowCreate,
 ) -> Show:
     """Create a new TV show season for the given user."""
-    new_show = Show(
-        user_id=user_id,
-        media_type="show",
-        title=show_data.title,
-        status=show_data.status.value,
-        rating=show_data.rating,
-        started_at=show_data.started_at,
-        completed_at=show_data.completed_at,
-        notes=show_data.notes,
-        season_number=show_data.season_number,
-        episodes=show_data.episodes,
-        creator=show_data.creator,
-        release_year=show_data.release_year,
-        genre=show_data.genre,
-    )
-    db.add(new_show)
-    await db.commit()
-    await db.refresh(new_show)
-    return new_show
+    data = show_data.model_dump()
+    data["user_id"] = user_id
+    if "status" in data and hasattr(data["status"], "value"):
+        data["status"] = data["status"].value
+    return await create_media(db, Show, data)
 
 
 async def get_show_by_id(
@@ -310,10 +307,15 @@ async def get_show_by_id(
     user_id: UUID,
 ) -> Show | None:
     """Return a specific show for the user."""
-    result = await db.execute(
-        select(Show).where(Show.id == show_id, Show.user_id == user_id)
-    )
-    return result.scalars().first()
+    return await get_by_id(db, show_id, user_id, Show)
+
+
+async def get_all_shows(
+    db: AsyncSession,
+    user_id: UUID,
+) -> Sequence[Show]:
+    """Return all shows for the user."""
+    return await get_all_by_user(db, user_id, Show)
 
 
 async def update_show(
@@ -323,26 +325,7 @@ async def update_show(
     show_data: ShowUpdate,
 ) -> Show:
     """Update the show with the supplied fields."""
-    show = await get_show_by_id(db=db, show_id=show_id, user_id=user_id)
-    if show is None:
-        raise MediaNotFoundException(str(show_id))
-
-    async def handle_status(_model: object, value: object, _updates: dict[str, object]) -> None:
-        if value is not None and hasattr(value, "value"):
-            show.status = value.value  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
-        elif value is not None:
-            show.status = value  # pyright: ignore[reportAttributeAccessIssue]
-
-    _ = await apply_updates_async(
-        model=show,
-        update_schema=show_data,
-        custom_handlers={"status": handle_status}
-    )
-
-    db.add(show)
-    await db.commit()
-    await db.refresh(show)
-    return show
+    return await update_media(db, show_id, user_id, Show, show_data)
 
 
 async def delete_show(
@@ -351,81 +334,100 @@ async def delete_show(
     user_id: UUID,
 ) -> None:
     """Remove a show."""
-    show = await get_show_by_id(db=db, show_id=show_id, user_id=user_id)
-    if show is None:
-        raise MediaNotFoundException(str(show_id))
-
-    await db.delete(show)
-    await db.commit()
+    await delete_media(db, show_id, user_id, Show)
 
 
-# ===== General Media Functions =====
+# ===== Utility Functions =====
 
 
-async def get_all_media(
+async def check_duplicate(
     db: AsyncSession,
     user_id: UUID,
-    media_type: str | None = None,
-    status: str | None = None,
-    rating_min: int | None = None,
-    rating_max: int | None = None,
-    search: str | None = None,
-    skip: int = 0,
-    limit: int = 50,
-) -> tuple[Sequence[Media], int]:
-    """
-    Return media items for the user with optional filters and pagination.
+    title: str
+) -> dict[str, list[dict[str, str | None]]]:
+    """Check for similar titles across all media types"""
+    duplicates: dict[str, list[dict[str, str | None]]] = {
+        "books": [],
+        "games": [],
+        "movies": [],
+        "shows": []
+    }
 
-    Args:
-        db: Database session
-        user_id: User ID to filter media
-        media_type: Optional filter by media type (book, game, movie, show)
-        status: Optional filter by status (planned, in_progress, completed)
-        rating_min: Optional minimum rating filter
-        rating_max: Optional maximum rating filter
-        search: Optional search term for title and notes
-        skip: Number of records to skip (offset)
-        limit: Maximum number of records to return
-
-    Returns:
-        Tuple of (media_items, total_count)
-    """
-    # Build base query for filtering
-    base_where_clause = [Media.user_id == user_id]
-
-    if media_type:
-        base_where_clause.append(Media.media_type == media_type)
-    if status:
-        base_where_clause.append(Media.status == status)
-
-    # Rating filters
-    if rating_min is not None:
-        base_where_clause.append(Media.rating >= rating_min)
-    if rating_max is not None:
-        base_where_clause.append(Media.rating <= rating_max)
-
-    # Search in title and notes (case-insensitive)
-    if search:
-        search_term = f"%{search.lower()}%"
-        base_where_clause.append(
-            (Media.title.ilike(search_term)) | (Media.notes.ilike(search_term))
+    for name, model in [("books", Book), ("games", Game), ("movies", Movie), ("shows", Show)]:
+        result = await db.execute(
+            select(model)
+            .where(model.user_id == user_id)
+            .where(model.title.ilike(f"%{title}%"))
         )
+        matches = result.scalars().all()
 
-    # Count total matching media items
-    count_query = select(func.count(Media.id)).where(*base_where_clause)
-    count_result = await db.execute(count_query)
-    total = count_result.scalar_one()
+        duplicates[name] = [
+            {
+                "id": str(m.id),
+                "title": m.title,
+                "status": m.status,
+                "completed_at": m.completed_at.isoformat() if m.completed_at else None
+            }
+            for m in matches
+        ]
 
-    # Get paginated media items
-    query = (
-        select(Media)
-        .where(*base_where_clause)
-        .order_by(Media.created_at.desc())
-        .offset(skip)
-        .limit(limit)
-    )
+    return duplicates
 
-    result = await db.execute(query)
-    media_items = result.scalars().all()
 
-    return media_items, total
+async def get_yearly_stats(
+    db: AsyncSession,
+    user_id: UUID,
+    year: int
+) -> dict[str, int]:
+    """Get completion counts for all media types for a given year"""
+    start_date = date(year, 1, 1)
+    end_date = date(year, 12, 31)
+
+    stats: dict[str, int] = {}
+    for name, model in [("books", Book), ("games", Game), ("movies", Movie), ("shows", Show)]:
+        result = await db.execute(
+            select(func.count(model.id))
+            .where(model.user_id == user_id)
+            .where(model.completed_at.between(start_date, end_date))
+        )
+        stats[name] = result.scalar() or 0
+
+    return stats
+
+
+async def search_media(
+    db: AsyncSession,
+    user_id: UUID,
+    query: str,
+    media_type: str | None = None
+) -> dict[str, list[Book | Game | Movie | Show]]:
+    """Search across all media types by title"""
+    results: dict[str, list[Book | Game | Movie | Show]] = {"books": [], "games": [], "movies": [], "shows": []}
+    search_term = f"%{query}%"
+
+    models_to_search: list[tuple[str, type[Book] | type[Game] | type[Movie] | type[Show]]] = []
+    if media_type is None:
+        models_to_search = [("books", Book), ("games", Game), ("movies", Movie), ("shows", Show)]
+    elif media_type == "book":
+        models_to_search = [("books", Book)]
+    elif media_type == "game":
+        models_to_search = [("games", Game)]
+    elif media_type == "movie":
+        models_to_search = [("movies", Movie)]
+    elif media_type == "show":
+        models_to_search = [("shows", Show)]
+
+    for name, model in models_to_search:
+        search_conditions = [model.title.ilike(search_term)]
+        if hasattr(model, "notes"):
+            search_conditions.append(model.notes.ilike(search_term))
+
+        result = await db.execute(
+            select(model)
+            .where(model.user_id == user_id)
+            .where(or_(*search_conditions))
+            .limit(20)
+        )
+        results[name] = list(result.scalars().all())
+
+    return results
