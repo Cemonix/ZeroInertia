@@ -110,7 +110,7 @@
                             iconDisplay="input"
                             :yearNavigator="true"
                             :monthNavigator="true"
-                            yearRange="2000:2030"
+                            :yearRange="yearRange"
                             :showClear="true"
                         >
                             <template #dropdownicon>
@@ -129,7 +129,7 @@
                             iconDisplay="input"
                             :yearNavigator="true"
                             :monthNavigator="true"
-                            yearRange="2000:2030"
+                            :yearRange="yearRange"
                             :showClear="true"
                         >
                             <template #dropdownicon>
@@ -262,6 +262,13 @@ const platformSuggestions = ref<string[]>([]);
 
 const startedDate = ref<Date | null>(null);
 const completedDate = ref<Date | null>(null);
+
+const yearRange = computed(() => {
+    const currentYear = new Date().getFullYear();
+    const minYear = 1900;
+    const maxYear = currentYear + 10;
+    return `${minYear}:${maxYear}`;
+});
 
 const canSave = computed(() => {
     if (!form.title.trim()) {

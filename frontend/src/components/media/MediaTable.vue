@@ -1,183 +1,99 @@
 <template>
     <div class="media-table-wrapper">
-        <table class="media-table">
-            <thead>
-                <tr>
-                    <th class="col-index">#</th>
-                    <th class="col-title">Title</th>
-                    <th v-if="type === 'all'" class="col-type">Type</th>
-                    <th v-if="type === 'all' || type === 'book'" class="col-creator">
-                        Creator
-                    </th>
-                    <th class="col-status">Status</th>
-                    <th class="col-genre">Genre</th>
-                    <th v-if="type === 'all' || type === 'game'" class="col-platform">
-                        Platform
-                    </th>
-                    <th class="col-date">Started</th>
-                    <th class="col-date">Completed</th>
-                    <th class="col-actions"></th>
-                </tr>
-            </thead>
-            <tbody>
-                <template v-if="loading && items.length === 0">
-                    <tr
-                        v-for="n in 3"
-                        :key="`skeleton-${n}`"
-                    >
-                        <td class="cell-index">
-                            <Skeleton
-                                width="1.5rem"
-                                height="0.8rem"
-                                class="skeleton-line"
-                            />
-                        </td>
-                        <td class="cell-title">
-                            <div class="title-main">
-                                <Skeleton
-                                    width="70%"
-                                    height="1rem"
-                                    class="skeleton-line"
-                                />
-                            </div>
-                            <div class="title-notes">
-                                <Skeleton
-                                    width="50%"
-                                    height="0.8rem"
-                                    class="skeleton-line secondary"
-                                />
-                            </div>
-                        </td>
-                        <td
-                            v-if="type === 'all'"
-                            class="cell-type"
-                        >
-                            <Skeleton
-                                width="50%"
-                                height="0.8rem"
-                                class="skeleton-line"
-                            />
-                        </td>
-                        <td
-                            v-if="type === 'all' || type === 'book'"
-                            class="cell-creator"
-                        >
-                            <Skeleton
-                                width="60%"
-                                height="0.8rem"
-                                class="skeleton-line"
-                            />
-                        </td>
-                        <td class="cell-status">
-                            <Skeleton
-                                width="4.5rem"
-                                height="1.4rem"
-                                class="skeleton-pill"
-                            />
-                        </td>
-                        <td class="cell-genre">
-                            <Skeleton
-                                width="40%"
-                                height="0.8rem"
-                                class="skeleton-line"
-                            />
-                        </td>
-                        <td
-                            v-if="type === 'all' || type === 'game'"
-                            class="cell-platform"
-                        >
-                            <Skeleton
-                                width="50%"
-                                height="0.8rem"
-                                class="skeleton-line"
-                            />
-                        </td>
-                        <td class="cell-date">
-                            <Skeleton
-                                width="60%"
-                                height="0.8rem"
-                                class="skeleton-line"
-                            />
-                        </td>
-                        <td class="cell-date">
-                            <Skeleton
-                                width="60%"
-                                height="0.8rem"
-                                class="skeleton-line"
-                            />
-                        </td>
-                        <td class="cell-actions">
-                            <Skeleton
-                                width="70%"
-                                height="1.2rem"
-                                class="skeleton-line"
-                            />
-                        </td>
-                    </tr>
+        <DataTable
+            :value="items"
+            :loading="loading"
+            stripedRows
+            sortMode="multiple"
+            removableSort
+            tableStyle="min-width: 50rem"
+        >
+            <Column field="index" header="#" style="width: 50px">
+                <template #body="slotProps">
+                    {{ items.length - slotProps.index }}
                 </template>
-                <tr v-else-if="items.length === 0">
-                    <td :colspan="columnCount" class="empty-cell">
-                        No media items in this view.
-                    </td>
-                </tr>
-                <tr
-                    v-for="(item, index) in items"
-                    :key="item.id"
-                >
-                    <td class="cell-index">{{ index + 1 }}</td>
-                    <td class="cell-title">
-                        <div class="title-main">{{ item.title }}</div>
-                        <div v-if="item.notes" class="title-notes">
-                            {{ item.notes }}
+            </Column>
+            <Column field="title" header="Title" sortable>
+                <template #body="slotProps">
+                    <div class="title-content">
+                        <div class="title-main">{{ slotProps.data.title }}</div>
+                        <div v-if="slotProps.data.notes" class="title-notes">
+                            {{ slotProps.data.notes }}
                         </div>
-                    </td>
-                    <td
-                        v-if="type === 'all'"
-                        class="cell-type"
-                    >
-                        {{ formatMediaType(item.media_type) }}
-                    </td>
-                    <td
-                        v-if="type === 'all' || type === 'book'"
-                        class="cell-creator"
-                    >
-                        <span v-if="item.media_type === 'book'">
-                            {{ item.creator }}
-                        </span>
-                    </td>
-                    <td class="cell-status">
-                        <Tag
-                            :value="formatStatus(item.status)"
-                            :severity="statusSeverity(item.status)"
-                            class="status-tag"
-                        />
-                    </td>
-                    <td class="cell-genre">
-                        <span v-if="item.genre">{{ item.genre }}</span>
-                    </td>
-                    <td
-                        v-if="type === 'all' || type === 'game'"
-                        class="cell-platform"
-                    >
-                        <span v-if="item.media_type === 'game'">
-                            {{ item.platform }}
-                        </span>
-                    </td>
-                    <td class="cell-date">
-                        <span v-if="item.started_at">
-                            {{ formatDate(item.started_at) }}
-                        </span>
-                    </td>
-                    <td class="cell-date">
-                        <span v-if="item.completed_at">
-                            {{ formatDate(item.completed_at) }}
-                        </span>
-                    </td>
-                    <td class="cell-actions">
+                    </div>
+                </template>
+            </Column>
+            <Column
+                v-if="type === 'all'"
+                field="media_type"
+                header="Type"
+                sortable
+                style="width: 120px"
+            >
+                <template #body="slotProps">
+                    {{ formatMediaType(slotProps.data.media_type) }}
+                </template>
+            </Column>
+            <Column
+                v-if="type === 'all' || type === 'book'"
+                field="creator"
+                header="Creator"
+                sortable
+            >
+                <template #body="slotProps">
+                    <span v-if="slotProps.data.media_type === 'book'">
+                        {{ slotProps.data.creator }}
+                    </span>
+                </template>
+            </Column>
+            <Column field="status" header="Status" sortable style="width: 140px">
+                <template #body="slotProps">
+                    <Tag
+                        :value="formatStatus(slotProps.data.status)"
+                        :severity="statusSeverity(slotProps.data.status)"
+                        class="status-tag"
+                    />
+                </template>
+            </Column>
+            <Column field="genre" header="Genre" sortable style="width: 140px">
+                <template #body="slotProps">
+                    <span v-if="slotProps.data.genre">{{ slotProps.data.genre }}</span>
+                </template>
+            </Column>
+            <Column
+                v-if="type === 'all' || type === 'game'"
+                field="platform"
+                header="Platform"
+                sortable
+                style="width: 140px"
+            >
+                <template #body="slotProps">
+                    <span v-if="slotProps.data.media_type === 'game'">
+                        {{ slotProps.data.platform }}
+                    </span>
+                </template>
+            </Column>
+            <Column field="started_at" header="Started" sortable style="width: 140px">
+                <template #body="slotProps">
+                    <span v-if="slotProps.data.started_at">
+                        {{ formatDate(slotProps.data.started_at) }}
+                    </span>
+                </template>
+            </Column>
+            <Column field="completed_at" header="Completed" sortable style="width: 140px">
+                <template #body="slotProps">
+                    <span v-if="slotProps.data.completed_at">
+                        {{ formatDate(slotProps.data.completed_at) }}
+                    </span>
+                </template>
+            </Column>
+            <Column header="Actions" style="width: 140px">
+                <template #body="slotProps">
+                    <div class="action-buttons">
                         <Button
                             text
                             size="small"
-                            @click="$emit('edit', item)"
+                            @click="$emit('edit', slotProps.data)"
                         >
                             Edit
                         </Button>
@@ -185,22 +101,22 @@
                             text
                             size="small"
                             severity="danger"
-                            @click="$emit('delete', item)"
+                            @click="$emit('delete', slotProps.data)"
                         >
                             Delete
                         </Button>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
+                    </div>
+                </template>
+            </Column>
+        </DataTable>
     </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import DataTable from "primevue/datatable";
+import Column from "primevue/column";
 import Tag from "primevue/tag";
 import Button from "primevue/button";
-import Skeleton from "primevue/skeleton";
 import type { MediaItem, MediaStatus, MediaType } from "@/models/media";
 import { format, parseISO } from "date-fns";
 
@@ -216,20 +132,7 @@ interface Emits {
 }
 
 defineEmits<Emits>();
-const props = defineProps<Props>();
-
-const columnCount = computed(() => {
-    let count = 7; // index, title, status, genre, started, completed, actions
-    if (props.type === "all") {
-        count += 2; // type + creator
-    } else if (props.type === "book") {
-        count += 1; // creator
-    }
-    if (props.type === "all" || props.type === "game") {
-        count += 1; // platform
-    }
-    return count;
-});
+defineProps<Props>();
 
 const formatStatus = (status: MediaStatus): string => {
     switch (status) {
@@ -283,55 +186,21 @@ const formatDate = (dateStr: string | null): string => {
 <style scoped>
 .media-table-wrapper {
     width: 100%;
-    overflow-x: auto;
 }
 
-.media-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.9rem;
+.title-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
 }
 
-.media-table thead tr {
-    background-color: var(--p-content-background);
+.title-main {
+    font-weight: 500;
 }
 
-.media-table th,
-.media-table td {
-    padding: 0.5rem 0.75rem;
-    border-bottom: 1px solid var(--p-content-border-color);
-    text-align: left;
-    vertical-align: middle;
-}
-
-.col-index {
-    width: 40px;
-    text-align: center;
-}
-
-.cell-index {
+.title-notes {
     color: var(--p-text-muted-color);
     font-size: 0.85rem;
-    font-weight: 500;
-    text-align: center;
-}
-
-.col-actions {
-    width: 120px;
-}
-
-.cell-title .title-main {
-    font-weight: 500;
-}
-
-.cell-title .title-notes {
-    margin-top: 0.15rem;
-    color: var(--p-text-muted-color);
-    font-size: 0.8rem;
-}
-
-.cell-status :deep(.p-tag) {
-    font-size: 0.8rem;
 }
 
 .status-tag {
@@ -339,31 +208,26 @@ const formatDate = (dateStr: string | null): string => {
     padding-inline: 0.6rem;
 }
 
-.empty-cell {
-    text-align: center;
-    color: var(--p-text-muted-color);
-    font-style: italic;
+.action-buttons {
+    display: flex;
+    gap: 0.25rem;
 }
 
-.cell-actions {
-    white-space: nowrap;
+:deep(.p-datatable-table) {
+    font-size: 0.9rem;
 }
 
-.skeleton-line {
-    border-radius: 999px;
+:deep(.p-datatable-thead > tr > th) {
+    font-weight: 600;
+    background-color: var(--p-content-background);
 }
 
-.skeleton-line.secondary {
-    margin-top: 0.25rem;
-}
-
-.skeleton-pill {
-    border-radius: 999px;
+:deep(.p-datatable-tbody > tr > td) {
+    padding: 0.5rem 0.75rem;
 }
 
 @media (max-width: 768px) {
-    .media-table th,
-    .media-table td {
+    :deep(.p-datatable-tbody > tr > td) {
         padding: 0.4rem 0.5rem;
     }
 }
