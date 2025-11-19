@@ -250,9 +250,16 @@ const canSave = computed(() => {
 });
 
 const normalizeDate = (value: string | null): string | null => {
-    if (!value) return null;
+    if (!value || value.trim() === "") return null;
     if (value.length >= 10) {
         return value.slice(0, 10);
+    }
+    return value;
+};
+
+const normalizeOptionalString = (value: string | null): string | null => {
+    if (value === null || value === undefined || value.trim() === "") {
+        return null;
     }
     return value;
 };
@@ -309,6 +316,15 @@ watch(
         populateFormFromItem(item);
     },
     { immediate: true },
+);
+
+watch(
+    () => visible.value,
+    (isVisible) => {
+        if (isVisible && !props.item) {
+            populateFormFromItem(null);
+        }
+    },
 );
 
 watch(
@@ -417,10 +433,10 @@ const handleSave = async () => {
                 title: form.title,
                 status: form.status,
                 creator: form.creator,
-                genre: form.genre,
-                started_at: form.started_at,
-                completed_at: form.completed_at,
-                notes: form.notes,
+                genre: normalizeOptionalString(form.genre),
+                started_at: normalizeDate(form.started_at),
+                completed_at: normalizeDate(form.completed_at),
+                notes: normalizeOptionalString(form.notes),
             };
             break;
         case "game":
@@ -428,11 +444,11 @@ const handleSave = async () => {
                 media_type: "game",
                 title: form.title,
                 status: form.status,
-                platform: form.platform,
-                genre: form.genre,
-                started_at: form.started_at,
-                completed_at: form.completed_at,
-                notes: form.notes,
+                platform: normalizeOptionalString(form.platform),
+                genre: normalizeOptionalString(form.genre),
+                started_at: normalizeDate(form.started_at),
+                completed_at: normalizeDate(form.completed_at),
+                notes: normalizeOptionalString(form.notes),
             };
             break;
         case "movie":
@@ -440,10 +456,10 @@ const handleSave = async () => {
                 media_type: "movie",
                 title: form.title,
                 status: form.status,
-                genre: form.genre,
-                started_at: form.started_at,
-                completed_at: form.completed_at,
-                notes: form.notes,
+                genre: normalizeOptionalString(form.genre),
+                started_at: normalizeDate(form.started_at),
+                completed_at: normalizeDate(form.completed_at),
+                notes: normalizeOptionalString(form.notes),
             };
             break;
         case "show":
@@ -452,10 +468,10 @@ const handleSave = async () => {
                 title: form.title,
                 status: form.status,
                 season_number: form.season_number,
-                genre: form.genre,
-                started_at: form.started_at,
-                completed_at: form.completed_at,
-                notes: form.notes,
+                genre: normalizeOptionalString(form.genre),
+                started_at: normalizeDate(form.started_at),
+                completed_at: normalizeDate(form.completed_at),
+                notes: normalizeOptionalString(form.notes),
             };
             break;
     }
