@@ -101,21 +101,41 @@
                 <div class="form-row">
                     <div class="form-field">
                         <label for="started_at">Started</label>
-                        <input
+                        <DatePicker
                             id="started_at"
-                            v-model="form.started_at"
-                            type="date"
-                            class="date-input"
-                        />
+                            v-model="startedDate"
+                            placeholder="Start date"
+                            dateFormat="yy-mm-dd"
+                            :showIcon="true"
+                            iconDisplay="input"
+                            :yearNavigator="true"
+                            :monthNavigator="true"
+                            yearRange="2000:2030"
+                            :showClear="true"
+                        >
+                            <template #dropdownicon>
+                                <font-awesome-icon icon="calendar" />
+                            </template>
+                        </DatePicker>
                     </div>
                     <div class="form-field">
                         <label for="completed_at">Completed</label>
-                        <input
+                        <DatePicker
                             id="completed_at"
-                            v-model="form.completed_at"
-                            type="date"
-                            class="date-input"
-                        />
+                            v-model="completedDate"
+                            placeholder="Completion date"
+                            dateFormat="yy-mm-dd"
+                            :showIcon="true"
+                            iconDisplay="input"
+                            :yearNavigator="true"
+                            :monthNavigator="true"
+                            yearRange="2000:2030"
+                            :showClear="true"
+                        >
+                            <template #dropdownicon>
+                                <font-awesome-icon icon="calendar" />
+                            </template>
+                        </DatePicker>
                     </div>
                 </div>
 
@@ -172,6 +192,7 @@ import InputText from "primevue/inputtext";
 import Textarea from "primevue/textarea";
 import Button from "primevue/button";
 import AutoComplete from "primevue/autocomplete";
+import DatePicker from "primevue/datepicker";
 import {
     MEDIA_STATUSES,
     MEDIA_TYPES,
@@ -239,6 +260,9 @@ const duplicateMatches = ref<DuplicateMatch[]>([]);
 const genreSuggestions = ref<string[]>([]);
 const platformSuggestions = ref<string[]>([]);
 
+const startedDate = ref<Date | null>(null);
+const completedDate = ref<Date | null>(null);
+
 const canSave = computed(() => {
     if (!form.title.trim()) {
         return false;
@@ -255,6 +279,21 @@ const normalizeDate = (value: string | null): string | null => {
         return value.slice(0, 10);
     }
     return value;
+};
+
+const dateToString = (date: Date | null): string | null => {
+    if (!date) return null;
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
+const stringToDate = (dateStr: string | null): Date | null => {
+    if (!dateStr) return null;
+    const normalized = normalizeDate(dateStr);
+    if (!normalized) return null;
+    return new Date(normalized + 'T00:00:00');
 };
 
 const normalizeOptionalString = (value: string | null): string | null => {
@@ -277,6 +316,8 @@ const populateFormFromItem = (item: MediaItem | null) => {
         form.started_at = null;
         form.completed_at = null;
         form.notes = null;
+        startedDate.value = null;
+        completedDate.value = null;
         duplicateMatches.value = [];
         return;
     }
@@ -288,6 +329,9 @@ const populateFormFromItem = (item: MediaItem | null) => {
     form.started_at = normalizeDate(item.started_at);
     form.completed_at = normalizeDate(item.completed_at);
     form.notes = item.notes ?? null;
+
+    startedDate.value = stringToDate(item.started_at);
+    completedDate.value = stringToDate(item.completed_at);
 
     if (item.media_type === "book") {
         form.creator = item.creator;
@@ -335,6 +379,14 @@ watch(
         }
     },
 );
+
+watch(startedDate, (date) => {
+    form.started_at = dateToString(date);
+});
+
+watch(completedDate, (date) => {
+    form.completed_at = dateToString(date);
+});
 
 let duplicateTimeout: ReturnType<typeof setTimeout> | null = null;
 
@@ -516,13 +568,12 @@ const handleSave = async () => {
     margin-top: 0.5rem;
 }
 
-.date-input {
+.form-field :deep(.p-datepicker) {
     width: 100%;
-    padding: 0.5rem 0.75rem;
-    border-radius: 6px;
-    border: 1px solid var(--p-content-border-color);
-    background: var(--p-content-background);
-    color: var(--p-text-color);
+}
+
+.form-field :deep(.p-datepicker-input) {
+    width: 100%;
 }
 
 .duplicate-warning {

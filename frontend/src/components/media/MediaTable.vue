@@ -3,6 +3,7 @@
         <table class="media-table">
             <thead>
                 <tr>
+                    <th class="col-index">#</th>
                     <th class="col-title">Title</th>
                     <th v-if="type === 'all'" class="col-type">Type</th>
                     <th v-if="type === 'all' || type === 'book'" class="col-creator">
@@ -24,6 +25,13 @@
                         v-for="n in 3"
                         :key="`skeleton-${n}`"
                     >
+                        <td class="cell-index">
+                            <Skeleton
+                                width="1.5rem"
+                                height="0.8rem"
+                                class="skeleton-line"
+                            />
+                        </td>
                         <td class="cell-title">
                             <div class="title-main">
                                 <Skeleton
@@ -113,9 +121,10 @@
                     </td>
                 </tr>
                 <tr
-                    v-for="item in items"
+                    v-for="(item, index) in items"
                     :key="item.id"
                 >
+                    <td class="cell-index">{{ index + 1 }}</td>
                     <td class="cell-title">
                         <div class="title-main">{{ item.title }}</div>
                         <div v-if="item.notes" class="title-notes">
@@ -210,7 +219,7 @@ defineEmits<Emits>();
 const props = defineProps<Props>();
 
 const columnCount = computed(() => {
-    let count = 6; // title, status, genre, started, completed, actions
+    let count = 7; // index, title, status, genre, started, completed, actions
     if (props.type === "all") {
         count += 2; // type + creator
     } else if (props.type === "book") {
@@ -293,6 +302,18 @@ const formatDate = (dateStr: string | null): string => {
     border-bottom: 1px solid var(--p-content-border-color);
     text-align: left;
     vertical-align: middle;
+}
+
+.col-index {
+    width: 40px;
+    text-align: center;
+}
+
+.cell-index {
+    color: var(--p-text-muted-color);
+    font-size: 0.85rem;
+    font-weight: 500;
+    text-align: center;
 }
 
 .col-actions {
