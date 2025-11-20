@@ -25,6 +25,24 @@
                 <span class="media-nav-label">Media</span>
             </Button>
         </template>
+        <template #mobile-menu-items>
+            <Button
+                class="mobile-menu-item"
+                text
+                @click="goHome"
+            >
+                <font-awesome-icon icon="house" />
+                <span>Home</span>
+            </Button>
+            <Button
+                class="mobile-menu-item"
+                text
+                @click="goToMedia"
+            >
+                <font-awesome-icon icon="table-columns" />
+                <span>Media</span>
+            </Button>
+        </template>
         <NoteEditor />
     </WorkspaceLayout>
 </template>

@@ -26,7 +26,19 @@
                     >
                         <font-awesome-icon :icon="isSidebarCollapsed ? 'chevron-right' : 'chevron-left'" />
                     </Button>
-                    <slot name="navbar-left" />
+                    <Button
+                        v-if="isMobileView"
+                        class="hamburger-btn"
+                        @click="toggleMobileMenu"
+                        text
+                        rounded
+                        aria-label="Open menu"
+                    >
+                        <font-awesome-icon icon="bars" />
+                    </Button>
+                    <div class="navbar-left-items">
+                        <slot name="navbar-left" />
+                    </div>
                 </div>
                 <Button v-if="!authStore.isAuthenticated" @click="login" class="login-btn">Log in</Button>
                 <div v-else class="user-section">
@@ -94,6 +106,22 @@
         </div>
         <NotificationToggle v-model:visible="showNotificationSettings" />
         <ShortcutsHelp v-model:visible="showShortcuts" />
+
+        <!-- Mobile Menu -->
+        <Menu
+            ref="mobileMenu"
+            :model="mobileMenuItems"
+            :popup="true"
+        >
+            <template #item="{ item, props }">
+                <a class="p-menuitem-link" v-bind="props.action">
+                    <span v-if="item.icon" class="p-menuitem-icon">
+                        <FontAwesomeIcon :icon="item.icon" />
+                    </span>
+                    <span class="p-menuitem-text">{{ item.label }}</span>
+                </a>
+            </template>
+        </Menu>
     </main>
 </template>
 
@@ -121,6 +149,7 @@ const route = useRoute();
 const router = useRouter();
 
 const userMenu = ref();
+const mobileMenu = ref();
 const uiStore = useUiStore();
 const { isSidebarCollapsed } = storeToRefs(uiStore);
 const { isDarkMode, toggleTheme, initializeTheme } = useTheme();
@@ -145,6 +174,45 @@ const getUserInitials = (fullName: string | null, email: string): string => {
 const userInitials = computed(() => {
     if (!authStore.user) return "U";
     return getUserInitials(authStore.userName, authStore.userEmail || "");
+});
+
+const mobileMenuItems = computed(() => {
+    const items = [];
+
+    // Add navigation items based on current route
+    if (route.path !== '/home') {
+        items.push({
+            label: 'Home',
+            icon: 'house',
+            command: () => router.push('/home')
+        });
+    }
+
+    if (route.path !== '/notes') {
+        items.push({
+            label: 'Notes',
+            icon: 'pen',
+            command: () => router.push('/notes')
+        });
+    }
+
+    if (route.path !== '/media') {
+        items.push({
+            label: 'Media',
+            icon: 'table-columns',
+            command: () => router.push('/media')
+        });
+    }
+
+    if (route.path !== '/streaks') {
+        items.push({
+            label: 'Streaks',
+            icon: 'calendar-day',
+            command: () => router.push('/streaks')
+        });
+    }
+
+    return items;
 });
 
 const userMenuItems = computed(() => [
@@ -193,6 +261,10 @@ const goToStreaks = () => {
     if (router.currentRoute.value.path !== "/streaks") {
         router.push("/streaks");
     }
+};
+
+const toggleMobileMenu = (event: Event) => {
+    mobileMenu.value?.toggle(event);
 };
 
 const toggleUserMenu = (event: Event) => {
@@ -403,12 +475,20 @@ watch(
     gap: 0.5rem;
 }
 
-.sidebar-toggle-btn {
+.navbar-left-items {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.sidebar-toggle-btn,
+.hamburger-btn {
     color: var(--p-text-color);
     transition: all 0.2s ease;
 }
 
-.sidebar-toggle-btn:hover {
+.sidebar-toggle-btn:hover,
+.hamburger-btn:hover {
     background-color: var(--p-content-hover-background);
     color: var(--p-primary-color);
 }
@@ -565,6 +645,10 @@ watch(
 
     .workspace {
         padding: 0.5rem;
+    }
+
+    .navbar-left-items {
+        display: none;
     }
 }
 </style>
