@@ -104,7 +104,7 @@
         </template>
         <div class="media-view">
             <div class="toolbar">
-                <Button @click="openCreate" aria-label="Add media"
+                <Button @click="openCreate" aria-label="Add media" class="add-media-btn"
                     >Add Media</Button
                 >
                 <div class="toolbar-right">
@@ -465,17 +465,49 @@ watch(
     justify-content: space-between;
     align-items: center;
     margin-bottom: 0.5rem;
+    gap: 1rem;
+}
+
+.add-media-btn {
+    flex-shrink: 0;
 }
 
 .toolbar-right {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    flex-wrap: wrap;
 }
 
 .stats-badge {
     font-size: 0.85rem;
     color: var(--p-text-muted-color);
+}
+
+@media (max-width: 768px) {
+    .toolbar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+    }
+
+    .add-media-btn {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        font-size: 1rem;
+        font-weight: 600;
+    }
+
+    .toolbar-right {
+        justify-content: center;
+        gap: 0.75rem;
+    }
+
+    .stats-badge {
+        font-size: 0.8rem;
+        text-align: center;
+        width: 100%;
+    }
 }
 
 .muted {

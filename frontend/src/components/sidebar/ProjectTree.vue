@@ -5,13 +5,16 @@
             v-model:expandedKeys="expandedKeys"
             selectionMode="single"
             v-model:selectionKeys="selectedProject"
-            draggableNodes
-            droppableNodes
+            :draggableNodes="!isTouchDevice"
+            :droppableNodes="!isTouchDevice"
             @node-drop="onNodeDrop">
             <template #default="{ node }">
                 <div class="node-content">
                     <span class="node-label">{{ node.label }}</span>
-                    <div class="node-actions">
+                    <div
+                        class="node-actions"
+                        draggable="false"
+                    >
                         <span class="node-count" :aria-label="`Tasks in ${node.label}`" v-if="node.key">
                             {{ getTaskCountForProject(String(node.key)) }}
                         </span>
@@ -23,21 +26,22 @@
                             class="node-action"
                             aria-haspopup="true"
                             :aria-controls="`project_menu_${node.key}`"
-                            @click.stop="toggleProjectMenu(node, $event)"
+                            :draggable="false"
+                            @click.stop="openProjectMenu(node, $event)"
                             aria-label="Project options"
                         >
                             <FontAwesomeIcon icon="ellipsis" />
                         </Button>
-                        <Menu
-                            :id="`project_menu_${node.key}`"
-                            :model="getProjectMenuItems(node)"
-                            :popup="true"
-                            :ref="(el) => setMenuRef(node.key, el)"
-                        />
                     </div>
                 </div>
             </template>
         </Tree>
+        <Menu
+            ref="projectMenuRef"
+            :model="projectMenuItems"
+            :popup="true"
+            :pt="{ root: { style: { zIndex: 1200 } } }"
+        />
         <Dialog
             v-model:visible="isRenameDialogVisible"
             header="Rename Project"
@@ -106,7 +110,7 @@
 </template>
 
 <script lang="ts" setup>
-import { onMounted, ref, watch, watchEffect, type Ref, type ComponentPublicInstance } from 'vue';
+import { onMounted, onUnmounted, ref, watch, watchEffect, type Ref, type ComponentPublicInstance } from 'vue';
 import Tree from 'primevue/tree';
 import type { TreeExpandedKeys, TreeNodeDropEvent } from 'primevue/tree';
 import type { TreeNode } from 'primevue/treenode';
@@ -116,6 +120,7 @@ import { useAuthStore } from '@/stores/auth';
 import { useToast } from "primevue";
 import Button from 'primevue/button';
 import Menu from 'primevue/menu';
+import type { MenuItem } from 'primevue/menuitem';
 import { useConfirm } from 'primevue/useconfirm';
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
 import { storeToRefs } from 'pinia';
@@ -125,6 +130,7 @@ import { useTaskStore } from '@/stores/task';
 
 const toast = useToast();
 const confirm = useConfirm();
+const isTouchDevice = ref(false);
 
 const EXPANDED_KEYS_STORAGE_KEY = 'projectTree.expandedKeys';
 
@@ -136,10 +142,11 @@ const { tasks: taskStoreTasks, getLoadContext } = storeToRefs(taskStore);
 const treeNodes: Ref<TreeNode[]> = ref([]);
 const expandedKeys: Ref<TreeExpandedKeys> = ref({});
 type ProjectMenu = ComponentPublicInstance & {
-    toggle: (event: MouseEvent) => void;
+    toggle: (event: Event) => void;
     hide: () => void;
 };
-const menuRefs = new Map<string, ProjectMenu>();
+const projectMenuRef = ref<ProjectMenu | null>(null);
+const projectMenuItems = ref<MenuItem[]>([]);
 const isRenameDialogVisible = ref(false);
 const renameProjectTitle = ref('');
 const projectBeingRenamed = ref<TreeNode | null>(null);
@@ -152,6 +159,11 @@ const projectToCreateBelow = ref<TreeNode | null>(null);
 
 // Local task counts mapped by project id
 const taskCounts = ref<Record<string, number>>({});
+let pointerMedia: MediaQueryList | null = null;
+
+function handlePointerChange(event: MediaQueryListEvent) {
+    isTouchDevice.value = event.matches;
+}
 
 function applyPartialCountsFrom(tasks: Task[]) {
     const context = getLoadContext.value;
@@ -267,7 +279,7 @@ function onNodeDrop(_event: TreeNodeDropEvent) {
     projectStore.handleTreeReorder(flattenedTree);
 }
 
-function getProjectMenuItems(node: TreeNode) {
+function getProjectMenuItems(node: TreeNode): MenuItem[] {
     const projectId = typeof node.key === 'string' ? node.key : String(node.key ?? '');
     const project = projectId ? projectStore.getProjectById(projectId) : undefined;
     const isInbox = project?.is_inbox === true;
@@ -293,28 +305,12 @@ function getProjectMenuItems(node: TreeNode) {
     return items;
 }
 
-function setMenuRef(
-    key: TreeNode['key'],
-    menu: Element | ComponentPublicInstance | null
-) {
-    if (key === undefined || key === null) {
-        return;
-    }
-    const normalizedKey = typeof key === 'string' ? key : String(key);
-    if (menu && 'toggle' in menu && typeof (menu as ProjectMenu).toggle === 'function') {
-        menuRefs.set(normalizedKey, menu as ProjectMenu);
-    } else {
-        menuRefs.delete(normalizedKey);
-    }
-}
-
-function toggleProjectMenu(node: TreeNode, event: MouseEvent) {
+function openProjectMenu(node: TreeNode, event: Event) {
     if (node.key === undefined || node.key === null) {
         return;
     }
-    const normalizedKey = typeof node.key === 'string' ? node.key : String(node.key);
-    const menu = menuRefs.get(normalizedKey);
-    menu?.toggle(event);
+    projectMenuItems.value = getProjectMenuItems(node);
+    projectMenuRef.value?.toggle(event);
 }
 
 function openRenameDialog(node: TreeNode) {
@@ -464,6 +460,12 @@ async function handleCreateProjectBelow() {
 }
 
 onMounted(async () => {
+    if (typeof window !== 'undefined') {
+        pointerMedia = window.matchMedia('(pointer: coarse)');
+        isTouchDevice.value = pointerMedia.matches;
+        pointerMedia.addEventListener('change', handlePointerChange);
+    }
+
     // Load expanded state from localStorage
     const savedExpandedKeys = localStorage.getItem(EXPANDED_KEYS_STORAGE_KEY);
     if (savedExpandedKeys) {
@@ -473,6 +475,10 @@ onMounted(async () => {
             toast.add({ severity: "error", summary: "Error", detail: "Failed to parse saved expanded keys" });
         }
     }
+});
+
+onUnmounted(() => {
+    pointerMedia?.removeEventListener('change', handlePointerChange);
 });
 </script>
 
@@ -542,6 +548,7 @@ onMounted(async () => {
     transform: translateY(-50%);
     pointer-events: none;
     z-index: 2;
+    touch-action: manipulation;
 }
 
 .node-content:hover .node-action,
@@ -564,5 +571,27 @@ onMounted(async () => {
     display: flex;
     justify-content: flex-end;
     gap: 0.5rem;
+}
+
+@media (hover: none) {
+    .node-actions {
+        position: static;
+        min-width: auto;
+        gap: 0.5rem;
+    }
+
+    .node-count {
+        position: static;
+        transform: none;
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    .node-action {
+        position: static;
+        transform: none;
+        opacity: 1;
+        pointer-events: auto;
+    }
 }
 </style>

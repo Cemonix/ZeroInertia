@@ -26,16 +26,6 @@
                 <p>No completed tasks yet. Start finishing tasks to build your streak!</p>
             </div>
             <div v-else class="calendar-layout">
-                <div class="month-labels">
-                    <span
-                        v-for="month in monthLabels"
-                        :key="month.label"
-                        class="month-label"
-                        :style="{ width: `calc(${month.weekCount} * (0.9rem + 3px) - 3px)` }"
-                    >
-                        {{ month.label }}
-                    </span>
-                </div>
                 <div class="calendar-body">
                     <div class="weekday-labels" aria-hidden="true">
                         <span class="weekday-label">Mon</span>
@@ -46,29 +36,44 @@
                         <span class="weekday-label" />
                         <span class="weekday-label" />
                     </div>
-                    <div class="calendar-grid" role="grid" aria-label="Daily completed tasks">
-                        <div
-                            v-for="(week, weekIndex) in weeks"
-                            :key="weekIndex"
-                            class="calendar-week"
-                            role="row"
-                        >
+                    <div class="calendar-scroll-container">
+                        <div class="month-labels">
+                            <span
+                                v-for="month in monthLabels"
+                                :key="month.label"
+                                class="month-label"
+                                :style="{
+                                    '--week-count': month.weekCount,
+                                    width: `calc(${month.weekCount} * (var(--cell-size) + 3px) - 3px)`
+                                }"
+                            >
+                                {{ month.label }}
+                            </span>
+                        </div>
+                        <div class="calendar-grid" role="grid" aria-label="Daily completed tasks">
                             <div
-                                v-for="(cell, dayIndex) in week"
-                                :key="cell ? cell.isoDate : `empty-${weekIndex}-${dayIndex}`"
-                                class="calendar-day"
-                                :class="[
-                                    cell
-                                        ? [
-                                              `level-${getLevel(cell.count)}`,
-                                              { 'is-today': cell.isToday },
-                                          ]
-                                        : 'is-empty'
-                                ]"
-                                :title="cell ? getTooltip(cell) : ''"
-                                role="gridcell"
-                                :aria-label="cell ? getTooltip(cell) : undefined"
-                            />
+                                v-for="(week, weekIndex) in weeks"
+                                :key="weekIndex"
+                                class="calendar-week"
+                                role="row"
+                            >
+                                <div
+                                    v-for="(cell, dayIndex) in week"
+                                    :key="cell ? cell.isoDate : `empty-${weekIndex}-${dayIndex}`"
+                                    class="calendar-day"
+                                    :class="[
+                                        cell
+                                            ? [
+                                                  `level-${getLevel(cell.count)}`,
+                                                  { 'is-today': cell.isToday },
+                                              ]
+                                            : 'is-empty'
+                                    ]"
+                                    :title="cell ? getTooltip(cell) : ''"
+                                    role="gridcell"
+                                    :aria-label="cell ? getTooltip(cell) : undefined"
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -276,6 +281,7 @@ const monthLabels = computed(() => {
 
 <style scoped>
 .streak-calendar {
+    --cell-size: 0.9rem;
     display: flex;
     flex-direction: column;
     gap: 1rem;
@@ -319,8 +325,8 @@ const monthLabels = computed(() => {
 }
 
 .legend-square {
-    width: 0.9rem;
-    height: 0.9rem;
+    width: var(--cell-size);
+    height: var(--cell-size);
     border-radius: 3px;
 }
 
@@ -375,24 +381,10 @@ const monthLabels = computed(() => {
     gap: 0.25rem;
 }
 
-.month-labels {
-    display: flex;
-    gap: 3px;
-    font-size: 0.75rem;
-    font-weight: 500;
-    color: var(--p-text-color);
-    margin-left: calc(2.5rem + 0.75rem); /* Offset by weekday label width + gap */
-}
-
-.month-label {
-    text-align: left;
-    padding-left: 0.15rem;
-    flex-shrink: 0;
-}
-
 .calendar-body {
     display: flex;
     gap: 0.75rem;
+    overflow: hidden;
 }
 
 .weekday-labels {
@@ -402,6 +394,7 @@ const monthLabels = computed(() => {
     font-size: 0.75rem;
     color: var(--p-text-muted-color);
     min-width: 2.5rem;
+    flex-shrink: 0;
 }
 
 .weekday-label {
@@ -411,10 +404,31 @@ const monthLabels = computed(() => {
     min-height: 0.9rem;
 }
 
+.calendar-scroll-container {
+    flex: 1;
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+.month-labels {
+    display: flex;
+    gap: 3px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--p-text-color);
+    margin-bottom: 0.25rem;
+    min-height: 1.2rem;
+}
+
+.month-label {
+    text-align: left;
+    padding-left: 0.15rem;
+    flex-shrink: 0;
+}
+
 .calendar-grid {
     display: flex;
     gap: 3px;
-    overflow-x: auto;
     padding-bottom: 0.25rem;
 }
 
@@ -425,8 +439,8 @@ const monthLabels = computed(() => {
 }
 
 .calendar-day {
-    width: 0.9rem;
-    height: 0.9rem;
+    width: var(--cell-size);
+    height: var(--cell-size);
     border-radius: 3px;
     transition: box-shadow 0.06s ease;
 }
@@ -467,13 +481,51 @@ const monthLabels = computed(() => {
 
 @media (max-width: 768px) {
     .streak-calendar {
+        --cell-size: 0.8rem;
         padding: 1rem;
+    }
+
+    .streak-calendar-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+
+    .legend {
+        font-size: 0.7rem;
     }
 
     .calendar-day,
     .legend-square {
-        width: 0.8rem;
-        height: 0.8rem;
+        width: var(--cell-size);
+        height: var(--cell-size);
+    }
+
+    .month-labels {
+        font-size: 0.7rem;
+    }
+
+    .weekday-labels {
+        min-width: 2rem;
+        font-size: 0.7rem;
+    }
+
+    .calendar-body {
+        gap: 0.5rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .streak-calendar {
+        padding: 0.75rem;
+    }
+
+    .title {
+        font-size: 1rem;
+    }
+
+    .subtitle {
+        font-size: 0.8rem;
     }
 }
 </style>
