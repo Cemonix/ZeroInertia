@@ -3,6 +3,8 @@ import type {
     BookMediaItem,
     DuplicateMatch,
     GameMediaItem,
+    Genre,
+    MangaMediaItem,
     MediaFormValues,
     MediaItem,
     MediaStatus,
@@ -16,21 +18,31 @@ const API_URL = "/api/v1/media";
 
 interface BookResponse extends Omit<BookMediaItem, "media_type"> {}
 interface GameResponse extends Omit<GameMediaItem, "media_type"> {}
+interface MangaResponse extends Omit<MangaMediaItem, "media_type"> {}
 interface MovieResponse extends Omit<MovieMediaItem, "media_type"> {}
 interface ShowResponse extends Omit<ShowMediaItem, "media_type"> {}
 
-type DuplicateCheckRawResponse = {
-    books: Array<Record<string, string | null>>;
-    games: Array<Record<string, string | null>>;
-    movies: Array<Record<string, string | null>>;
-    shows: Array<Record<string, string | null>>;
-};
+type DuplicateCheckRawResponse = Array<Record<string, string | null>>;
 
 interface ListMediaParams {
     status?: MediaStatus;
 }
 
+interface CreateGenrePayload {
+    name: string;
+}
+
 export const mediaService = {
+    async listGenres(): Promise<Genre[]> {
+        const res = await apiClient.get<Genre[]>(`${API_URL}/genres`);
+        return res.data;
+    },
+
+    async createGenre(payload: CreateGenrePayload): Promise<Genre> {
+        const res = await apiClient.post<Genre>(`${API_URL}/genres`, payload);
+        return res.data;
+    },
+
     async listBooks(params?: ListMediaParams): Promise<BookMediaItem[]> {
         const res = await apiClient.get<BookResponse[]>(`${API_URL}/books`, {
             params,
@@ -71,6 +83,16 @@ export const mediaService = {
         }));
     },
 
+    async listManga(params?: ListMediaParams): Promise<MangaMediaItem[]> {
+        const res = await apiClient.get<MangaResponse[]>(`${API_URL}/manga`, {
+            params,
+        });
+        return res.data.map((item) => ({
+            ...item,
+            media_type: "manga",
+        }));
+    },
+
     async createMedia(values: MediaFormValues): Promise<MediaItem> {
         switch (values.media_type) {
             case "book": {
@@ -78,7 +100,8 @@ export const mediaService = {
                     title: values.title,
                     creator: values.creator,
                     status: values.status,
-                    genre: values.genre,
+                    is_audiobook: values.is_audiobook,
+                    genre_ids: values.genre_ids ?? [],
                     started_at: values.started_at,
                     completed_at: values.completed_at,
                     notes: values.notes,
@@ -93,7 +116,7 @@ export const mediaService = {
                 const payload = {
                     title: values.title,
                     status: values.status,
-                    genre: values.genre,
+                    genre_ids: values.genre_ids ?? [],
                     platform: values.platform,
                     started_at: values.started_at,
                     completed_at: values.completed_at,
@@ -109,7 +132,7 @@ export const mediaService = {
                 const payload = {
                     title: values.title,
                     status: values.status,
-                    genre: values.genre,
+                    genre_ids: values.genre_ids ?? [],
                     started_at: values.started_at,
                     completed_at: values.completed_at,
                     notes: values.notes,
@@ -125,7 +148,7 @@ export const mediaService = {
                     title: values.title,
                     season_number: values.season_number,
                     status: values.status,
-                    genre: values.genre,
+                    genre_ids: values.genre_ids ?? [],
                     started_at: values.started_at,
                     completed_at: values.completed_at,
                     notes: values.notes,
@@ -136,16 +159,37 @@ export const mediaService = {
                 );
                 return { ...res.data, media_type: "show" };
             }
+            case "manga": {
+                const payload = {
+                    title: values.title,
+                    author: values.author,
+                    status: values.status,
+                    genre_ids: values.genre_ids ?? [],
+                    started_at: values.started_at,
+                    completed_at: values.completed_at,
+                    notes: values.notes,
+                };
+                const res = await apiClient.post<MangaResponse>(
+                    `${API_URL}/manga`,
+                    payload,
+                );
+                return { ...res.data, media_type: "manga" };
+            }
         }
     },
 
     async updateMedia(id: string, type: MediaType, values: Partial<MediaFormValues>): Promise<MediaItem> {
         switch (type) {
             case "book": {
-                const payload: Partial<Omit<BookMediaItem, "id" | "media_type" | "created_at" | "updated_at">> = {};
+                const payload: Partial<Omit<BookMediaItem, "id" | "media_type" | "created_at" | "updated_at">> & {
+                    genre_ids?: string[];
+                } = {};
                 if (values.title !== undefined) payload.title = values.title;
                 if (values.status !== undefined) payload.status = values.status;
-                if (values.genre !== undefined) payload.genre = values.genre;
+                if (values.genre_ids !== undefined) payload.genre_ids = values.genre_ids;
+                if ("is_audiobook" in values && values.is_audiobook !== undefined) {
+                    payload.is_audiobook = values.is_audiobook;
+                }
                 if (values.started_at !== undefined) payload.started_at = values.started_at;
                 if (values.completed_at !== undefined) payload.completed_at = values.completed_at;
                 if (values.notes !== undefined) payload.notes = values.notes;
@@ -159,10 +203,12 @@ export const mediaService = {
                 return { ...res.data, media_type: "book" };
             }
             case "game": {
-                const payload: Partial<Omit<GameMediaItem, "id" | "media_type" | "created_at" | "updated_at">> = {};
+                const payload: Partial<Omit<GameMediaItem, "id" | "media_type" | "created_at" | "updated_at">> & {
+                    genre_ids?: string[];
+                } = {};
                 if (values.title !== undefined) payload.title = values.title;
                 if (values.status !== undefined) payload.status = values.status;
-                if (values.genre !== undefined) payload.genre = values.genre;
+                if (values.genre_ids !== undefined) payload.genre_ids = values.genre_ids;
                 if (values.started_at !== undefined) payload.started_at = values.started_at;
                 if (values.completed_at !== undefined) payload.completed_at = values.completed_at;
                 if (values.notes !== undefined) payload.notes = values.notes;
@@ -176,10 +222,12 @@ export const mediaService = {
                 return { ...res.data, media_type: "game" };
             }
             case "movie": {
-                const payload: Partial<Omit<MovieMediaItem, "id" | "media_type" | "created_at" | "updated_at">> = {};
+                const payload: Partial<Omit<MovieMediaItem, "id" | "media_type" | "created_at" | "updated_at">> & {
+                    genre_ids?: string[];
+                } = {};
                 if (values.title !== undefined) payload.title = values.title;
                 if (values.status !== undefined) payload.status = values.status;
-                if (values.genre !== undefined) payload.genre = values.genre;
+                if (values.genre_ids !== undefined) payload.genre_ids = values.genre_ids;
                 if (values.started_at !== undefined) payload.started_at = values.started_at;
                 if (values.completed_at !== undefined) payload.completed_at = values.completed_at;
                 if (values.notes !== undefined) payload.notes = values.notes;
@@ -190,10 +238,12 @@ export const mediaService = {
                 return { ...res.data, media_type: "movie" };
             }
             case "show": {
-                const payload: Partial<Omit<ShowMediaItem, "id" | "media_type" | "created_at" | "updated_at">> = {};
+                const payload: Partial<Omit<ShowMediaItem, "id" | "media_type" | "created_at" | "updated_at">> & {
+                    genre_ids?: string[];
+                } = {};
                 if (values.title !== undefined) payload.title = values.title;
                 if (values.status !== undefined) payload.status = values.status;
-                if (values.genre !== undefined) payload.genre = values.genre;
+                if (values.genre_ids !== undefined) payload.genre_ids = values.genre_ids;
                 if (values.started_at !== undefined) payload.started_at = values.started_at;
                 if (values.completed_at !== undefined) payload.completed_at = values.completed_at;
                 if (values.notes !== undefined) payload.notes = values.notes;
@@ -206,6 +256,25 @@ export const mediaService = {
                 );
                 return { ...res.data, media_type: "show" };
             }
+            case "manga": {
+                const payload: Partial<Omit<MangaMediaItem, "id" | "media_type" | "created_at" | "updated_at">> & {
+                    genre_ids?: string[];
+                } = {};
+                if (values.title !== undefined) payload.title = values.title;
+                if (values.status !== undefined) payload.status = values.status;
+                if (values.genre_ids !== undefined) payload.genre_ids = values.genre_ids;
+                if (values.started_at !== undefined) payload.started_at = values.started_at;
+                if (values.completed_at !== undefined) payload.completed_at = values.completed_at;
+                if (values.notes !== undefined) payload.notes = values.notes;
+                if ("author" in values && values.author !== undefined) {
+                    payload.author = values.author;
+                }
+                const res = await apiClient.patch<MangaResponse>(
+                    `${API_URL}/manga/${id}`,
+                    payload,
+                );
+                return { ...res.data, media_type: "manga" };
+            }
         }
     },
 
@@ -217,6 +286,9 @@ export const mediaService = {
             case "game":
                 await apiClient.delete(`${API_URL}/games/${id}`);
                 return;
+            case "manga":
+                await apiClient.delete(`${API_URL}/manga/${id}`);
+                return;
             case "movie":
                 await apiClient.delete(`${API_URL}/movies/${id}`);
                 return;
@@ -226,37 +298,23 @@ export const mediaService = {
         }
     },
 
-    async checkDuplicateTitle(title: string): Promise<DuplicateMatch[]> {
+    async checkDuplicateTitle(
+        title: string,
+        mediaType: MediaType,
+    ): Promise<DuplicateMatch[]> {
         const res = await apiClient.get<DuplicateCheckRawResponse>(
             `${API_URL}/duplicate-check`,
             {
-                params: { title },
+                params: { title, media_type: mediaType },
             },
         );
 
-        const matches: DuplicateMatch[] = [];
-
-        const pushMatches = (
-            type: MediaType,
-            entries: Array<Record<string, string | null>>,
-        ) => {
-            for (const entry of entries) {
-                const rawTitle = (entry["title"] ?? "") as string;
-                matches.push({
-                    media_type: type,
-                    title: rawTitle,
-                    status: entry["status"] as MediaStatus | undefined,
-                    completed_at: entry["completed_at"] ?? undefined,
-                });
-            }
-        };
-
-        pushMatches("book", res.data.books);
-        pushMatches("game", res.data.games);
-        pushMatches("movie", res.data.movies);
-        pushMatches("show", res.data.shows);
-
-        return matches;
+        return res.data.map((entry) => ({
+            media_type: mediaType,
+            title: (entry["title"] ?? "") as string,
+            status: entry["status"] as MediaStatus | undefined,
+            completed_at: entry["completed_at"] ?? undefined,
+        }));
     },
 
     async getYearlyStats(year?: number): Promise<YearlyStats> {

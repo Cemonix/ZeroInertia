@@ -20,8 +20,8 @@ describe('Media Duplicate Check Integration', () => {
         vi.clearAllTimers();
     });
 
-    it('should return all media type keys even with no matches', async () => {
-        const result = await mediaService.checkDuplicateTitle('Nonexistent Title');
+    it('should return empty array when no matches found', async () => {
+        const result = await mediaService.checkDuplicateTitle('Nonexistent Title', 'book');
 
         expect(result).toEqual([]);
     });
@@ -30,7 +30,7 @@ describe('Media Duplicate Check Integration', () => {
         const mockMedia = getMockMedia();
         const book = mockMedia.find(m => m.media_type === 'book') as BookMediaItem;
 
-        const result = await mediaService.checkDuplicateTitle(book.title);
+        const result = await mediaService.checkDuplicateTitle(book.title, 'book');
 
         expect(result.length).toBeGreaterThan(0);
         const foundBook = result.find(m => m.media_type === 'book' && m.title === book.title);
@@ -45,20 +45,25 @@ describe('Media Duplicate Check Integration', () => {
 
         // Search for part of the title in different case
         const searchTerm = book.title.substring(0, 5).toLowerCase();
-        const result = await mediaService.checkDuplicateTitle(searchTerm);
+        const result = await mediaService.checkDuplicateTitle(searchTerm, 'book');
 
         expect(result.length).toBeGreaterThan(0);
         expect(result.some(m => m.title.toLowerCase().includes(searchTerm))).toBe(true);
     });
 
-    it('should find matches across multiple media types', async () => {
-        // Find a common word that appears in multiple media types
-        const commonWord = 'the'; // Common word likely in multiple titles
+    it('should only find matches within specified media type', async () => {
+        // Search for a title that exists in books but using different media types
+        const mockMedia = getMockMedia();
+        const book = mockMedia.find(m => m.media_type === 'book') as BookMediaItem;
 
-        const result = await mediaService.checkDuplicateTitle(commonWord);
+        // Search in books - should find the book
+        const bookResults = await mediaService.checkDuplicateTitle(book.title, 'book');
+        expect(bookResults.length).toBeGreaterThan(0);
+        expect(bookResults.every(m => m.media_type === 'book')).toBe(true);
 
-        // Should find matches in at least one type
-        expect(result.length).toBeGreaterThan(0);
+        // Search in games with the book's title - should NOT find it
+        const gameResults = await mediaService.checkDuplicateTitle(book.title, 'game');
+        expect(gameResults.length).toBe(0);
     });
 
     it('should include status in duplicate results', async () => {
@@ -66,7 +71,7 @@ describe('Media Duplicate Check Integration', () => {
         const completedMedia = mockMedia.find(m => m.status === 'completed');
 
         if (completedMedia) {
-            const result = await mediaService.checkDuplicateTitle(completedMedia.title);
+            const result = await mediaService.checkDuplicateTitle(completedMedia.title, completedMedia.media_type);
 
             const found = result.find(m => m.title === completedMedia.title);
             expect(found).toBeDefined();
@@ -81,7 +86,7 @@ describe('Media Duplicate Check Integration', () => {
         );
 
         if (completedMedia) {
-            const result = await mediaService.checkDuplicateTitle(completedMedia.title);
+            const result = await mediaService.checkDuplicateTitle(completedMedia.title, completedMedia.media_type);
 
             const found = result.find(m => m.title === completedMedia.title);
             expect(found).toBeDefined();
@@ -91,11 +96,11 @@ describe('Media Duplicate Check Integration', () => {
 
     it('should reject empty search query', async () => {
         // Empty string should be rejected by validation
-        await expect(mediaService.checkDuplicateTitle('')).rejects.toThrow();
+        await expect(mediaService.checkDuplicateTitle('', 'book')).rejects.toThrow();
     });
 
     it('should handle very short search queries', async () => {
-        const result = await mediaService.checkDuplicateTitle('a');
+        const result = await mediaService.checkDuplicateTitle('a', 'book');
 
         expect(Array.isArray(result)).toBe(true);
     });
@@ -104,7 +109,7 @@ describe('Media Duplicate Check Integration', () => {
         // Assuming we have media with similar titles
         // The test validates that we get the right ones back
         const searchTerm = 'Test';
-        const result = await mediaService.checkDuplicateTitle(searchTerm);
+        const result = await mediaService.checkDuplicateTitle(searchTerm, 'book');
 
         result.forEach(match => {
             expect(match.title.toLowerCase()).toContain(searchTerm.toLowerCase());
@@ -115,7 +120,7 @@ describe('Media Duplicate Check Integration', () => {
         const mockMedia = getMockMedia();
         const anyMedia = mockMedia[0];
 
-        const result = await mediaService.checkDuplicateTitle(anyMedia.title);
+        const result = await mediaService.checkDuplicateTitle(anyMedia.title, anyMedia.media_type);
 
         if (result.length > 0) {
             const match = result[0];
@@ -130,7 +135,7 @@ describe('Media Duplicate Check Integration', () => {
         const specialTitle = "Test: Special's Characters!";
 
         // This test verifies that special characters don't break the search
-        const result = await mediaService.checkDuplicateTitle(specialTitle);
+        const result = await mediaService.checkDuplicateTitle(specialTitle, 'book');
 
         // Should not throw error
         expect(Array.isArray(result)).toBe(true);
@@ -141,9 +146,9 @@ describe('Media Duplicate Check Integration', () => {
         const gameTitle = mockMedia.find(m => m.media_type === 'game')?.title;
 
         if (gameTitle) {
-            const upperCase = await mediaService.checkDuplicateTitle(gameTitle.toUpperCase());
-            const lowerCase = await mediaService.checkDuplicateTitle(gameTitle.toLowerCase());
-            const original = await mediaService.checkDuplicateTitle(gameTitle);
+            const upperCase = await mediaService.checkDuplicateTitle(gameTitle.toUpperCase(), 'game');
+            const lowerCase = await mediaService.checkDuplicateTitle(gameTitle.toLowerCase(), 'game');
+            const original = await mediaService.checkDuplicateTitle(gameTitle, 'game');
 
             expect(upperCase).toEqual(original);
             expect(lowerCase).toEqual(original);
@@ -153,8 +158,8 @@ describe('Media Duplicate Check Integration', () => {
     it('should return matches sorted/filtered consistently', async () => {
         const searchTerm = 'Test';
 
-        const result1 = await mediaService.checkDuplicateTitle(searchTerm);
-        const result2 = await mediaService.checkDuplicateTitle(searchTerm);
+        const result1 = await mediaService.checkDuplicateTitle(searchTerm, 'book');
+        const result2 = await mediaService.checkDuplicateTitle(searchTerm, 'book');
 
         // Results should be consistent
         expect(result1).toEqual(result2);
@@ -163,7 +168,7 @@ describe('Media Duplicate Check Integration', () => {
     it('should handle unicode characters', async () => {
         const unicodeTitle = 'Pokémon';
 
-        const result = await mediaService.checkDuplicateTitle(unicodeTitle);
+        const result = await mediaService.checkDuplicateTitle(unicodeTitle, 'game');
 
         // Should not throw error
         expect(Array.isArray(result)).toBe(true);
@@ -174,7 +179,7 @@ describe('Media Duplicate Check Integration', () => {
         const book = mockMedia.find(m => m.media_type === 'book') as BookMediaItem;
 
         // When editing, the API will return the item itself as a duplicate
-        const result = await mediaService.checkDuplicateTitle(book.title);
+        const result = await mediaService.checkDuplicateTitle(book.title, book.media_type);
 
         // Should include the item itself (filtering happens in the component)
         const foundSelf = result.find(m =>

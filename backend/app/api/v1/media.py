@@ -17,6 +17,9 @@ from app.schemas.media import (
     GameCreate,
     GameResponse,
     GameUpdate,
+    MangaCreate,
+    MangaResponse,
+    MangaUpdate,
     MovieCreate,
     MovieResponse,
     MovieUpdate,
@@ -342,22 +345,102 @@ async def delete_show(
     await media_service.delete_show(db=db, show_id=show_id, user_id=current_user.id)
 
 
+# ===== Manga Endpoints =====
+
+
+@router.get("/manga", response_model=list[MangaResponse])
+async def list_manga(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    status_filter: str | None = Query(None, alias="status"),
+) -> list[MangaResponse]:
+    """Return all manga for the authenticated user."""
+    if status_filter:
+        manga = await media_service.get_by_status(
+            db=db,
+            user_id=current_user.id,
+            model=media_service.Manga,
+            status=status_filter,
+        )
+    else:
+        manga = await media_service.get_all_manga(db=db, user_id=current_user.id)
+
+    return [MangaResponse.model_validate(m) for m in manga]
+
+
+@router.post("/manga", response_model=MangaResponse, status_code=status.HTTP_201_CREATED)
+async def create_manga(
+    manga_data: MangaCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> MangaResponse:
+    """Create a new manga for the authenticated user."""
+    manga = await media_service.create_manga(
+        db=db,
+        user_id=current_user.id,
+        manga_data=manga_data,
+    )
+    return MangaResponse.model_validate(manga)
+
+
+@router.get("/manga/{manga_id}", response_model=MangaResponse)
+async def get_manga(
+    manga_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> MangaResponse:
+    """Return a single manga for the authenticated user."""
+    manga = await media_service.get_manga_by_id(db=db, manga_id=manga_id, user_id=current_user.id)
+    if not manga:
+        raise MediaNotFoundException(str(manga_id))
+    return MangaResponse.model_validate(manga)
+
+
+@router.patch("/manga/{manga_id}", response_model=MangaResponse)
+async def update_manga(
+    manga_id: UUID,
+    manga_data: MangaUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> MangaResponse:
+    """Update a manga for the authenticated user."""
+    manga = await media_service.update_manga(
+        db=db,
+        manga_id=manga_id,
+        user_id=current_user.id,
+        manga_data=manga_data,
+    )
+    return MangaResponse.model_validate(manga)
+
+
+@router.delete("/manga/{manga_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_manga(
+    manga_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Delete a manga for the authenticated user."""
+    await media_service.delete_manga(db=db, manga_id=manga_id, user_id=current_user.id)
+
+
 # ===== Utility Endpoints =====
 
 
-@router.get("/duplicate-check", response_model=DuplicateCheckResponse)
+@router.get("/duplicate-check", response_model=list[dict[str, str | None]])
 async def check_duplicate_title(
     title: str = Query(..., min_length=1, description="Title to search for duplicates"),
+    media_type: str = Query(..., description="Media type to check (book, game, movie, show, manga)"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> DuplicateCheckResponse:
-    """Check for similar titles across all media types."""
+) -> list[dict[str, str | None]]:
+    """Check for similar titles within a specific media type."""
     duplicates = await media_service.check_duplicate(
         db=db,
         user_id=current_user.id,
         title=title,
+        media_type=media_type,
     )
-    return DuplicateCheckResponse(**duplicates)
+    return duplicates
 
 
 @router.get("/stats/yearly", response_model=YearlyStatsResponse)

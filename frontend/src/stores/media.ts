@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import type {
+    Genre,
     MediaFormValues,
     MediaItem,
     MediaStatus,
@@ -29,6 +30,7 @@ export const useMediaStore = defineStore("media", () => {
 
     const selectedGenres = ref<string[]>([]);
     const selectedPlatforms = ref<string[]>([]);
+    const genres = ref<Genre[]>([]);
 
     const page = ref(1);
     const pageSize = ref(50);
@@ -62,8 +64,10 @@ export const useMediaStore = defineStore("media", () => {
         if (selectedGenres.value.length > 0) {
             list = list.filter(
                 (item) =>
-                    item.genre !== null &&
-                    selectedGenres.value.includes(item.genre),
+                    item.genres.length > 0 &&
+                    item.genres.some((genre) =>
+                        selectedGenres.value.includes(genre.id),
+                    ),
             );
         }
 
@@ -82,7 +86,10 @@ export const useMediaStore = defineStore("media", () => {
                 const fields: Array<string | null | undefined> = [
                     item.title,
                     "creator" in item ? item.creator : null,
-                    item.genre,
+                    "author" in item ? item.author : null,
+                    item.genres.length > 0
+                        ? item.genres.map((genre) => genre.name).join(" ")
+                        : null,
                     "platform" in item ? item.platform : null,
                     item.notes,
                 ];
@@ -111,15 +118,9 @@ export const useMediaStore = defineStore("media", () => {
         () => filteredItems.value.length < filteredAllItems.value.length,
     );
 
-    const availableGenres = computed(() => {
-        const values = new Set<string>();
-        for (const item of items.value) {
-            if (item.genre) {
-                values.add(item.genre);
-            }
-        }
-        return Array.from(values).sort((a, b) => a.localeCompare(b));
-    });
+    const availableGenres = computed(() =>
+        [...genres.value].sort((a, b) => a.name.localeCompare(b.name)),
+    );
 
     const availablePlatforms = computed(() => {
         const values = new Set<string>();
@@ -131,6 +132,19 @@ export const useMediaStore = defineStore("media", () => {
         return Array.from(values).sort((a, b) => a.localeCompare(b));
     });
 
+    const mergeGenres = (newGenres: Genre[]): void => {
+        if (newGenres.length === 0) {
+            return;
+        }
+        const map = new Map<string, Genre>();
+        for (const genre of [...genres.value, ...newGenres]) {
+            map.set(genre.id, genre);
+        }
+        genres.value = Array.from(map.values()).sort((a, b) =>
+            a.name.localeCompare(b.name),
+        );
+    };
+
     async function load(): Promise<void> {
         loading.value = true;
         error.value = null;
@@ -140,14 +154,21 @@ export const useMediaStore = defineStore("media", () => {
                     ? { status: selectedStatuses.value[0] }
                     : undefined;
 
-            const [books, games, movies, shows] = await Promise.all([
-                mediaService.listBooks(params),
-                mediaService.listGames(params),
-                mediaService.listMovies(params),
-                mediaService.listShows(params),
+            const [mediaLists, genreList] = await Promise.all([
+                Promise.all([
+                    mediaService.listBooks(params),
+                    mediaService.listGames(params),
+                    mediaService.listManga(params),
+                    mediaService.listMovies(params),
+                    mediaService.listShows(params),
+                ]),
+                mediaService.listGenres(),
             ]);
-            items.value = [...books, ...games, ...movies, ...shows];
+            const [books, games, manga, movies, shows] = mediaLists;
+            items.value = [...books, ...games, ...manga, ...movies, ...shows];
             page.value = 1;
+            genres.value = [];
+            mergeGenres([...genreList, ...items.value.flatMap((item) => item.genres)]);
 
             try {
                 yearlyStats.value = await mediaService.getYearlyStats();
@@ -162,6 +183,37 @@ export const useMediaStore = defineStore("media", () => {
         } finally {
             loading.value = false;
         }
+    }
+
+    async function ensureGenresByNames(names: string[]): Promise<string[]> {
+        const normalized = Array.from(
+            new Set(
+                names
+                    .map((name) => name.trim())
+                    .filter((name) => name.length > 0),
+            ),
+        );
+        if (normalized.length === 0) {
+            return [];
+        }
+        const byLowerName = new Map(
+            genres.value.map((genre) => [genre.name.toLowerCase(), genre] as const),
+        );
+        const created: Genre[] = [];
+        for (const name of normalized) {
+            const key = name.toLowerCase();
+            if (byLowerName.has(key)) continue;
+            const genre = await mediaService.createGenre({ name });
+            created.push(genre);
+            byLowerName.set(key, genre);
+        }
+        if (created.length) {
+            mergeGenres(created);
+        }
+        return normalized
+            .map((name) => byLowerName.get(name.toLowerCase()))
+            .filter((genre): genre is Genre => Boolean(genre))
+            .map((genre) => genre.id);
     }
 
     async function loadMore(): Promise<void> {
@@ -234,6 +286,7 @@ export const useMediaStore = defineStore("media", () => {
                 });
             }
 
+            mergeGenres(saved.genres);
             closeForm();
         } catch (err) {
             const message =
@@ -286,6 +339,7 @@ export const useMediaStore = defineStore("media", () => {
         selectedStatuses,
         selectedGenres,
         selectedPlatforms,
+        genres,
         search,
         activeCategory,
         hasActiveFilters,
@@ -296,6 +350,7 @@ export const useMediaStore = defineStore("media", () => {
         availableGenres,
         availablePlatforms,
         load,
+        ensureGenresByNames,
         loadMore,
         clearFilters,
         setActiveCategory,

@@ -35,15 +35,36 @@
                 </template>
             </Column>
             <Column
-                v-if="type === 'all' || type === 'book'"
+                v-if="type === 'all' || type === 'book' || type === 'manga'"
                 field="creator"
-                header="Creator"
+                header="Creator / Author"
                 sortable
             >
                 <template #body="slotProps">
                     <span v-if="slotProps.data.media_type === 'book'">
                         {{ slotProps.data.creator }}
                     </span>
+                    <span
+                        v-else-if="slotProps.data.media_type === 'manga' && slotProps.data.author"
+                    >
+                        {{ slotProps.data.author }}
+                    </span>
+                </template>
+            </Column>
+            <Column
+                v-if="type === 'all' || type === 'book'"
+                field="is_audiobook"
+                header="Format"
+                sortable
+                style="width: 120px"
+            >
+                <template #body="slotProps">
+                    <Tag
+                        v-if="slotProps.data.media_type === 'book' && slotProps.data.is_audiobook"
+                        value="Audiobook"
+                        severity="info"
+                        class="status-tag"
+                    />
                 </template>
             </Column>
             <Column field="status" header="Status" sortable style="width: 140px">
@@ -55,9 +76,20 @@
                     />
                 </template>
             </Column>
-            <Column field="genre" header="Genre" sortable style="width: 140px">
+            <Column field="genres" header="Genres" sortable style="width: 180px">
                 <template #body="slotProps">
-                    <span v-if="slotProps.data.genre">{{ slotProps.data.genre }}</span>
+                    <div
+                        v-if="slotProps.data.genres?.length"
+                        class="genre-chips"
+                    >
+                        <Tag
+                            v-for="genre in slotProps.data.genres"
+                            :key="genre.id"
+                            :value="genre.name"
+                            severity="secondary"
+                            class="genre-tag"
+                        />
+                    </div>
                 </template>
             </Column>
             <Column
@@ -166,6 +198,8 @@ const formatMediaType = (type: MediaType): string => {
             return "Book";
         case "game":
             return "Game";
+        case "manga":
+            return "Manga";
         case "movie":
             return "Movie";
         case "show":
@@ -211,6 +245,16 @@ const formatDate = (dateStr: string | null): string => {
 .action-buttons {
     display: flex;
     gap: 0.25rem;
+}
+
+.genre-chips {
+    display: flex;
+    gap: 0.25rem;
+    flex-wrap: wrap;
+}
+
+.genre-tag {
+    padding-inline: 0.5rem;
 }
 
 :deep(.p-datatable-table) {

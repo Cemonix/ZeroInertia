@@ -45,8 +45,11 @@
                         <MultiSelect
                             v-model="selectedGenres"
                             :options="availableGenres"
+                            optionLabel="name"
+                            optionValue="id"
                             display="chip"
                             placeholder="All genres"
+                            :disabled="availableGenres.length === 0"
                         />
                     </div>
                     <div class="field">
@@ -104,14 +107,25 @@
         </template>
         <div class="media-view">
             <div class="toolbar">
-                <Button @click="openCreate" aria-label="Add media" class="add-media-btn"
-                    >Add Media</Button
-                >
+                <div class="toolbar-left">
+                    <Button @click="openCreate" aria-label="Add media" class="add-media-btn"
+                        >Add Media</Button
+                    >
+                    <Button
+                        text
+                        aria-label="Add genre"
+                        class="add-genre-btn"
+                        @click="openGenreDialog"
+                    >
+                        Add Genre
+                    </Button>
+                </div>
                 <div class="toolbar-right">
                     <span v-if="yearlyStats" class="stats-badge">
                         {{ yearlyStats.year }}:
                         {{ yearlyStats.books }} books •
                         {{ yearlyStats.games }} games •
+                        {{ yearlyStats.manga }} manga •
                         {{ yearlyStats.movies }} movies •
                         {{ yearlyStats.shows }} shows
                     </span>
@@ -196,13 +210,13 @@
                                     </span>
                                     <span
                                         v-else-if="
-                                            (item.media_type === 'movie' ||
-                                                item.media_type === 'show') &&
-                                            item.genre
+                                            item.media_type === 'manga' &&
+                                            'author' in item &&
+                                            item.author
                                         "
                                         class="media-card-detail"
                                     >
-                                        {{ item.genre }}
+                                        {{ item.author }}
                                     </span>
                                     <span
                                         v-else-if="
@@ -212,6 +226,12 @@
                                         class="media-card-detail"
                                     >
                                         {{ item.platform }}
+                                    </span>
+                                    <span
+                                        v-else-if="formatGenres(item)"
+                                        class="media-card-detail"
+                                    >
+                                        {{ formatGenres(item) }}
                                     </span>
                                 </div>
                                 <div class="media-card-dates">
@@ -266,11 +286,35 @@
             :item="editingItem"
             @saved="reload"
         />
+        <Dialog
+            v-model:visible="genreDialogVisible"
+            modal
+            header="Add Genre"
+            :style="{ width: '420px' }"
+        >
+            <div class="genre-dialog">
+                <InputText
+                    v-model="newGenreName"
+                    placeholder="Genre name"
+                    autofocus
+                    @keyup.enter="saveGenre"
+                />
+                <div class="genre-dialog-actions">
+                    <Button text label="Cancel" @click="closeGenreDialog" />
+                    <Button
+                        label="Add"
+                        :disabled="!canSaveGenre"
+                        :loading="addingGenre"
+                        @click="saveGenre"
+                    />
+                </div>
+            </div>
+        </Dialog>
     </WorkspaceLayout>
 </template>
 
 <script setup lang="ts">
-import { onMounted, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import WorkspaceLayout from "@/layouts/WorkspaceLayout.vue";
 import MediaTable from "@/components/media/MediaTable.vue";
@@ -278,19 +322,26 @@ import MediaForm from "@/components/media/MediaForm.vue";
 import MultiSelect from "primevue/multiselect";
 import InputText from "primevue/inputtext";
 import Tag from "primevue/tag";
-import { MEDIA_STATUSES, MEDIA_TYPES, type MediaType } from "@/models/media";
+import { MEDIA_STATUSES, MEDIA_TYPES, type MediaItem, type MediaType } from "@/models/media";
 import { useMediaStore } from "@/stores/media";
 import { useAuthStore } from "@/stores/auth";
 import { storeToRefs } from "pinia";
 import type { MediaStatus } from "@/models/media";
 import { useConfirm } from "primevue/useconfirm";
 import { useToast } from "primevue";
+import Dialog from "primevue/dialog";
 
 const authStore = useAuthStore();
 const mediaStore = useMediaStore();
 const router = useRouter();
 const confirm = useConfirm();
 const toast = useToast();
+const genreDialogVisible = ref(false);
+const newGenreName = ref("");
+const addingGenre = ref(false);
+const canSaveGenre = computed(
+    () => newGenreName.value.trim().length > 0 && !addingGenre.value,
+);
 
 const {
     filteredItems,
@@ -340,6 +391,41 @@ const setCategory = (category: "all" | MediaType) => {
 
 const openCreate = () => mediaStore.openCreateForm();
 const openEdit = (item: any) => mediaStore.openEditForm(item);
+const openGenreDialog = () => {
+    newGenreName.value = "";
+    genreDialogVisible.value = true;
+};
+const closeGenreDialog = () => {
+    genreDialogVisible.value = false;
+    newGenreName.value = "";
+};
+const saveGenre = async () => {
+    const name = newGenreName.value.trim();
+    if (!name || addingGenre.value) return;
+    addingGenre.value = true;
+    try {
+        await mediaStore.ensureGenresByNames([name]);
+        toast.add({
+            severity: "success",
+            summary: "Genre added",
+            detail: name,
+            life: 2500,
+        });
+        closeGenreDialog();
+    } catch (err) {
+        toast.add({
+            severity: "error",
+            summary: "Error",
+            detail:
+                err instanceof Error
+                    ? err.message
+                    : "Failed to add genre",
+            life: 3000,
+        });
+    } finally {
+        addingGenre.value = false;
+    }
+};
 const onDelete = (item: any) => {
     const label = item.title || "this media item";
 
@@ -365,6 +451,13 @@ const onDelete = (item: any) => {
             }
         },
     });
+};
+
+const formatGenres = (item: MediaItem): string | null => {
+    if (!item.genres || item.genres.length === 0) {
+        return null;
+    }
+    return item.genres.map((genre) => genre.name).join(", ");
 };
 
 const formatStatus = (status: MediaStatus): string => {
@@ -468,7 +561,17 @@ watch(
     gap: 1rem;
 }
 
+.toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
 .add-media-btn {
+    flex-shrink: 0;
+}
+
+.add-genre-btn {
     flex-shrink: 0;
 }
 
@@ -496,6 +599,16 @@ watch(
         padding: 0.75rem 1rem;
         font-size: 1rem;
         font-weight: 600;
+    }
+
+    .toolbar-left {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .add-genre-btn {
+        width: 100%;
+        justify-content: center;
     }
 
     .toolbar-right {
@@ -648,5 +761,18 @@ watch(
     font-size: 0.85rem;
     color: var(--p-text-muted-color);
     font-style: italic;
+}
+
+.genre-dialog {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding-top: 0.25rem;
+}
+
+.genre-dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
 }
 </style>

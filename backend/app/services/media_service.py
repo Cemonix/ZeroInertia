@@ -6,22 +6,26 @@ from uuid import UUID
 from pydantic import BaseModel
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.exceptions import MediaNotFoundException
-from app.models.media import Book, Game, Movie, Show
+from app.models.media import Book, Game, Manga, Movie, Show
 from app.schemas.media import (
     BookCreate,
     BookUpdate,
     GameCreate,
     GameUpdate,
+    MangaCreate,
+    MangaUpdate,
     MovieCreate,
     MovieUpdate,
     ShowCreate,
     ShowUpdate,
 )
 from app.services.base_service import apply_updates_async
+from app.services.genre_service import get_genres_by_ids
 
-MediaModel = TypeVar("MediaModel", Book, Game, Movie, Show)
+MediaModel = TypeVar("MediaModel", Book, Game, Manga, Movie, Show)
 
 # pyright: reportAny=false
 
@@ -36,6 +40,7 @@ async def get_all_by_user(
     """Get all media of a specific type for a user"""
     result = await db.execute(
         select(model)
+        .options(selectinload(model.genres))
         .where(model.user_id == user_id)
         .order_by(model.created_at.desc())
     )
@@ -50,7 +55,9 @@ async def get_by_id(
 ) -> MediaModel | None:
     """Get a specific media item by ID"""
     result = await db.execute(
-        select(model).where(model.id == media_id, model.user_id == user_id)
+        select(model)
+        .options(selectinload(model.genres))
+        .where(model.id == media_id, model.user_id == user_id)
     )
     return result.scalars().first()
 
@@ -64,6 +71,7 @@ async def get_by_status(
     """Filter media by status"""
     result = await db.execute(
         select(model)
+        .options(selectinload(model.genres))
         .where(model.user_id == user_id, model.status == status)
         .order_by(model.created_at.desc())
     )
@@ -100,7 +108,7 @@ async def update_media(
             if isinstance(value, str):
                 media.status = value
             else:
-                media.status = str(value.value) if hasattr(value, "value") else str(value)  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType, reportAttributeAccessIssue]
+                media.status = str(value.value) if hasattr(value, "value") else str(value)  # pyright: ignore[reportAttributeAccessIssue]
 
     _ = await apply_updates_async(
         model=media,
@@ -138,11 +146,21 @@ async def create_book(
     book_data: BookCreate,
 ) -> Book:
     """Create a new book for the given user."""
-    data = book_data.model_dump()
+    data = book_data.model_dump(exclude={"genre_ids"})
     data["user_id"] = user_id
     if "status" in data and hasattr(data["status"], "value"):
         data["status"] = data["status"].value
-    return await create_media(db, Book, data)
+
+    book = Book(**data)
+
+    if book_data.genre_ids:
+        genres = await get_genres_by_ids(db, user_id, book_data.genre_ids)
+        book.genres = list(genres)
+
+    db.add(book)
+    await db.commit()
+    await db.refresh(book, ["genres"])
+    return book
 
 
 async def get_book_by_id(
@@ -169,7 +187,32 @@ async def update_book(
     book_data: BookUpdate,
 ) -> Book:
     """Update the book with the supplied fields."""
-    return await update_media(db, book_id, user_id, Book, book_data)
+    book = await get_by_id(db, book_id, user_id, Book)
+    if book is None:
+        raise MediaNotFoundException(str(book_id))
+
+    async def handle_status(_model: object, value: object, _updates: dict[str, object]) -> None:
+        if value is not None:
+            if isinstance(value, str):
+                book.status = value
+            else:
+                book.status = str(value.value) if hasattr(value, "value") else str(value)  # pyright: ignore[reportAttributeAccessIssue]
+
+    async def handle_genre_ids(_model: object, value: object, _updates: dict[str, object]) -> None:
+        if value is not None and isinstance(value, list):
+            genres = await get_genres_by_ids(db, user_id, value)
+            book.genres = list(genres)
+
+    _ = await apply_updates_async(
+        model=book,
+        update_schema=book_data,
+        custom_handlers={"status": handle_status, "genre_ids": handle_genre_ids}
+    )
+
+    db.add(book)
+    await db.commit()
+    await db.refresh(book, ["genres"])
+    return book
 
 
 async def delete_book(
@@ -190,11 +233,21 @@ async def create_movie(
     movie_data: MovieCreate,
 ) -> Movie:
     """Create a new movie for the given user."""
-    data = movie_data.model_dump()
+    data = movie_data.model_dump(exclude={"genre_ids"})
     data["user_id"] = user_id
     if "status" in data and hasattr(data["status"], "value"):
         data["status"] = data["status"].value
-    return await create_media(db, Movie, data)
+
+    movie = Movie(**data)
+
+    if movie_data.genre_ids:
+        genres = await get_genres_by_ids(db, user_id, movie_data.genre_ids)
+        movie.genres = list(genres)
+
+    db.add(movie)
+    await db.commit()
+    await db.refresh(movie, ["genres"])
+    return movie
 
 
 async def get_movie_by_id(
@@ -221,7 +274,32 @@ async def update_movie(
     movie_data: MovieUpdate,
 ) -> Movie:
     """Update the movie with the supplied fields."""
-    return await update_media(db, movie_id, user_id, Movie, movie_data)
+    movie = await get_by_id(db, movie_id, user_id, Movie)
+    if movie is None:
+        raise MediaNotFoundException(str(movie_id))
+
+    async def handle_status(_model: object, value: object, _updates: dict[str, object]) -> None:
+        if value is not None:
+            if isinstance(value, str):
+                movie.status = value
+            else:
+                movie.status = str(value.value) if hasattr(value, "value") else str(value)  # pyright: ignore[reportAttributeAccessIssue]
+
+    async def handle_genre_ids(_model: object, value: object, _updates: dict[str, object]) -> None:
+        if value is not None and isinstance(value, list):
+            genres = await get_genres_by_ids(db, user_id, value)
+            movie.genres = list(genres)
+
+    _ = await apply_updates_async(
+        model=movie,
+        update_schema=movie_data,
+        custom_handlers={"status": handle_status, "genre_ids": handle_genre_ids}
+    )
+
+    db.add(movie)
+    await db.commit()
+    await db.refresh(movie, ["genres"])
+    return movie
 
 
 async def delete_movie(
@@ -242,11 +320,21 @@ async def create_game(
     game_data: GameCreate,
 ) -> Game:
     """Create a new game for the given user."""
-    data = game_data.model_dump()
+    data = game_data.model_dump(exclude={"genre_ids"})
     data["user_id"] = user_id
     if "status" in data and hasattr(data["status"], "value"):
         data["status"] = data["status"].value
-    return await create_media(db, Game, data)
+
+    game = Game(**data)
+
+    if game_data.genre_ids:
+        genres = await get_genres_by_ids(db, user_id, game_data.genre_ids)
+        game.genres = list(genres)
+
+    db.add(game)
+    await db.commit()
+    await db.refresh(game, ["genres"])
+    return game
 
 
 async def get_game_by_id(
@@ -273,7 +361,32 @@ async def update_game(
     game_data: GameUpdate,
 ) -> Game:
     """Update the game with the supplied fields."""
-    return await update_media(db, game_id, user_id, Game, game_data)
+    game = await get_by_id(db, game_id, user_id, Game)
+    if game is None:
+        raise MediaNotFoundException(str(game_id))
+
+    async def handle_status(_model: object, value: object, _updates: dict[str, object]) -> None:
+        if value is not None:
+            if isinstance(value, str):
+                game.status = value
+            else:
+                game.status = str(value.value) if hasattr(value, "value") else str(value)  # pyright: ignore[reportAttributeAccessIssue]
+
+    async def handle_genre_ids(_model: object, value: object, _updates: dict[str, object]) -> None:
+        if value is not None and isinstance(value, list):
+            genres = await get_genres_by_ids(db, user_id, value)
+            game.genres = list(genres)
+
+    _ = await apply_updates_async(
+        model=game,
+        update_schema=game_data,
+        custom_handlers={"status": handle_status, "genre_ids": handle_genre_ids}
+    )
+
+    db.add(game)
+    await db.commit()
+    await db.refresh(game, ["genres"])
+    return game
 
 
 async def delete_game(
@@ -294,11 +407,21 @@ async def create_show(
     show_data: ShowCreate,
 ) -> Show:
     """Create a new TV show season for the given user."""
-    data = show_data.model_dump()
+    data = show_data.model_dump(exclude={"genre_ids"})
     data["user_id"] = user_id
     if "status" in data and hasattr(data["status"], "value"):
         data["status"] = data["status"].value
-    return await create_media(db, Show, data)
+
+    show = Show(**data)
+
+    if show_data.genre_ids:
+        genres = await get_genres_by_ids(db, user_id, show_data.genre_ids)
+        show.genres = list(genres)
+
+    db.add(show)
+    await db.commit()
+    await db.refresh(show, ["genres"])
+    return show
 
 
 async def get_show_by_id(
@@ -325,7 +448,32 @@ async def update_show(
     show_data: ShowUpdate,
 ) -> Show:
     """Update the show with the supplied fields."""
-    return await update_media(db, show_id, user_id, Show, show_data)
+    show = await get_by_id(db, show_id, user_id, Show)
+    if show is None:
+        raise MediaNotFoundException(str(show_id))
+
+    async def handle_status(_model: object, value: object, _updates: dict[str, object]) -> None:
+        if value is not None:
+            if isinstance(value, str):
+                show.status = value
+            else:
+                show.status = str(value.value) if hasattr(value, "value") else str(value)  # pyright: ignore[reportAttributeAccessIssue]
+
+    async def handle_genre_ids(_model: object, value: object, _updates: dict[str, object]) -> None:
+        if value is not None and isinstance(value, list):
+            genres = await get_genres_by_ids(db, user_id, value)
+            show.genres = list(genres)
+
+    _ = await apply_updates_async(
+        model=show,
+        update_schema=show_data,
+        custom_handlers={"status": handle_status, "genre_ids": handle_genre_ids}
+    )
+
+    db.add(show)
+    await db.commit()
+    await db.refresh(show, ["genres"])
+    return show
 
 
 async def delete_show(
@@ -337,41 +485,131 @@ async def delete_show(
     await delete_media(db, show_id, user_id, Show)
 
 
+# ===== Manga Service Functions =====
+
+
+async def create_manga(
+    db: AsyncSession,
+    user_id: UUID,
+    manga_data: MangaCreate,
+) -> Manga:
+    """Create a new manga for the given user."""
+    data = manga_data.model_dump(exclude={"genre_ids"})
+    data["user_id"] = user_id
+    if "status" in data and hasattr(data["status"], "value"):
+        data["status"] = data["status"].value
+
+    manga = Manga(**data)
+
+    if manga_data.genre_ids:
+        genres = await get_genres_by_ids(db, user_id, manga_data.genre_ids)
+        manga.genres = list(genres)
+
+    db.add(manga)
+    await db.commit()
+    await db.refresh(manga, ["genres"])
+    return manga
+
+
+async def get_manga_by_id(
+    db: AsyncSession,
+    manga_id: UUID,
+    user_id: UUID,
+) -> Manga | None:
+    """Return a specific manga for the user."""
+    return await get_by_id(db, manga_id, user_id, Manga)
+
+
+async def get_all_manga(
+    db: AsyncSession,
+    user_id: UUID,
+) -> Sequence[Manga]:
+    """Return all manga for the user."""
+    return await get_all_by_user(db, user_id, Manga)
+
+
+async def update_manga(
+    db: AsyncSession,
+    manga_id: UUID,
+    user_id: UUID,
+    manga_data: MangaUpdate,
+) -> Manga:
+    """Update the manga with the supplied fields."""
+    manga = await get_by_id(db, manga_id, user_id, Manga)
+    if manga is None:
+        raise MediaNotFoundException(str(manga_id))
+
+    async def handle_status(_model: object, value: object, _updates: dict[str, object]) -> None:
+        if value is not None:
+            if isinstance(value, str):
+                manga.status = value
+            else:
+                manga.status = str(value.value) if hasattr(value, "value") else str(value)  # pyright: ignore[reportAttributeAccessIssue]
+
+    async def handle_genre_ids(_model: object, value: object, _updates: dict[str, object]) -> None:
+        if value is not None and isinstance(value, list):
+            genres = await get_genres_by_ids(db, user_id, value)
+            manga.genres = list(genres)
+
+    _ = await apply_updates_async(
+        model=manga,
+        update_schema=manga_data,
+        custom_handlers={"status": handle_status, "genre_ids": handle_genre_ids}
+    )
+
+    db.add(manga)
+    await db.commit()
+    await db.refresh(manga, ["genres"])
+    return manga
+
+
+async def delete_manga(
+    db: AsyncSession,
+    manga_id: UUID,
+    user_id: UUID,
+) -> None:
+    """Remove a manga."""
+    await delete_media(db, manga_id, user_id, Manga)
+
+
 # ===== Utility Functions =====
 
 
 async def check_duplicate(
     db: AsyncSession,
     user_id: UUID,
-    title: str
-) -> dict[str, list[dict[str, str | None]]]:
-    """Check for similar titles across all media types"""
-    duplicates: dict[str, list[dict[str, str | None]]] = {
-        "books": [],
-        "games": [],
-        "movies": [],
-        "shows": []
+    title: str,
+    media_type: str
+) -> list[dict[str, str | None]]:
+    """Check for similar titles within a specific media type"""
+    media_type_map = {
+        "book": Book,
+        "game": Game,
+        "movie": Movie,
+        "show": Show,
+        "manga": Manga
     }
 
-    for name, model in [("books", Book), ("games", Game), ("movies", Movie), ("shows", Show)]:
-        result = await db.execute(
-            select(model)
-            .where(model.user_id == user_id)
-            .where(model.title.ilike(f"%{title}%"))
-        )
-        matches = result.scalars().all()
+    model = media_type_map.get(media_type)
+    if not model:
+        raise ValueError(f"Invalid media type: {media_type}")
 
-        duplicates[name] = [
-            {
-                "id": str(m.id),
-                "title": m.title,
-                "status": m.status,
-                "completed_at": m.completed_at.isoformat() if m.completed_at else None
-            }
-            for m in matches
-        ]
+    result = await db.execute(
+        select(model)
+        .where(model.user_id == user_id)
+        .where(model.title.ilike(f"%{title}%"))
+    )
+    matches = result.scalars().all()
 
-    return duplicates
+    return [
+        {
+            "id": str(m.id),
+            "title": m.title,
+            "status": m.status,
+            "completed_at": m.completed_at.isoformat() if m.completed_at else None
+        }
+        for m in matches
+    ]
 
 
 async def get_yearly_stats(
@@ -384,7 +622,7 @@ async def get_yearly_stats(
     end_date = date(year, 12, 31)
 
     stats: dict[str, int] = {}
-    for name, model in [("books", Book), ("games", Game), ("movies", Movie), ("shows", Show)]:
+    for name, model in [("books", Book), ("games", Game), ("manga", Manga), ("movies", Movie), ("shows", Show)]:
         result = await db.execute(
             select(func.count(model.id))
             .where(model.user_id == user_id)
@@ -400,18 +638,20 @@ async def search_media(
     user_id: UUID,
     query: str,
     media_type: str | None = None
-) -> dict[str, list[Book | Game | Movie | Show]]:
+) -> dict[str, list[Book | Game | Manga | Movie | Show]]:
     """Search across all media types by title"""
-    results: dict[str, list[Book | Game | Movie | Show]] = {"books": [], "games": [], "movies": [], "shows": []}
+    results: dict[str, list[Book | Game | Manga | Movie | Show]] = {"books": [], "games": [], "manga": [], "movies": [], "shows": []}
     search_term = f"%{query}%"
 
-    models_to_search: list[tuple[str, type[Book] | type[Game] | type[Movie] | type[Show]]] = []
+    models_to_search: list[tuple[str, type[Book] | type[Game] | type[Manga] | type[Movie] | type[Show]]] = []
     if media_type is None:
-        models_to_search = [("books", Book), ("games", Game), ("movies", Movie), ("shows", Show)]
+        models_to_search = [("books", Book), ("games", Game), ("manga", Manga), ("movies", Movie), ("shows", Show)]
     elif media_type == "book":
         models_to_search = [("books", Book)]
     elif media_type == "game":
         models_to_search = [("games", Game)]
+    elif media_type == "manga":
+        models_to_search = [("manga", Manga)]
     elif media_type == "movie":
         models_to_search = [("movies", Movie)]
     elif media_type == "show":

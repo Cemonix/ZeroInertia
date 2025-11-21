@@ -1,12 +1,18 @@
-export type MediaType = "book" | "game" | "movie" | "show";
+export type MediaType = "book" | "game" | "manga" | "movie" | "show";
 
 export type MediaStatus = "planned" | "in_progress" | "completed" | "dropped";
+
+export interface Genre {
+    id: string;
+    name: string;
+    created_at: string;
+}
 
 export interface BaseMediaItem {
     id: string;
     title: string;
     status: MediaStatus;
-    genre: string | null;
+    genres: Genre[];
     started_at: string | null;
     completed_at: string | null;
     notes: string | null;
@@ -17,6 +23,7 @@ export interface BaseMediaItem {
 export interface BookMediaItem extends BaseMediaItem {
     media_type: "book";
     creator: string;
+    is_audiobook: boolean;
 }
 
 export interface GameMediaItem extends BaseMediaItem {
@@ -33,16 +40,22 @@ export interface ShowMediaItem extends BaseMediaItem {
     season_number: number | null;
 }
 
+export interface MangaMediaItem extends BaseMediaItem {
+    media_type: "manga";
+    author: string | null;
+}
+
 export type MediaItem =
     | BookMediaItem
     | GameMediaItem
+    | MangaMediaItem
     | MovieMediaItem
     | ShowMediaItem;
 
 interface BaseMediaFormValues {
     title: string;
     status: MediaStatus;
-    genre: string | null;
+    genre_ids: string[];
     started_at: string | null;
     completed_at: string | null;
     notes: string | null;
@@ -51,6 +64,7 @@ interface BaseMediaFormValues {
 interface BookFormValues extends BaseMediaFormValues {
     media_type: "book";
     creator: string;
+    is_audiobook: boolean;
 }
 
 interface GameFormValues extends BaseMediaFormValues {
@@ -67,9 +81,15 @@ interface ShowFormValues extends BaseMediaFormValues {
     season_number: number | null;
 }
 
+interface MangaFormValues extends BaseMediaFormValues {
+    media_type: "manga";
+    author: string | null;
+}
+
 export type MediaFormValues =
     | BookFormValues
     | GameFormValues
+    | MangaFormValues
     | MovieFormValues
     | ShowFormValues;
 
@@ -84,6 +104,7 @@ export interface YearlyStats {
     year: number;
     books: number;
     games: number;
+    manga: number;
     movies: number;
     shows: number;
 }
@@ -91,6 +112,7 @@ export interface YearlyStats {
 export const MEDIA_TYPES: { label: string; value: MediaType }[] = [
     { label: "Books", value: "book" },
     { label: "Games", value: "game" },
+    { label: "Manga", value: "manga" },
     { label: "Movies", value: "movie" },
     { label: "Shows", value: "show" },
 ];
@@ -101,4 +123,3 @@ export const MEDIA_STATUSES: { label: string; value: MediaStatus }[] = [
     { label: "Completed", value: "completed" },
     { label: "Dropped", value: "dropped" },
 ];
-
