@@ -12,6 +12,7 @@ from app.api.exception_handlers import app_exception_handler
 from app.api.v1 import (
     auth,
     checklist,
+    genre,
     label,
     media,
     note,
@@ -130,6 +131,7 @@ app.include_router(label.router, prefix="/api/v1/labels", tags=["labels"])
 app.include_router(note.router, prefix="/api/v1/notes", tags=["notes"])
 app.include_router(notification.router, prefix="/api/v1/notifications", tags=["notifications"])
 app.include_router(media.router, prefix="/api/v1/media", tags=["media"])
+app.include_router(genre.router, prefix="/api/v1/media", tags=["genres"])
 
 
 @app.get("/csrf")

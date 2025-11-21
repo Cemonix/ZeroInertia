@@ -117,6 +117,14 @@ class MediaNotFoundException(NotFoundException):
         super().__init__(message)
 
 
+class GenreNotFoundException(NotFoundException):
+    """Raised when a requested genre is not found."""
+
+    def __init__(self, genre_id: str | None = None) -> None:
+        message = f"Genre {genre_id} not found" if genre_id else "Genre not found"
+        super().__init__(message)
+
+
 # 403 Forbidden Exceptions
 class ForbiddenException(AppException):
     """Base class for authorization/ownership errors (maps to HTTP 403)."""

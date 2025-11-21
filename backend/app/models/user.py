@@ -38,6 +38,8 @@ class User(Base):
     games: Mapped[list["Game"]] = relationship(back_populates="user", cascade="all, delete-orphan")  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
     movies: Mapped[list["Movie"]] = relationship(back_populates="user", cascade="all, delete-orphan")  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
     shows: Mapped[list["Show"]] = relationship(back_populates="user", cascade="all, delete-orphan")  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
+    manga: Mapped[list["Manga"]] = relationship(back_populates="user", cascade="all, delete-orphan")  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
+    genres: Mapped[list["Genre"]] = relationship(back_populates="user", cascade="all, delete-orphan")  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
 
     # Constraints and Indexes
     __table_args__: tuple[UniqueConstraint, UniqueConstraint, Index] = (

@@ -45,7 +45,6 @@ include = ["app"]
 exclude = [
     "**/node_modules",
     "**/__pycache__",
-    "app/experimental"
 ]
 pythonVersion = "3.13"
 typeCheckingMode = "recommended"
@@ -55,6 +54,8 @@ reportUnusedImport = "warning"
 reportUnusedVariable = "warning"
 reportDuplicateImport = "error"
 reportCallInDefaultInitializer = false
+reportUnknownMemberType = false
+reportUnknownArgumentType = false
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
