@@ -3,7 +3,7 @@ import type { Task } from '@/models/task';
 import type { Project } from '@/models/project';
 import type { Section } from '@/models/section';
 import type { CheckList, CheckListItem } from '@/models/checklist';
-import type { MediaItem } from '@/models/media';
+import type { Genre, MediaItem } from '@/models/media';
 import { env } from '@/config/env';
 
 const API_BASE_URL = env.API_BASE_URL || 'http://localhost:8000';
@@ -101,10 +101,39 @@ export const createMockSections = (): Section[] => [
     },
 ];
 
+export const createMockGenres = (): Genre[] => [
+    {
+        id: 'genre-programming',
+        name: 'Programming',
+        created_at: '2025-01-01T00:00:00Z',
+    },
+    {
+        id: 'genre-action-adventure',
+        name: 'Action-Adventure',
+        created_at: '2025-01-02T00:00:00Z',
+    },
+    {
+        id: 'genre-action-rpg',
+        name: 'Action RPG',
+        created_at: '2025-01-03T00:00:00Z',
+    },
+    {
+        id: 'genre-sci-fi',
+        name: 'Sci-Fi',
+        created_at: '2025-01-04T00:00:00Z',
+    },
+    {
+        id: 'genre-drama',
+        name: 'Drama',
+        created_at: '2025-01-05T00:00:00Z',
+    },
+];
+
 let mockTasks = createMockTasks();
 const mockProjects = createMockProjects();
 const mockSections = createMockSections();
 let mockChecklists: CheckList[] = [];
+let mockGenres = createMockGenres();
 
 export const createMockChecklists = (): CheckList[] => [
     {
@@ -137,112 +166,139 @@ export const createMockChecklists = (): CheckList[] => [
     },
 ];
 
-export const createMockMedia = (): MediaItem[] => [
-    {
-        id: 'book-1',
-        media_type: 'book',
-        title: 'The Pragmatic Programmer',
-        status: 'completed',
-        creator: 'Andy Hunt',
-        genre: 'Programming',
-        started_at: '2025-01-01T00:00:00Z',
-        completed_at: '2025-01-15T00:00:00Z',
-        notes: 'Great book on software development practices',
-        created_at: '2025-01-01T00:00:00Z',
-        updated_at: '2025-01-15T00:00:00Z',
-    },
-    {
-        id: 'book-2',
-        media_type: 'book',
-        title: 'Clean Code',
-        status: 'in_progress',
-        creator: 'Robert C. Martin',
-        genre: 'Programming',
-        started_at: '2025-01-10T00:00:00Z',
-        completed_at: null,
-        notes: 'Currently reading chapter 3',
-        created_at: '2025-01-10T00:00:00Z',
-        updated_at: '2025-01-10T00:00:00Z',
-    },
-    {
-        id: 'game-1',
-        media_type: 'game',
-        title: 'The Legend of Zelda: Breath of the Wild',
-        status: 'completed',
-        genre: 'Action-Adventure',
-        platform: 'Nintendo Switch',
-        started_at: '2024-12-01T00:00:00Z',
-        completed_at: '2025-01-05T00:00:00Z',
-        notes: 'Amazing open-world experience',
-        created_at: '2024-12-01T00:00:00Z',
-        updated_at: '2025-01-05T00:00:00Z',
-    },
-    {
-        id: 'game-2',
-        media_type: 'game',
-        title: 'Elden Ring',
-        status: 'planned',
-        genre: 'Action RPG',
-        platform: 'PC',
-        started_at: null,
-        completed_at: null,
-        notes: 'Want to play this soon',
-        created_at: '2025-01-12T00:00:00Z',
-        updated_at: '2025-01-12T00:00:00Z',
-    },
-    {
-        id: 'movie-1',
-        media_type: 'movie',
-        title: 'Inception',
-        status: 'completed',
-        genre: 'Sci-Fi',
-        started_at: null,
-        completed_at: '2025-01-08T00:00:00Z',
-        notes: 'Mind-bending masterpiece',
-        created_at: '2025-01-08T00:00:00Z',
-        updated_at: '2025-01-08T00:00:00Z',
-    },
-    {
-        id: 'movie-2',
-        media_type: 'movie',
-        title: 'The Matrix',
-        status: 'planned',
-        genre: 'Sci-Fi',
-        started_at: null,
-        completed_at: null,
-        notes: null,
-        created_at: '2025-01-14T00:00:00Z',
-        updated_at: '2025-01-14T00:00:00Z',
-    },
-    {
-        id: 'show-1',
-        media_type: 'show',
-        title: 'Breaking Bad',
-        status: 'completed',
-        season_number: 5,
-        genre: 'Drama',
-        started_at: '2024-11-01T00:00:00Z',
-        completed_at: '2025-01-10T00:00:00Z',
-        notes: 'One of the best series ever',
-        created_at: '2024-11-01T00:00:00Z',
-        updated_at: '2025-01-10T00:00:00Z',
-    },
-    {
-        id: 'show-2',
-        media_type: 'show',
-        title: 'Stranger Things',
-        status: 'in_progress',
-        season_number: 4,
-        genre: 'Sci-Fi',
-        started_at: '2025-01-05T00:00:00Z',
-        completed_at: null,
-        notes: 'Currently on episode 5',
-        created_at: '2025-01-05T00:00:00Z',
-        updated_at: '2025-01-05T00:00:00Z',
-    },
-];
+export const createMockMedia = (): MediaItem[] => {
+    const findGenre = (name: string): Genre => {
+        const existing = mockGenres.find((genre) => genre.name === name);
+        if (existing) {
+            return existing;
+        }
+        const created: Genre = {
+            id: `genre-${name.toLowerCase().replace(/\s+/g, '-')}`,
+            name,
+            created_at: new Date().toISOString(),
+        };
+        mockGenres.push(created);
+        return created;
+    };
+
+    return [
+        {
+            id: 'book-1',
+            media_type: 'book',
+            title: 'The Pragmatic Programmer',
+            status: 'completed',
+            creator: 'Andy Hunt',
+            is_audiobook: false,
+            genres: [findGenre('Programming')],
+            started_at: '2025-01-01T00:00:00Z',
+            completed_at: '2025-01-15T00:00:00Z',
+            notes: 'Great book on software development practices',
+            created_at: '2025-01-01T00:00:00Z',
+            updated_at: '2025-01-15T00:00:00Z',
+        },
+        {
+            id: 'book-2',
+            media_type: 'book',
+            title: 'Clean Code',
+            status: 'in_progress',
+            creator: 'Robert C. Martin',
+            is_audiobook: true,
+            genres: [findGenre('Programming')],
+            started_at: '2025-01-10T00:00:00Z',
+            completed_at: null,
+            notes: 'Currently reading chapter 3',
+            created_at: '2025-01-10T00:00:00Z',
+            updated_at: '2025-01-10T00:00:00Z',
+        },
+        {
+            id: 'game-1',
+            media_type: 'game',
+            title: 'The Legend of Zelda: Breath of the Wild',
+            status: 'completed',
+            genres: [findGenre('Action-Adventure')],
+            platform: 'Nintendo Switch',
+            started_at: '2024-12-01T00:00:00Z',
+            completed_at: '2025-01-05T00:00:00Z',
+            notes: 'Amazing open-world experience',
+            created_at: '2024-12-01T00:00:00Z',
+            updated_at: '2025-01-05T00:00:00Z',
+        },
+        {
+            id: 'game-2',
+            media_type: 'game',
+            title: 'Elden Ring',
+            status: 'planned',
+            genres: [findGenre('Action RPG')],
+            platform: 'PC',
+            started_at: null,
+            completed_at: null,
+            notes: 'Want to play this soon',
+            created_at: '2025-01-12T00:00:00Z',
+            updated_at: '2025-01-12T00:00:00Z',
+        },
+        {
+            id: 'movie-1',
+            media_type: 'movie',
+            title: 'Inception',
+            status: 'completed',
+            genres: [findGenre('Sci-Fi')],
+            started_at: null,
+            completed_at: '2025-01-08T00:00:00Z',
+            notes: 'Mind-bending masterpiece',
+            created_at: '2025-01-08T00:00:00Z',
+            updated_at: '2025-01-08T00:00:00Z',
+        },
+        {
+            id: 'movie-2',
+            media_type: 'movie',
+            title: 'The Matrix',
+            status: 'planned',
+            genres: [findGenre('Sci-Fi')],
+            started_at: null,
+            completed_at: null,
+            notes: null,
+            created_at: '2025-01-14T00:00:00Z',
+            updated_at: '2025-01-14T00:00:00Z',
+        },
+        {
+            id: 'show-1',
+            media_type: 'show',
+            title: 'Breaking Bad',
+            status: 'completed',
+            season_number: 5,
+            genres: [findGenre('Drama')],
+            started_at: '2024-11-01T00:00:00Z',
+            completed_at: '2025-01-10T00:00:00Z',
+            notes: 'One of the best series ever',
+            created_at: '2024-11-01T00:00:00Z',
+            updated_at: '2025-01-10T00:00:00Z',
+        },
+        {
+            id: 'show-2',
+            media_type: 'show',
+            title: 'Stranger Things',
+            status: 'in_progress',
+            season_number: 4,
+            genres: [findGenre('Sci-Fi')],
+            started_at: '2025-01-05T00:00:00Z',
+            completed_at: null,
+            notes: 'Currently on episode 5',
+            created_at: '2025-01-05T00:00:00Z',
+            updated_at: '2025-01-05T00:00:00Z',
+        },
+    ];
+};
 
 let mockMedia = createMockMedia();
+
+const resolveGenresByIds = (genreIds?: string[] | null): Genre[] => {
+    if (!genreIds || genreIds.length === 0) {
+        return [];
+    }
+    return genreIds
+        .map((id) => mockGenres.find((genre) => genre.id === id))
+        .filter((genre): genre is Genre => Boolean(genre));
+};
 
 const syncChecklistItems = () => {
     // Items are already synced within checklists.items
@@ -263,6 +319,7 @@ export const resetMockChecklists = () => {
 export const getMockChecklists = () => mockChecklists;
 
 export const resetMockMedia = () => {
+    mockGenres = createMockGenres();
     mockMedia = createMockMedia();
 };
 
@@ -723,6 +780,37 @@ export const handlers = [
         return HttpResponse.json({ success: true });
     }),
 
+    http.get(`${API_BASE_URL}/api/v1/media/genres`, () => {
+        return HttpResponse.json(mockGenres);
+    }),
+
+    http.post(`${API_BASE_URL}/api/v1/media/genres`, async ({ request }) => {
+        const body = (await request.json()) as { name?: string };
+        const name = body?.name?.trim();
+
+        if (!name) {
+            return HttpResponse.json(
+                { detail: 'Invalid genre name' },
+                { status: 400 }
+            );
+        }
+
+        const existing = mockGenres.find(
+            (genre) => genre.name.toLowerCase() === name.toLowerCase(),
+        );
+        if (existing) {
+            return HttpResponse.json(existing, { status: 201 });
+        }
+
+        const newGenre: Genre = {
+            id: `genre-${Date.now()}`,
+            name,
+            created_at: new Date().toISOString(),
+        };
+        mockGenres.push(newGenre);
+        return HttpResponse.json(newGenre, { status: 201 });
+    }),
+
     http.get(`${API_BASE_URL}/api/v1/media/books`, ({ request }) => {
         const url = new URL(request.url);
         const statusParam = url.searchParams.get('status');
@@ -811,6 +899,28 @@ export const handlers = [
         return HttpResponse.json(filteredMedia);
     }),
 
+    http.get(`${API_BASE_URL}/api/v1/media/manga`, ({ request }) => {
+        const url = new URL(request.url);
+        const statusParam = url.searchParams.get('status');
+        const searchParam = url.searchParams.get('search');
+
+        let filteredMedia = mockMedia.filter(m => m.media_type === 'manga');
+
+        if (statusParam) {
+            filteredMedia = filteredMedia.filter(m => m.status === statusParam);
+        }
+
+        if (searchParam) {
+            const search = searchParam.toLowerCase();
+            filteredMedia = filteredMedia.filter(m =>
+                m.title.toLowerCase().includes(search) ||
+                (m.notes && m.notes.toLowerCase().includes(search))
+            );
+        }
+
+        return HttpResponse.json(filteredMedia);
+    }),
+
     http.get(`${API_BASE_URL}/api/v1/media/books/:id`, ({ params }) => {
         const media = mockMedia.find(m => m.id === params.id && m.media_type === 'book');
         if (!media) {
@@ -855,10 +965,21 @@ export const handlers = [
         return HttpResponse.json(media);
     }),
 
-    http.post(`${API_BASE_URL}/api/v1/media/:type`, async ({ params, request }) => {
-        const body = await request.json() as Partial<MediaItem>;
+    http.get(`${API_BASE_URL}/api/v1/media/manga/:id`, ({ params }) => {
+        const media = mockMedia.find(m => m.id === params.id && m.media_type === 'manga');
+        if (!media) {
+            return HttpResponse.json(
+                { detail: 'Media not found' },
+                { status: 404 }
+            );
+        }
+        return HttpResponse.json(media);
+    }),
 
-        if (!body || typeof body.title !== 'string' || typeof body.media_type !== 'string') {
+    http.post(`${API_BASE_URL}/api/v1/media/:type`, async ({ params, request }) => {
+        const body = (await request.json()) as Record<string, any>;
+
+        if (!body || typeof body.title !== 'string') {
             return HttpResponse.json(
                 { detail: 'Invalid request body' },
                 { status: 400 }
@@ -868,32 +989,35 @@ export const handlers = [
         const pluralType = params.type;
         const singularType = pluralType === 'books' ? 'book' :
                             pluralType === 'games' ? 'game' :
-                            pluralType === 'movies' ? 'movie' : 'show';
+                            pluralType === 'movies' ? 'movie' :
+                            pluralType === 'shows' ? 'show' : 'manga';
+
+        const genreIds = Array.isArray(body.genre_ids) ? body.genre_ids : [];
+        const genres = resolveGenresByIds(genreIds);
 
         const newMedia: MediaItem = {
             id: `${singularType}-${Date.now()}`,
             media_type: singularType as any,
             title: body.title,
             status: body.status || 'planned',
+            genres,
             started_at: body.started_at || null,
             completed_at: body.completed_at || null,
             notes: body.notes || null,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
             ...(singularType === 'book' && {
-                creator: (body as any).creator || '',
-                genre: (body as any).genre || null,
+                creator: body.creator || '',
+                is_audiobook: Boolean(body.is_audiobook),
             }),
             ...(singularType === 'game' && {
-                genre: (body as any).genre || null,
-                platform: (body as any).platform || null,
-            }),
-            ...(singularType === 'movie' && {
-                genre: (body as any).genre || null,
+                platform: body.platform || null,
             }),
             ...(singularType === 'show' && {
-                season_number: (body as any).season_number || null,
-                genre: (body as any).genre || null,
+                season_number: body.season_number || null,
+            }),
+            ...(singularType === 'manga' && {
+                author: body.author || null,
             }),
         } as MediaItem;
 
@@ -913,8 +1037,17 @@ export const handlers = [
         const body = await request.json() as Record<string, any>;
         const currentMedia = mockMedia[mediaIndex];
 
+        if (Array.isArray(body.genre_ids)) {
+            (currentMedia as any).genres = resolveGenresByIds(body.genre_ids);
+        }
+
         Object.keys(body).forEach(key => {
-            if (key !== 'id' && key !== 'media_type' && key !== 'created_at') {
+            if (
+                key !== 'id' &&
+                key !== 'media_type' &&
+                key !== 'created_at' &&
+                key !== 'genre_ids'
+            ) {
                 (currentMedia as any)[key] = body[key];
             }
         });
@@ -940,6 +1073,7 @@ export const handlers = [
     http.get(`${API_BASE_URL}/api/v1/media/duplicate-check`, ({ request }) => {
         const url = new URL(request.url);
         const title = url.searchParams.get('title');
+        const mediaType = url.searchParams.get('media_type');
 
         if (!title) {
             return HttpResponse.json(
@@ -948,10 +1082,17 @@ export const handlers = [
             );
         }
 
+        if (!mediaType) {
+            return HttpResponse.json(
+                { detail: 'Media type parameter is required' },
+                { status: 422 }
+            );
+        }
+
         const titleLower = title.toLowerCase();
 
-        const books = mockMedia
-            .filter(m => m.media_type === 'book' && m.title.toLowerCase().includes(titleLower))
+        const matches = mockMedia
+            .filter(m => m.media_type === mediaType && m.title.toLowerCase().includes(titleLower))
             .map(m => ({
                 id: m.id,
                 title: m.title,
@@ -959,38 +1100,6 @@ export const handlers = [
                 completed_at: m.completed_at,
             }));
 
-        const games = mockMedia
-            .filter(m => m.media_type === 'game' && m.title.toLowerCase().includes(titleLower))
-            .map(m => ({
-                id: m.id,
-                title: m.title,
-                status: m.status,
-                completed_at: m.completed_at,
-            }));
-
-        const movies = mockMedia
-            .filter(m => m.media_type === 'movie' && m.title.toLowerCase().includes(titleLower))
-            .map(m => ({
-                id: m.id,
-                title: m.title,
-                status: m.status,
-                completed_at: m.completed_at,
-            }));
-
-        const shows = mockMedia
-            .filter(m => m.media_type === 'show' && m.title.toLowerCase().includes(titleLower))
-            .map(m => ({
-                id: m.id,
-                title: m.title,
-                status: m.status,
-                completed_at: m.completed_at,
-            }));
-
-        return HttpResponse.json({
-            books,
-            games,
-            movies,
-            shows,
-        });
+        return HttpResponse.json(matches);
     }),
 ];

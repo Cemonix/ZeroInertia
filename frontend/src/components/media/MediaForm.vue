@@ -55,23 +55,37 @@
 
             <div class="details-section">
                 <div class="form-row">
-                    <div class="form-field">
-                        <label for="genre">Genre</label>
-                        <AutoComplete
-                            id="genre"
-                            v-model="form.genre"
-                            :suggestions="genreSuggestions"
-                            @complete="searchGenre"
-                            placeholder="Genre (optional)"
-                            dropdown
-                            :completeOnFocus="true"
+                <div class="form-field">
+                    <label for="genres">Genres</label>
+                    <MultiSelect
+                        id="genres"
+                        v-model="form.genres"
+                        :options="genreOptions"
+                        optionLabel="name"
+                        optionValue="id"
+                        placeholder="Select genres"
+                        :filter="true"
+                        display="chip"
+                    />
+                </div>
+                <div
+                    v-if="form.media_type === 'book'"
+                    class="form-field checkbox-field"
+                >
+                    <label class="checkbox-label" for="is_audiobook">
+                        <input
+                            id="is_audiobook"
+                            type="checkbox"
+                            v-model="form.is_audiobook"
                         />
-                    </div>
-                    <div
-                        v-if="form.media_type === 'game'"
-                        class="form-field"
-                    >
-                        <label for="platform">Platform</label>
+                        <span>Audiobook</span>
+                    </label>
+                </div>
+                <div
+                    v-if="form.media_type === 'game'"
+                    class="form-field"
+                >
+                    <label for="platform">Platform</label>
                         <AutoComplete
                             id="platform"
                             v-model="form.platform"
@@ -192,6 +206,7 @@ import InputText from "primevue/inputtext";
 import Textarea from "primevue/textarea";
 import Button from "primevue/button";
 import AutoComplete from "primevue/autocomplete";
+import MultiSelect from "primevue/multiselect";
 import DatePicker from "primevue/datepicker";
 import {
     MEDIA_STATUSES,
@@ -235,7 +250,8 @@ interface InternalFormState {
     title: string;
     status: MediaStatus;
     creator: string;
-    genre: string | null;
+    is_audiobook: boolean;
+    genres: string[]; // genre IDs
     platform: string | null;
     season_number: number | null;
     started_at: string | null;
@@ -248,7 +264,8 @@ const form = reactive<InternalFormState>({
     title: "",
     status: "planned",
     creator: "",
-    genre: null,
+    is_audiobook: false,
+    genres: [],
     platform: null,
     season_number: null,
     started_at: null,
@@ -257,7 +274,6 @@ const form = reactive<InternalFormState>({
 });
 
 const duplicateMatches = ref<DuplicateMatch[]>([]);
-const genreSuggestions = ref<string[]>([]);
 const platformSuggestions = ref<string[]>([]);
 
 const startedDate = ref<Date | null>(null);
@@ -269,6 +285,13 @@ const yearRange = computed(() => {
     const maxYear = currentYear + 10;
     return `${minYear}:${maxYear}`;
 });
+
+const genreOptions = computed(() =>
+    availableGenres.value.map((genre) => ({
+        name: genre.name,
+        id: genre.id,
+    })),
+);
 
 const canSave = computed(() => {
     if (!form.title.trim()) {
@@ -317,7 +340,8 @@ const populateFormFromItem = (item: MediaItem | null) => {
         form.title = "";
         form.status = "planned";
         form.creator = "";
-        form.genre = null;
+        form.is_audiobook = false;
+        form.genres = [];
         form.platform = null;
         form.season_number = null;
         form.started_at = null;
@@ -332,7 +356,8 @@ const populateFormFromItem = (item: MediaItem | null) => {
     form.media_type = item.media_type;
     form.title = item.title;
     form.status = item.status;
-    form.genre = item.genre ?? null;
+    form.is_audiobook = "is_audiobook" in item ? item.is_audiobook : false;
+    form.genres = item.genres.map((genre) => genre.id);
     form.started_at = normalizeDate(item.started_at);
     form.completed_at = normalizeDate(item.completed_at);
     form.notes = item.notes ?? null;
@@ -413,7 +438,7 @@ watch(
 
         duplicateTimeout = setTimeout(async () => {
             try {
-                const results = await mediaService.checkDuplicateTitle(trimmed);
+                const results = await mediaService.checkDuplicateTitle(trimmed, form.media_type);
                 // When editing, filter out the current item from duplicates
                 if (props.item) {
                     duplicateMatches.value = results.filter(
@@ -446,23 +471,7 @@ const formatMediaType = (type: MediaType): string => {
         case "show":
             return "Show";
     }
-};
-
-const searchGenre = (event: { query: string }) => {
-    const query = event.query.toLowerCase();
-    const allGenres = availableGenres.value;
-
-    if (!query) {
-        genreSuggestions.value = allGenres;
-    } else {
-        genreSuggestions.value = allGenres.filter((genre: string) =>
-            genre.toLowerCase().includes(query)
-        );
-    }
-
-    if (event.query && !genreSuggestions.value.includes(event.query)) {
-        genreSuggestions.value.unshift(event.query);
-    }
+    return "";
 };
 
 const searchPlatform = (event: { query: string }) => {
@@ -482,8 +491,10 @@ const searchPlatform = (event: { query: string }) => {
     }
 };
 
+
 const handleSave = async () => {
     let formValues: MediaFormValues;
+    const genreIds = [...form.genres];
 
     switch (form.media_type) {
         case "book":
@@ -492,7 +503,8 @@ const handleSave = async () => {
                 title: form.title,
                 status: form.status,
                 creator: form.creator,
-                genre: normalizeOptionalString(form.genre),
+                is_audiobook: form.is_audiobook,
+                genre_ids: genreIds,
                 started_at: normalizeDate(form.started_at),
                 completed_at: normalizeDate(form.completed_at),
                 notes: normalizeOptionalString(form.notes),
@@ -503,8 +515,8 @@ const handleSave = async () => {
                 media_type: "game",
                 title: form.title,
                 status: form.status,
+                genre_ids: genreIds,
                 platform: normalizeOptionalString(form.platform),
-                genre: normalizeOptionalString(form.genre),
                 started_at: normalizeDate(form.started_at),
                 completed_at: normalizeDate(form.completed_at),
                 notes: normalizeOptionalString(form.notes),
@@ -515,7 +527,7 @@ const handleSave = async () => {
                 media_type: "movie",
                 title: form.title,
                 status: form.status,
-                genre: normalizeOptionalString(form.genre),
+                genre_ids: genreIds,
                 started_at: normalizeDate(form.started_at),
                 completed_at: normalizeDate(form.completed_at),
                 notes: normalizeOptionalString(form.notes),
@@ -527,12 +539,14 @@ const handleSave = async () => {
                 title: form.title,
                 status: form.status,
                 season_number: form.season_number,
-                genre: normalizeOptionalString(form.genre),
+                genre_ids: genreIds,
                 started_at: normalizeDate(form.started_at),
                 completed_at: normalizeDate(form.completed_at),
                 notes: normalizeOptionalString(form.notes),
             };
             break;
+        default:
+            return;
     }
 
     await mediaStore.save(formValues);
@@ -566,6 +580,27 @@ const handleSave = async () => {
 
 .form-field label .required {
     color: var(--p-red-500, #ef4444);
+}
+
+.checkbox-field {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding-top: 1.25rem;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-weight: 500;
+}
+
+.checkbox-label input {
+    width: 1.2rem;
+    height: 1.2rem;
+    accent-color: var(--p-primary-color, #6366f1);
+    cursor: pointer;
 }
 
 .details-section {
