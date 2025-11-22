@@ -64,6 +64,15 @@ const { selectedNoteId } = storeToRefs(noteStore);
 const showBacklinks = ref(true);
 const isMobileViewport = ref(false);
 
+const loadBacklinksPreference = (): boolean => {
+    const stored = localStorage.getItem('notes.showBacklinks');
+    return stored !== null ? stored === 'true' : true;
+};
+
+const saveBacklinksPreference = (value: boolean) => {
+    localStorage.setItem('notes.showBacklinks', value.toString());
+};
+
 const goHome = () => {
     if (router.currentRoute.value.path !== "/home") {
         router.push("/home");
@@ -87,17 +96,26 @@ const handleNoteSelect = (noteId: string) => {
 
 const toggleBacklinks = () => {
     showBacklinks.value = !showBacklinks.value;
+    saveBacklinksPreference(showBacklinks.value);
 };
 
 const syncViewport = () => {
     const isMobile = typeof window !== "undefined" && window.innerWidth < 1024;
+    const wasntMobile = !isMobileViewport.value;
+
     if (isMobile !== isMobileViewport.value) {
         isMobileViewport.value = isMobile;
-        showBacklinks.value = isMobile ? false : true;
+
+        if (isMobile) {
+            showBacklinks.value = false;
+        } else if (wasntMobile) {
+            showBacklinks.value = loadBacklinksPreference();
+        }
     }
 };
 
 onMounted(() => {
+    showBacklinks.value = loadBacklinksPreference();
     syncViewport();
     window.addEventListener("resize", syncViewport);
     void loadNotes();

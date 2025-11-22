@@ -1,6 +1,15 @@
 import { marked } from "marked";
 import DOMPurify from "dompurify";
 
+function escapeHtmlAttribute(text: string): string {
+    return text
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
 /**
  * Custom marked extension for Obsidian-style wikilinks [[Note Title]]
  */
@@ -23,7 +32,8 @@ const wikiLinkExtension = {
         return undefined;
     },
     renderer(token: { text: string }) {
-        return `<span class="wikilink" data-note-title="${token.text}">${token.text}</span>`;
+        const escaped = escapeHtmlAttribute(token.text);
+        return `<span class="wikilink" data-note-title="${escaped}">${token.text}</span>`;
     },
 };
 

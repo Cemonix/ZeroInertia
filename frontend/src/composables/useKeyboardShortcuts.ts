@@ -85,7 +85,7 @@ export function useKeyboardShortcuts() {
             }
         }
 
-        listenerCount--;
+        listenerCount = Math.max(0, listenerCount - 1);
         if (listenerCount === 0) {
             window.removeEventListener('keydown', handleGlobalKeyDown);
         }
