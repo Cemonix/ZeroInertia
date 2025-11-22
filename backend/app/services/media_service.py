@@ -80,6 +80,19 @@ async def get_by_status(
     return result.scalars().all()
 
 
+async def reload_media_with_genres(
+    db: AsyncSession,
+    media_id: UUID,
+    user_id: UUID,
+    model: type[MediaModel],
+) -> MediaModel:
+    """Reload a media item with its genres eagerly loaded"""
+    media = await get_by_id(db, media_id, user_id, model)
+    if media is None:
+        raise MediaNotFoundException(str(media_id))
+    return media
+
+
 async def create_media(
     db: AsyncSession,
     model: type[MediaModel],
@@ -89,8 +102,7 @@ async def create_media(
     media_item = model(**data)
     db.add(media_item)
     await db.commit()
-    await db.refresh(media_item)
-    return media_item
+    return await reload_media_with_genres(db, media_item.id, media_item.user_id, model)
 
 
 async def update_media(
@@ -120,8 +132,7 @@ async def update_media(
 
     db.add(media)
     await db.commit()
-    await db.refresh(media)
-    return media
+    return await reload_media_with_genres(db, media.id, user_id, model)
 
 
 async def delete_media(
@@ -161,8 +172,7 @@ async def create_book(
 
     db.add(book)
     await db.commit()
-    await db.refresh(book)
-    return book
+    return await reload_media_with_genres(db, book.id, user_id, Book)
 
 
 async def get_book_by_id(
@@ -213,8 +223,7 @@ async def update_book(
 
     db.add(book)
     await db.commit()
-    await db.refresh(book)
-    return book
+    return await reload_media_with_genres(db, book.id, user_id, Book)
 
 
 async def delete_book(
@@ -248,8 +257,7 @@ async def create_movie(
 
     db.add(movie)
     await db.commit()
-    await db.refresh(movie)
-    return movie
+    return await reload_media_with_genres(db, movie.id, user_id, Movie)
 
 
 async def get_movie_by_id(
@@ -300,8 +308,7 @@ async def update_movie(
 
     db.add(movie)
     await db.commit()
-    await db.refresh(movie)
-    return movie
+    return await reload_media_with_genres(db, movie.id, user_id, Movie)
 
 
 async def delete_movie(
@@ -335,8 +342,7 @@ async def create_game(
 
     db.add(game)
     await db.commit()
-    await db.refresh(game)
-    return game
+    return await reload_media_with_genres(db, game.id, user_id, Game)
 
 
 async def get_game_by_id(
@@ -387,8 +393,7 @@ async def update_game(
 
     db.add(game)
     await db.commit()
-    await db.refresh(game)
-    return game
+    return await reload_media_with_genres(db, game.id, user_id, Game)
 
 
 async def delete_game(
@@ -422,8 +427,7 @@ async def create_show(
 
     db.add(show)
     await db.commit()
-    await db.refresh(show)
-    return show
+    return await reload_media_with_genres(db, show.id, user_id, Show)
 
 
 async def get_show_by_id(
@@ -474,8 +478,7 @@ async def update_show(
 
     db.add(show)
     await db.commit()
-    await db.refresh(show)
-    return show
+    return await reload_media_with_genres(db, show.id, user_id, Show)
 
 
 async def delete_show(
@@ -509,8 +512,7 @@ async def create_manga(
 
     db.add(manga)
     await db.commit()
-    await db.refresh(manga)
-    return manga
+    return await reload_media_with_genres(db, manga.id, user_id, Manga)
 
 
 async def get_manga_by_id(
@@ -561,8 +563,7 @@ async def update_manga(
 
     db.add(manga)
     await db.commit()
-    await db.refresh(manga)
-    return manga
+    return await reload_media_with_genres(db, manga.id, user_id, Manga)
 
 
 async def delete_manga(
@@ -596,8 +597,7 @@ async def create_anime(
 
     db.add(anime)
     await db.commit()
-    await db.refresh(anime)
-    return anime
+    return await reload_media_with_genres(db, anime.id, user_id, Anime)
 
 
 async def get_anime_by_id(
@@ -648,8 +648,7 @@ async def update_anime(
 
     db.add(anime)
     await db.commit()
-    await db.refresh(anime)
-    return anime
+    return await reload_media_with_genres(db, anime.id, user_id, Anime)
 
 
 async def delete_anime(
