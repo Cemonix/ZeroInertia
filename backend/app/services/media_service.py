@@ -161,7 +161,7 @@ async def create_book(
 
     db.add(book)
     await db.commit()
-    await db.refresh(book, ["genres"])
+    await db.refresh(book)
     return book
 
 
@@ -213,7 +213,7 @@ async def update_book(
 
     db.add(book)
     await db.commit()
-    await db.refresh(book, ["genres"])
+    await db.refresh(book)
     return book
 
 
@@ -248,7 +248,7 @@ async def create_movie(
 
     db.add(movie)
     await db.commit()
-    await db.refresh(movie, ["genres"])
+    await db.refresh(movie)
     return movie
 
 
@@ -300,7 +300,7 @@ async def update_movie(
 
     db.add(movie)
     await db.commit()
-    await db.refresh(movie, ["genres"])
+    await db.refresh(movie)
     return movie
 
 
@@ -335,7 +335,7 @@ async def create_game(
 
     db.add(game)
     await db.commit()
-    await db.refresh(game, ["genres"])
+    await db.refresh(game)
     return game
 
 
@@ -387,7 +387,7 @@ async def update_game(
 
     db.add(game)
     await db.commit()
-    await db.refresh(game, ["genres"])
+    await db.refresh(game)
     return game
 
 
@@ -422,7 +422,7 @@ async def create_show(
 
     db.add(show)
     await db.commit()
-    await db.refresh(show, ["genres"])
+    await db.refresh(show)
     return show
 
 
@@ -474,7 +474,7 @@ async def update_show(
 
     db.add(show)
     await db.commit()
-    await db.refresh(show, ["genres"])
+    await db.refresh(show)
     return show
 
 
@@ -509,7 +509,7 @@ async def create_manga(
 
     db.add(manga)
     await db.commit()
-    await db.refresh(manga, ["genres"])
+    await db.refresh(manga)
     return manga
 
 
@@ -561,7 +561,7 @@ async def update_manga(
 
     db.add(manga)
     await db.commit()
-    await db.refresh(manga, ["genres"])
+    await db.refresh(manga)
     return manga
 
 
