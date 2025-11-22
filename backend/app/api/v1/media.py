@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from fastapi import Depends, Query, status
@@ -10,6 +11,9 @@ from app.core.database import get_db
 from app.core.exceptions import MediaNotFoundException
 from app.models.user import User
 from app.schemas.media import (
+    AnimeCreate,
+    AnimeResponse,
+    AnimeUpdate,
     BookCreate,
     BookResponse,
     BookUpdate,
@@ -423,13 +427,94 @@ async def delete_manga(
     await media_service.delete_manga(db=db, manga_id=manga_id, user_id=current_user.id)
 
 
+# ===== Anime Endpoints =====
+
+
+@router.get("/anime", response_model=list[AnimeResponse])
+async def list_anime(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    status_filter: str | None = Query(None, alias="status"),
+) -> list[AnimeResponse]:
+    """Return all anime for the authenticated user."""
+    if status_filter:
+        anime = await media_service.get_by_status(
+            db=db,
+            user_id=current_user.id,
+            model=media_service.Anime,
+            status=status_filter,
+        )
+    else:
+        anime = await media_service.get_all_anime(db=db, user_id=current_user.id)
+
+    return [AnimeResponse.model_validate(a) for a in anime]
+
+
+@router.post("/anime", response_model=AnimeResponse, status_code=status.HTTP_201_CREATED)
+async def create_anime(
+    anime_data: AnimeCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> AnimeResponse:
+    """Create a new anime for the authenticated user."""
+    anime = await media_service.create_anime(
+        db=db,
+        user_id=current_user.id,
+        anime_data=anime_data,
+    )
+    return AnimeResponse.model_validate(anime)
+
+
+@router.get("/anime/{anime_id}", response_model=AnimeResponse)
+async def get_anime(
+    anime_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> AnimeResponse:
+    """Return a single anime for the authenticated user."""
+    anime = await media_service.get_anime_by_id(db=db, anime_id=anime_id, user_id=current_user.id)
+    if not anime:
+        raise MediaNotFoundException(str(anime_id))
+    return AnimeResponse.model_validate(anime)
+
+
+@router.patch("/anime/{anime_id}", response_model=AnimeResponse)
+async def update_anime(
+    anime_id: UUID,
+    anime_data: AnimeUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> AnimeResponse:
+    """Update an anime for the authenticated user."""
+    anime = await media_service.update_anime(
+        db=db,
+        anime_id=anime_id,
+        user_id=current_user.id,
+        anime_data=anime_data,
+    )
+    return AnimeResponse.model_validate(anime)
+
+
+@router.delete("/anime/{anime_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_anime(
+    anime_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Delete an anime for the authenticated user."""
+    await media_service.delete_anime(db=db, anime_id=anime_id, user_id=current_user.id)
+
+
 # ===== Utility Endpoints =====
 
 
 @router.get("/duplicate-check", response_model=list[dict[str, str | None]])
 async def check_duplicate_title(
     title: str = Query(..., min_length=1, description="Title to search for duplicates"),
-    media_type: str = Query(..., description="Media type to check (book, game, movie, show, manga)"),
+    media_type: Literal["book", "game", "movie", "show", "manga", "anime"] = Query(
+        ...,
+        description="Media type to check (book, game, movie, show, manga, anime)",
+    ),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[dict[str, str | None]]:

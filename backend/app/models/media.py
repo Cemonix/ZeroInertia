@@ -156,3 +156,31 @@ class Manga(Base):
         Index("idx_manga_title", "title"),
         CheckConstraint("status IN ('planned', 'in_progress', 'completed', 'dropped')", name="chk_manga_status"),
     )
+
+
+class Anime(Base):
+    """Anime model - independent table for anime tracking."""
+
+    __tablename__: str = "anime"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    title: Mapped[str] = mapped_column(String(500), nullable=False)
+    episodes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, server_default="planned")
+    started_at: Mapped[date | None] = mapped_column(Date, nullable=True)
+    completed_at: Mapped[date | None] = mapped_column(Date, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    user: Mapped["User"] = relationship(back_populates="anime")  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
+    genres: Mapped[list["Genre"]] = relationship(secondary="anime_genres", back_populates="anime")  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
+
+    __table_args__: tuple[Index | CheckConstraint, ...] = (
+        Index("idx_anime_user", "user_id"),
+        Index("idx_anime_status", "user_id", "status"),
+        Index("idx_anime_completed", "user_id", "completed_at"),
+        Index("idx_anime_title", "title"),
+        CheckConstraint("status IN ('planned', 'in_progress', 'completed', 'dropped')", name="chk_anime_status"),
+    )

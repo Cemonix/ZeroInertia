@@ -11,8 +11,6 @@ import type {
 import { mediaService } from "@/services/mediaService";
 import { useToast } from "primevue/usetoast";
 
-type Category = "all" | MediaType;
-
 export const useMediaStore = defineStore("media", () => {
     const toast = useToast();
 
@@ -26,7 +24,7 @@ export const useMediaStore = defineStore("media", () => {
 
     const selectedStatuses = ref<MediaStatus[]>([]);
     const search = ref("");
-    const activeCategory = ref<Category>("all");
+    const activeCategory = ref<MediaType>("book");
 
     const selectedGenres = ref<string[]>([]);
     const selectedPlatforms = ref<string[]>([]);
@@ -46,14 +44,10 @@ export const useMediaStore = defineStore("media", () => {
         );
     });
 
-    const filteredAllItems = computed(() => {
-        let list = [...items.value];
-
-        if (activeCategory.value !== "all") {
-            list = list.filter(
-                (item) => item.media_type === activeCategory.value,
-            );
-        }
+    const filteredByCategory = computed(() => {
+        let list = items.value.filter(
+            (item) => item.media_type === activeCategory.value,
+        );
 
         if (selectedStatuses.value.length > 0) {
             list = list.filter((item) =>
@@ -102,20 +96,22 @@ export const useMediaStore = defineStore("media", () => {
             });
         }
 
-        return list.sort((a, b) => {
+        list = list.sort((a, b) => {
             if (a.created_at < b.created_at) return 1;
             if (a.created_at > b.created_at) return -1;
             return 0;
         });
+
+        return list;
     });
 
     const filteredItems = computed(() => {
-        return filteredAllItems.value.slice(0, page.value * pageSize.value);
+        return filteredByCategory.value.slice(0, page.value * pageSize.value);
     });
 
-    const total = computed(() => filteredAllItems.value.length);
+    const total = computed(() => filteredByCategory.value.length);
     const hasNext = computed(
-        () => filteredItems.value.length < filteredAllItems.value.length,
+        () => filteredItems.value.length < filteredByCategory.value.length,
     );
 
     const availableGenres = computed(() =>
@@ -158,14 +154,15 @@ export const useMediaStore = defineStore("media", () => {
                 Promise.all([
                     mediaService.listBooks(params),
                     mediaService.listGames(params),
+                    mediaService.listAnime(params),
                     mediaService.listManga(params),
                     mediaService.listMovies(params),
                     mediaService.listShows(params),
                 ]),
                 mediaService.listGenres(),
             ]);
-            const [books, games, manga, movies, shows] = mediaLists;
-            items.value = [...books, ...games, ...manga, ...movies, ...shows];
+            const [books, games, anime, manga, movies, shows] = mediaLists;
+            items.value = [...books, ...games, ...anime, ...manga, ...movies, ...shows];
             page.value = 1;
             genres.value = [];
             mergeGenres([...genreList, ...items.value.flatMap((item) => item.genres)]);
@@ -226,7 +223,7 @@ export const useMediaStore = defineStore("media", () => {
         }
     }
 
-    function setActiveCategory(category: Category): void {
+    function setActiveCategory(category: MediaType): void {
         activeCategory.value = category;
         page.value = 1;
     }

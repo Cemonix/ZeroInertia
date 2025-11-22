@@ -24,18 +24,7 @@
                 </template>
             </Column>
             <Column
-                v-if="type === 'all'"
-                field="media_type"
-                header="Type"
-                sortable
-                style="width: 120px"
-            >
-                <template #body="slotProps">
-                    {{ formatMediaType(slotProps.data.media_type) }}
-                </template>
-            </Column>
-            <Column
-                v-if="type === 'all' || type === 'book' || type === 'manga'"
+                v-if="type === 'book' || type === 'manga'"
                 field="creator"
                 header="Creator / Author"
                 sortable
@@ -52,7 +41,7 @@
                 </template>
             </Column>
             <Column
-                v-if="type === 'all' || type === 'book'"
+                v-if="type === 'book'"
                 field="is_audiobook"
                 header="Format"
                 sortable
@@ -93,7 +82,7 @@
                 </template>
             </Column>
             <Column
-                v-if="type === 'all' || type === 'game'"
+                v-if="type === 'game'"
                 field="platform"
                 header="Platform"
                 sortable
@@ -102,6 +91,19 @@
                 <template #body="slotProps">
                     <span v-if="slotProps.data.media_type === 'game'">
                         {{ slotProps.data.platform }}
+                    </span>
+                </template>
+            </Column>
+            <Column
+                v-if="type === 'anime'"
+                field="episodes"
+                header="Episodes"
+                sortable
+                style="width: 120px"
+            >
+                <template #body="slotProps">
+                    <span v-if="slotProps.data.media_type === 'anime'">
+                        {{ slotProps.data.episodes ?? "N/A" }}
                     </span>
                 </template>
             </Column>
@@ -155,7 +157,7 @@ import { format, parseISO } from "date-fns";
 interface Props {
     items: MediaItem[];
     loading: boolean;
-    type: "all" | MediaType;
+    type: MediaType;
 }
 
 interface Emits {
@@ -189,21 +191,6 @@ const statusSeverity = (status: MediaStatus): string => {
             return "success";
         case "dropped":
             return "danger";
-    }
-};
-
-const formatMediaType = (type: MediaType): string => {
-    switch (type) {
-        case "book":
-            return "Book";
-        case "game":
-            return "Game";
-        case "manga":
-            return "Manga";
-        case "movie":
-            return "Movie";
-        case "show":
-            return "Show";
     }
 };
 

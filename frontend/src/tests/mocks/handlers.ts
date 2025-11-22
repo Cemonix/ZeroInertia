@@ -286,6 +286,32 @@ export const createMockMedia = (): MediaItem[] => {
             created_at: '2025-01-05T00:00:00Z',
             updated_at: '2025-01-05T00:00:00Z',
         },
+        {
+            id: 'anime-1',
+            media_type: 'anime',
+            title: 'Fullmetal Alchemist: Brotherhood',
+            status: 'completed',
+            episodes: 64,
+            genres: [findGenre('Action-Adventure')],
+            started_at: '2024-12-15T00:00:00Z',
+            completed_at: '2025-02-01T00:00:00Z',
+            notes: 'Top-tier story and pacing',
+            created_at: '2024-12-15T00:00:00Z',
+            updated_at: '2025-02-01T00:00:00Z',
+        },
+        {
+            id: 'anime-2',
+            media_type: 'anime',
+            title: 'Attack on Titan',
+            status: 'in_progress',
+            episodes: 87,
+            genres: [findGenre('Drama')],
+            started_at: '2025-02-10T00:00:00Z',
+            completed_at: null,
+            notes: 'Paused before final arc',
+            created_at: '2025-02-10T00:00:00Z',
+            updated_at: '2025-02-10T00:00:00Z',
+        },
     ];
 };
 
@@ -920,6 +946,27 @@ export const handlers = [
 
         return HttpResponse.json(filteredMedia);
     }),
+    http.get(`${API_BASE_URL}/api/v1/media/anime`, ({ request }) => {
+        const url = new URL(request.url);
+        const statusParam = url.searchParams.get('status');
+        const searchParam = url.searchParams.get('search');
+
+        let filteredMedia = mockMedia.filter(m => m.media_type === 'anime');
+
+        if (statusParam) {
+            filteredMedia = filteredMedia.filter(m => m.status === statusParam);
+        }
+
+        if (searchParam) {
+            const search = searchParam.toLowerCase();
+            filteredMedia = filteredMedia.filter(m =>
+                m.title.toLowerCase().includes(search) ||
+                (m.notes && m.notes.toLowerCase().includes(search))
+            );
+        }
+
+        return HttpResponse.json(filteredMedia);
+    }),
 
     http.get(`${API_BASE_URL}/api/v1/media/books/:id`, ({ params }) => {
         const media = mockMedia.find(m => m.id === params.id && m.media_type === 'book');
@@ -975,6 +1022,16 @@ export const handlers = [
         }
         return HttpResponse.json(media);
     }),
+    http.get(`${API_BASE_URL}/api/v1/media/anime/:id`, ({ params }) => {
+        const media = mockMedia.find(m => m.id === params.id && m.media_type === 'anime');
+        if (!media) {
+            return HttpResponse.json(
+                { detail: 'Media not found' },
+                { status: 404 }
+            );
+        }
+        return HttpResponse.json(media);
+    }),
 
     http.post(`${API_BASE_URL}/api/v1/media/:type`, async ({ params, request }) => {
         const body = (await request.json()) as Record<string, any>;
@@ -990,7 +1047,9 @@ export const handlers = [
         const singularType = pluralType === 'books' ? 'book' :
                             pluralType === 'games' ? 'game' :
                             pluralType === 'movies' ? 'movie' :
-                            pluralType === 'shows' ? 'show' : 'manga';
+                            pluralType === 'shows' ? 'show' :
+                            pluralType === 'anime' ? 'anime' :
+                            'manga';
 
         const genreIds = Array.isArray(body.genre_ids) ? body.genre_ids : [];
         const genres = resolveGenresByIds(genreIds);
@@ -1015,6 +1074,9 @@ export const handlers = [
             }),
             ...(singularType === 'show' && {
                 season_number: body.season_number || null,
+            }),
+            ...(singularType === 'anime' && {
+                episodes: body.episodes ?? null,
             }),
             ...(singularType === 'manga' && {
                 author: body.author || null,

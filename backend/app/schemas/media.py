@@ -260,6 +260,50 @@ class MangaResponse(BaseModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(from_attributes=True)
 
 
+# ===== Anime Schemas =====
+
+
+class AnimeCreate(BaseModel):
+    """Schema for creating an anime"""
+
+    title: str = Field(..., min_length=1, max_length=500)
+    episodes: int | None = None
+    status: MediaStatus = MediaStatus.PLANNED
+    genre_ids: list[UUID] = Field(default_factory=list)
+    started_at: date | None = None
+    completed_at: date | None = None
+    notes: str | None = None
+
+
+class AnimeUpdate(BaseModel):
+    """Schema for updating an anime"""
+
+    title: str | None = Field(None, min_length=1, max_length=500)
+    episodes: int | None = None
+    status: MediaStatus | None = None
+    genre_ids: list[UUID] | None = None
+    started_at: date | None = None
+    completed_at: date | None = None
+    notes: str | None = None
+
+
+class AnimeResponse(BaseModel):
+    """Schema for anime responses"""
+
+    id: UUID
+    title: str
+    episodes: int | None
+    status: str
+    genres: list[GenreResponse]
+    started_at: date | None
+    completed_at: date | None
+    notes: str | None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(from_attributes=True)
+
+
 # ===== Utility Schemas =====
 
 
@@ -271,6 +315,7 @@ class DuplicateCheckResponse(BaseModel):
     movies: list[dict[str, str | None]] = []
     shows: list[dict[str, str | None]] = []
     manga: list[dict[str, str | None]] = []
+    anime: list[dict[str, str | None]] = []
 
 class YearlyStatsResponse(BaseModel):
     """Schema for yearly statistics responses"""
@@ -281,3 +326,4 @@ class YearlyStatsResponse(BaseModel):
     movies: int
     shows: int
     manga: int
+    anime: int
