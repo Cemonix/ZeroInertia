@@ -11,6 +11,7 @@ import type {
     MediaType,
     MovieMediaItem,
     ShowMediaItem,
+    AnimeMediaItem,
     YearlyStats,
 } from "@/models/media";
 
@@ -21,6 +22,7 @@ interface GameResponse extends Omit<GameMediaItem, "media_type"> {}
 interface MangaResponse extends Omit<MangaMediaItem, "media_type"> {}
 interface MovieResponse extends Omit<MovieMediaItem, "media_type"> {}
 interface ShowResponse extends Omit<ShowMediaItem, "media_type"> {}
+interface AnimeResponse extends Omit<AnimeMediaItem, "media_type"> {}
 
 type DuplicateCheckRawResponse = Array<Record<string, string | null>>;
 
@@ -60,6 +62,16 @@ export const mediaService = {
         return res.data.map((item) => ({
             ...item,
             media_type: "game",
+        }));
+    },
+
+    async listAnime(params?: ListMediaParams): Promise<AnimeMediaItem[]> {
+        const res = await apiClient.get<AnimeResponse[]>(`${API_URL}/anime`, {
+            params,
+        });
+        return res.data.map((item) => ({
+            ...item,
+            media_type: "anime",
         }));
     },
 
@@ -159,6 +171,22 @@ export const mediaService = {
                 );
                 return { ...res.data, media_type: "show" };
             }
+            case "anime": {
+                const payload = {
+                    title: values.title,
+                    status: values.status,
+                    genre_ids: values.genre_ids ?? [],
+                    episodes: values.episodes,
+                    started_at: values.started_at,
+                    completed_at: values.completed_at,
+                    notes: values.notes,
+                };
+                const res = await apiClient.post<AnimeResponse>(
+                    `${API_URL}/anime`,
+                    payload,
+                );
+                return { ...res.data, media_type: "anime" };
+            }
             case "manga": {
                 const payload = {
                     title: values.title,
@@ -256,6 +284,25 @@ export const mediaService = {
                 );
                 return { ...res.data, media_type: "show" };
             }
+            case "anime": {
+                const payload: Partial<Omit<AnimeMediaItem, "id" | "media_type" | "created_at" | "updated_at">> & {
+                    genre_ids?: string[];
+                } = {};
+                if (values.title !== undefined) payload.title = values.title;
+                if (values.status !== undefined) payload.status = values.status;
+                if (values.genre_ids !== undefined) payload.genre_ids = values.genre_ids;
+                if (values.started_at !== undefined) payload.started_at = values.started_at;
+                if (values.completed_at !== undefined) payload.completed_at = values.completed_at;
+                if (values.notes !== undefined) payload.notes = values.notes;
+                if ("episodes" in values && values.episodes !== undefined) {
+                    payload.episodes = values.episodes;
+                }
+                const res = await apiClient.patch<AnimeResponse>(
+                    `${API_URL}/anime/${id}`,
+                    payload,
+                );
+                return { ...res.data, media_type: "anime" };
+            }
             case "manga": {
                 const payload: Partial<Omit<MangaMediaItem, "id" | "media_type" | "created_at" | "updated_at">> & {
                     genre_ids?: string[];
@@ -285,6 +332,9 @@ export const mediaService = {
                 return;
             case "game":
                 await apiClient.delete(`${API_URL}/games/${id}`);
+                return;
+            case "anime":
+                await apiClient.delete(`${API_URL}/anime/${id}`);
                 return;
             case "manga":
                 await apiClient.delete(`${API_URL}/manga/${id}`);
@@ -321,6 +371,6 @@ export const mediaService = {
         const res = await apiClient.get<YearlyStats>(`${API_URL}/stats/yearly`, {
             params: year ? { year } : undefined,
         });
-        return res.data;
+        return { ...res.data, anime: res.data.anime ?? 0 };
     },
 };

@@ -1,4 +1,4 @@
-export type MediaType = "book" | "game" | "manga" | "movie" | "show";
+export type MediaType = "book" | "game" | "manga" | "movie" | "show" | "anime";
 
 export type MediaStatus = "planned" | "in_progress" | "completed" | "dropped";
 
@@ -45,12 +45,18 @@ export interface MangaMediaItem extends BaseMediaItem {
     author: string | null;
 }
 
+export interface AnimeMediaItem extends BaseMediaItem {
+    media_type: "anime";
+    episodes: number | null;
+}
+
 export type MediaItem =
     | BookMediaItem
     | GameMediaItem
     | MangaMediaItem
     | MovieMediaItem
-    | ShowMediaItem;
+    | ShowMediaItem
+    | AnimeMediaItem;
 
 interface BaseMediaFormValues {
     title: string;
@@ -86,12 +92,18 @@ interface MangaFormValues extends BaseMediaFormValues {
     author: string | null;
 }
 
+interface AnimeFormValues extends BaseMediaFormValues {
+    media_type: "anime";
+    episodes: number | null;
+}
+
 export type MediaFormValues =
     | BookFormValues
     | GameFormValues
     | MangaFormValues
     | MovieFormValues
-    | ShowFormValues;
+    | ShowFormValues
+    | AnimeFormValues;
 
 export interface DuplicateMatch {
     media_type: MediaType;
@@ -107,6 +119,7 @@ export interface YearlyStats {
     manga: number;
     movies: number;
     shows: number;
+    anime: number;
 }
 
 export const MEDIA_TYPES: { label: string; value: MediaType }[] = [
@@ -115,6 +128,7 @@ export const MEDIA_TYPES: { label: string; value: MediaType }[] = [
     { label: "Manga", value: "manga" },
     { label: "Movies", value: "movie" },
     { label: "Shows", value: "show" },
+    { label: "Anime", value: "anime" },
 ];
 
 export const MEDIA_STATUSES: { label: string; value: MediaStatus }[] = [

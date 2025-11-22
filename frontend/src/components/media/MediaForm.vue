@@ -53,6 +53,18 @@
                 />
             </div>
 
+            <div
+                v-if="form.media_type === 'manga'"
+                class="form-field"
+            >
+                <label for="author">Author</label>
+                <InputText
+                    id="author"
+                    v-model="form.author"
+                    placeholder="Author name (optional)"
+                />
+            </div>
+
             <div class="details-section">
                 <div class="form-row">
                 <div class="form-field">
@@ -108,6 +120,20 @@
                             min="1"
                             class="number-input"
                             placeholder="Season #"
+                        />
+                    </div>
+                    <div
+                        v-else-if="form.media_type === 'anime'"
+                        class="form-field"
+                    >
+                        <label for="episodes">Episodes</label>
+                        <input
+                            id="episodes"
+                            v-model.number="form.episodes"
+                            type="number"
+                            min="1"
+                            class="number-input"
+                            placeholder="Episode count (optional)"
                         />
                     </div>
                 </div>
@@ -241,8 +267,7 @@ const { availableGenres, availablePlatforms, activeCategory } =
     storeToRefs(mediaStore);
 
 const getDefaultMediaType = (): MediaType => {
-    const category = activeCategory.value;
-    return category === "all" ? "book" : category;
+    return activeCategory.value;
 };
 
 interface InternalFormState {
@@ -250,10 +275,12 @@ interface InternalFormState {
     title: string;
     status: MediaStatus;
     creator: string;
+    author: string | null;
     is_audiobook: boolean;
     genres: string[]; // genre IDs
     platform: string | null;
     season_number: number | null;
+    episodes: number | null;
     started_at: string | null;
     completed_at: string | null;
     notes: string | null;
@@ -264,10 +291,12 @@ const form = reactive<InternalFormState>({
     title: "",
     status: "planned",
     creator: "",
+    author: null,
     is_audiobook: false,
     genres: [],
     platform: null,
     season_number: null,
+    episodes: null,
     started_at: null,
     completed_at: null,
     notes: null,
@@ -340,10 +369,12 @@ const populateFormFromItem = (item: MediaItem | null) => {
         form.title = "";
         form.status = "planned";
         form.creator = "";
+        form.author = null;
         form.is_audiobook = false;
         form.genres = [];
         form.platform = null;
         form.season_number = null;
+        form.episodes = null;
         form.started_at = null;
         form.completed_at = null;
         form.notes = null;
@@ -367,20 +398,40 @@ const populateFormFromItem = (item: MediaItem | null) => {
 
     if (item.media_type === "book") {
         form.creator = item.creator;
+        form.author = null;
         form.platform = null;
         form.season_number = null;
+        form.episodes = null;
     } else if (item.media_type === "game") {
         form.creator = "";
+        form.author = null;
         form.platform = item.platform ?? null;
         form.season_number = null;
+        form.episodes = null;
     } else if (item.media_type === "show") {
         form.creator = "";
+        form.author = null;
         form.platform = null;
         form.season_number = item.season_number ?? null;
-    } else {
+        form.episodes = null;
+    } else if (item.media_type === "anime") {
         form.creator = "";
+        form.author = null;
         form.platform = null;
         form.season_number = null;
+        form.episodes = item.episodes ?? null;
+    } else if (item.media_type === "manga") {
+        form.creator = "";
+        form.author = item.author ?? null;
+        form.platform = null;
+        form.season_number = null;
+        form.episodes = null;
+    } else {
+        form.creator = "";
+        form.author = null;
+        form.platform = null;
+        form.season_number = null;
+        form.episodes = null;
     }
 
     duplicateMatches.value = [];
@@ -422,35 +473,49 @@ watch(completedDate, (date) => {
 
 let duplicateTimeout: ReturnType<typeof setTimeout> | null = null;
 
+const scheduleDuplicateCheck = () => {
+    duplicateMatches.value = [];
+    if (duplicateTimeout) {
+        clearTimeout(duplicateTimeout);
+        duplicateTimeout = null;
+    }
+
+    const trimmed = form.title.trim();
+    if (trimmed.length < 3) {
+        return;
+    }
+
+    duplicateTimeout = setTimeout(async () => {
+        try {
+            const results = await mediaService.checkDuplicateTitle(trimmed, form.media_type);
+            if (props.item) {
+                duplicateMatches.value = results.filter(
+                    (match) =>
+                        !(
+                            match.media_type === props.item!.media_type &&
+                            match.title === props.item!.title
+                        ),
+                );
+            } else {
+                duplicateMatches.value = results;
+            }
+        } catch {
+            duplicateMatches.value = [];
+        }
+    }, 400);
+};
+
 watch(
     () => form.title,
-    (title) => {
-        duplicateMatches.value = [];
-        if (duplicateTimeout) {
-            clearTimeout(duplicateTimeout);
-            duplicateTimeout = null;
-        }
+    () => {
+        scheduleDuplicateCheck();
+    },
+);
 
-        const trimmed = title.trim();
-        if (trimmed.length < 3) {
-            return;
-        }
-
-        duplicateTimeout = setTimeout(async () => {
-            try {
-                const results = await mediaService.checkDuplicateTitle(trimmed, form.media_type);
-                // When editing, filter out the current item from duplicates
-                if (props.item) {
-                    duplicateMatches.value = results.filter(
-                        match => !(match.media_type === props.item!.media_type && match.title === props.item!.title)
-                    );
-                } else {
-                    duplicateMatches.value = results;
-                }
-            } catch {
-                duplicateMatches.value = [];
-            }
-        }, 400);
+watch(
+    () => form.media_type,
+    () => {
+        scheduleDuplicateCheck();
     },
 );
 
@@ -470,6 +535,10 @@ const formatMediaType = (type: MediaType): string => {
             return "Movie";
         case "show":
             return "Show";
+        case "manga":
+            return "Manga";
+        case "anime":
+            return "Anime";
     }
     return "";
 };
@@ -539,6 +608,30 @@ const handleSave = async () => {
                 title: form.title,
                 status: form.status,
                 season_number: form.season_number,
+                genre_ids: genreIds,
+                started_at: normalizeDate(form.started_at),
+                completed_at: normalizeDate(form.completed_at),
+                notes: normalizeOptionalString(form.notes),
+            };
+            break;
+        case "anime":
+            formValues = {
+                media_type: "anime",
+                title: form.title,
+                status: form.status,
+                episodes: form.episodes,
+                genre_ids: genreIds,
+                started_at: normalizeDate(form.started_at),
+                completed_at: normalizeDate(form.completed_at),
+                notes: normalizeOptionalString(form.notes),
+            };
+            break;
+        case "manga":
+            formValues = {
+                media_type: "manga",
+                title: form.title,
+                status: form.status,
+                author: normalizeOptionalString(form.author),
                 genre_ids: genreIds,
                 started_at: normalizeDate(form.started_at),
                 completed_at: normalizeDate(form.completed_at),
