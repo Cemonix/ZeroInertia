@@ -2,7 +2,7 @@ import re
 from collections.abc import Sequence
 from uuid import UUID
 
-from sqlalchemy import delete
+from sqlalchemy import delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy.sql import select
@@ -60,7 +60,7 @@ async def sync_note_links(
         select(Note.id, Note.title)
         .where(
             Note.user_id == user_id,
-            Note.title.in_(wikilink_titles),
+            func.lower(Note.title).in_([title.lower() for title in wikilink_titles]),
             Note.id != source_note_id,
         )
     )
@@ -115,7 +115,6 @@ async def get_backlinks(
             Note.user_id == user_id,
         )
         .order_by(NoteLink.created_at.desc())
-        .options(selectinload(NoteLink.source_note))
     )
 
     backlinks = []
