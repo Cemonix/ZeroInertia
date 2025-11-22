@@ -103,17 +103,26 @@ fi
 
 # Build new images
 log_info "Building Docker images..."
-docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" build --no-cache
+docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" build
 log_success "Images built successfully"
 
-# Stop old containers
-log_info "Stopping old containers..."
-docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" down
-log_success "Old containers stopped"
+# Stop app containers before migrations to avoid old code hitting a migrated schema
+log_info "Stopping application containers (backend/frontend/caddy)..."
+docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" stop backend frontend caddy
+log_success "Application containers stopped"
+
+# Run database migrations with app containers stopped
+log_info "Running database migrations..."
+if docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" run --rm backend alembic upgrade head; then
+    log_success "Migrations completed successfully"
+else
+    log_error "Migrations failed! Aborting deployment."
+    exit 1
+fi
 
 # Start new containers
 log_info "Starting new containers..."
-docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d
+docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d --force-recreate --remove-orphans
 log_success "New containers started"
 
 # Wait for services to be healthy

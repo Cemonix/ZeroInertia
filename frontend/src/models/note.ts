@@ -31,3 +31,9 @@ export interface NoteReorderItem {
     parent_id: string | null;
     order_index: number;
 }
+
+export interface BacklinkInfo {
+    note_id: string;
+    note_title: string;
+    created_at: string;
+}

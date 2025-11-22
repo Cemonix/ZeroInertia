@@ -10,6 +10,7 @@ from app.core.exceptions import InvalidOperationException, NoteNotFoundException
 from app.models.note import Note
 from app.schemas.note import NoteReorder, NoteUpdate
 from app.services.base_service import apply_updates_async
+from app.services import note_link_service
 
 
 async def _ensure_parent_belongs_to_user(
@@ -69,6 +70,15 @@ async def create_note(
         order_index=order_index,
     )
     db.add(new_note)
+    await db.flush()
+
+    await note_link_service.sync_note_links(
+        db=db,
+        source_note_id=new_note.id,
+        user_id=user_id,
+        content=content,
+    )
+
     await db.commit()
     await db.refresh(new_note)
     return new_note
@@ -149,6 +159,15 @@ async def update_note(
     )
 
     db.add(note)
+
+    if update_data.content is not None:
+        await note_link_service.sync_note_links(
+            db=db,
+            source_note_id=note.id,
+            user_id=user_id,
+            content=note.content,
+        )
+
     await db.commit()
     await db.refresh(note)
     return note

@@ -2,15 +2,27 @@
     <section class="note-panel">
         <header class="panel-header">
             <h2 class="panel-title">Notes</h2>
-            <Button
-                text
-                rounded
-                class="header-action"
-                aria-label="Create note"
-                @click="createRootNote"
-            >
-                <FontAwesomeIcon icon="plus" />
-            </Button>
+            <div class="header-actions">
+                <Button
+                    text
+                    rounded
+                    class="header-action"
+                    :aria-label="showBacklinks ? 'Hide backlinks' : 'Show backlinks'"
+                    :title="showBacklinks ? 'Hide backlinks' : 'Show backlinks'"
+                    @click="toggleBacklinks"
+                >
+                    <FontAwesomeIcon :icon="showBacklinks ? 'eye-slash' : 'eye'" />
+                </Button>
+                <Button
+                    text
+                    rounded
+                    class="header-action"
+                    aria-label="Create note"
+                    @click="createRootNote"
+                >
+                    <FontAwesomeIcon icon="plus" />
+                </Button>
+            </div>
         </header>
         <div class="panel-body">
             <NoteTree />
@@ -24,6 +36,14 @@ import { useNoteStore } from "@/stores/note";
 import NoteTree from "./NoteTree.vue";
 import Button from "primevue/button";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
+
+defineProps<{
+    showBacklinks: boolean;
+}>();
+
+const emit = defineEmits<{
+    toggleBacklinks: [];
+}>();
 
 const noteStore = useNoteStore();
 const toast = useToast();
@@ -42,6 +62,10 @@ const createRootNote = async () => {
             detail: error instanceof Error ? error.message : "Unknown error",
         });
     }
+};
+
+const toggleBacklinks = () => {
+    emit("toggleBacklinks");
 };
 </script>
 
@@ -65,6 +89,12 @@ const createRootNote = async () => {
     font-weight: 600;
     color: var(--p-text-color);
     margin: 0;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
 }
 
 .header-action {

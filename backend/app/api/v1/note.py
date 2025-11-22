@@ -10,8 +10,9 @@ from app.core.database import get_db
 from app.core.exceptions import NoteNotFoundException
 from app.models.user import User
 from app.schemas.note import NoteCreate, NoteReorder, NoteResponse, NoteUpdate
+from app.schemas.note_link import BacklinkInfo
 from app.schemas.pagination import PaginatedResponse, PaginationParams
-from app.services import note_service
+from app.services import note_link_service, note_service
 
 router = APIRouter()
 
@@ -109,3 +110,18 @@ async def reorder_notes(
         user_id=current_user.id,
         notes_reorder=notes_reorder,
     )
+
+
+@router.get("/{note_id}/backlinks", response_model=list[BacklinkInfo])
+async def get_note_backlinks(
+    note_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[BacklinkInfo]:
+    """Get all notes that link to this note."""
+    backlinks = await note_link_service.get_backlinks(
+        db=db,
+        note_id=note_id,
+        user_id=current_user.id,
+    )
+    return list(backlinks)

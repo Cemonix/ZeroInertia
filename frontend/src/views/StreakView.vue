@@ -24,7 +24,7 @@
                 @click="goHome"
                 aria-label="Go to home"
             >
-                <font-awesome-icon icon="house" />
+                <FontAwesomeIcon icon="house" />
                 <span class="nav-label">Home</span>
             </Button>
             <Button
@@ -34,7 +34,7 @@
                 @click="goToNotes"
                 aria-label="Go to notes"
             >
-                <font-awesome-icon icon="pen" />
+                <FontAwesomeIcon icon="pen" />
                 <span class="nav-label">Notes</span>
             </Button>
             <Button
@@ -44,7 +44,7 @@
                 @click="goToMedia"
                 aria-label="Go to media"
             >
-                <font-awesome-icon icon="table-columns" />
+                <FontAwesomeIcon icon="table-columns" />
                 <span class="nav-label">Media</span>
             </Button>
         </template>

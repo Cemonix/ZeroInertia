@@ -37,6 +37,16 @@ class Note(Base):
     user: Mapped["User"] = relationship(back_populates="notes")  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
     parent: Mapped["Note | None"] = relationship(remote_side=[id], back_populates="children")
     children: Mapped[list["Note"]] = relationship(back_populates="parent", cascade="all, delete-orphan")
+    outgoing_links: Mapped[list["NoteLink"]] = relationship(  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
+        foreign_keys="NoteLink.source_note_id",
+        back_populates="source_note",
+        cascade="all, delete-orphan",
+    )
+    incoming_links: Mapped[list["NoteLink"]] = relationship(  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
+        foreign_keys="NoteLink.target_note_id",
+        back_populates="target_note",
+        cascade="all, delete-orphan",
+    )
 
     __table_args__: tuple[Index, Index] = (
         Index("ix_notes_user_id", "user_id"),

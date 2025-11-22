@@ -84,14 +84,13 @@
                     v-if="form.media_type === 'book'"
                     class="form-field checkbox-field"
                 >
-                    <label class="checkbox-label" for="is_audiobook">
-                        <input
-                            id="is_audiobook"
-                            type="checkbox"
-                            v-model="form.is_audiobook"
-                        />
-                        <span>Audiobook</span>
-                    </label>
+                    <div class="checkbox-label">
+                        <span class="label-title">Audiobook</span>
+                    </div>
+                    <InputSwitch
+                        inputId="is_audiobook"
+                        v-model="form.is_audiobook"
+                    />
                 </div>
                 <div
                     v-if="form.media_type === 'game'"
@@ -113,12 +112,13 @@
                         class="form-field"
                     >
                         <label for="season">Season</label>
-                        <input
-                            id="season"
-                            v-model.number="form.season_number"
-                            type="number"
-                            min="1"
-                            class="number-input"
+                        <InputNumber
+                            inputId="season"
+                            v-model="form.season_number"
+                            :min="1"
+                            :useGrouping="false"
+                            :minFractionDigits="0"
+                            :maxFractionDigits="0"
                             placeholder="Season #"
                         />
                     </div>
@@ -127,12 +127,13 @@
                         class="form-field"
                     >
                         <label for="episodes">Episodes</label>
-                        <input
-                            id="episodes"
-                            v-model.number="form.episodes"
-                            type="number"
-                            min="1"
-                            class="number-input"
+                        <InputNumber
+                            inputId="episodes"
+                            v-model="form.episodes"
+                            :min="1"
+                            :useGrouping="false"
+                            :minFractionDigits="0"
+                            :maxFractionDigits="0"
                             placeholder="Episode count (optional)"
                         />
                     </div>
@@ -154,7 +155,7 @@
                             :showClear="true"
                         >
                             <template #dropdownicon>
-                                <font-awesome-icon icon="calendar" />
+                                <FontAwesomeIcon icon="calendar" />
                             </template>
                         </DatePicker>
                     </div>
@@ -173,7 +174,7 @@
                             :showClear="true"
                         >
                             <template #dropdownicon>
-                                <font-awesome-icon icon="calendar" />
+                                <FontAwesomeIcon icon="calendar" />
                             </template>
                         </DatePicker>
                     </div>
@@ -234,6 +235,8 @@ import Button from "primevue/button";
 import AutoComplete from "primevue/autocomplete";
 import MultiSelect from "primevue/multiselect";
 import DatePicker from "primevue/datepicker";
+import InputNumber from "primevue/inputnumber";
+import InputSwitch from "primevue/inputswitch";
 import {
     MEDIA_STATUSES,
     MEDIA_TYPES,
@@ -678,22 +681,32 @@ const handleSave = async () => {
 .checkbox-field {
     display: flex;
     align-items: center;
-    justify-content: flex-start;
-    padding-top: 1.25rem;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.75rem 0.85rem;
+    border: 1px solid var(--p-content-border-color);
+    border-radius: 8px;
+    background: var(--p-content-background);
 }
 
 .checkbox-label {
     display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    font-weight: 500;
+    flex-direction: column;
+    gap: 0.2rem;
 }
 
-.checkbox-label input {
-    width: 1.2rem;
-    height: 1.2rem;
-    accent-color: var(--p-primary-color, #6366f1);
-    cursor: pointer;
+.label-title {
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.label-hint {
+    color: var(--p-text-color-secondary, #6b7280);
+    font-size: 0.82rem;
+}
+
+.checkbox-field :deep(.p-inputswitch) {
+    width: 3rem;
 }
 
 .details-section {
@@ -708,6 +721,14 @@ const handleSave = async () => {
 }
 
 .form-field :deep(.p-datepicker-input) {
+    width: 100%;
+}
+
+.form-field :deep(.p-inputnumber) {
+    width: 100%;
+}
+
+.form-field :deep(.p-inputnumber-input) {
     width: 100%;
 }
 
@@ -728,15 +749,6 @@ const handleSave = async () => {
 .duplicate-list {
     margin: 0;
     padding-left: 1.1rem;
-}
-
-.number-input {
-    width: 100%;
-    padding: 0.5rem 0.75rem;
-    border-radius: 6px;
-    border: 1px solid var(--p-content-border-color);
-    background: var(--p-content-background);
-    color: var(--p-text-color);
 }
 
 .actions {

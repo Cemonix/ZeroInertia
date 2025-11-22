@@ -1,4 +1,4 @@
-import type { Note, NoteInput, NoteReorderItem, NoteUpdateInput } from "@/models/note";
+import type { BacklinkInfo, Note, NoteInput, NoteReorderItem, NoteUpdateInput } from "@/models/note";
 import type { PaginatedResponse, PaginationParams } from "@/models/pagination";
 import { buildPaginationQuery, isPaginatedResponse, wrapAsSinglePage } from "@/models/pagination";
 import apiClient from "./apiClient";
@@ -68,5 +68,10 @@ export const noteService = {
 
     async reorderNotes(reorderedNotes: NoteReorderItem[]): Promise<void> {
         await apiClient.post(`${API_URL}/reorder`, reorderedNotes);
+    },
+
+    async getBacklinks(noteId: string): Promise<BacklinkInfo[]> {
+        const response = await apiClient.get<BacklinkInfo[]>(`${API_URL}/${noteId}/backlinks`);
+        return response.data;
     },
 };

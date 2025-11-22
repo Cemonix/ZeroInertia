@@ -24,7 +24,7 @@
                         rounded
                         aria-label="Toggle sidebar"
                     >
-                        <font-awesome-icon :icon="isSidebarCollapsed ? 'chevron-right' : 'chevron-left'" />
+                        <FontAwesomeIcon :icon="isSidebarCollapsed ? 'chevron-right' : 'chevron-left'" />
                     </Button>
                     <Button
                         v-if="isMobileView"
@@ -34,7 +34,7 @@
                         rounded
                         aria-label="Open menu"
                     >
-                        <font-awesome-icon icon="bars" />
+                        <FontAwesomeIcon icon="bars" />
                     </Button>
                     <div class="navbar-left-items">
                         <slot name="navbar-left" />
