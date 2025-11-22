@@ -103,8 +103,17 @@ fi
 
 # Build new images
 log_info "Building Docker images..."
-docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" build --no-cache
+docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" build
 log_success "Images built successfully"
+
+# Run database migrations BEFORE stopping old containers
+log_info "Running database migrations..."
+if docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" run --rm backend alembic upgrade head; then
+    log_success "Migrations completed successfully"
+else
+    log_error "Migrations failed! Aborting deployment."
+    exit 1
+fi
 
 # Stop old containers
 log_info "Stopping old containers..."
