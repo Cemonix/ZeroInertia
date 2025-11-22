@@ -12,7 +12,7 @@
                 @click="goToNotes"
                 aria-label="Go to notes"
             >
-                <font-awesome-icon icon="pen" />
+                <FontAwesomeIcon icon="pen" />
                 <span class="notes-nav-label">Notes</span>
             </Button>
             <Button
@@ -22,7 +22,7 @@
                 @click="goToMedia"
                 aria-label="Go to media"
             >
-                <font-awesome-icon icon="table-columns" />
+                <FontAwesomeIcon icon="table-columns" />
                 <span class="media-nav-label">Media</span>
             </Button>
         </template>

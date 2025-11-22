@@ -8,7 +8,7 @@
             aria-label="Add new project"
             v-show="!isPanelCollapsed"
         >
-            <font-awesome-icon icon="plus" />
+            <FontAwesomeIcon icon="plus" />
         </Button>
     </div>
     <div class="projects-content">

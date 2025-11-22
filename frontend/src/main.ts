@@ -46,7 +46,9 @@ import {
     faKeyboard,
     faInbox,
     faGripVertical,
-    faBars
+    faBars,
+    faEye,
+    faEyeSlash
 } from "@fortawesome/free-solid-svg-icons";
 
 // PrimeVue components
@@ -96,7 +98,9 @@ library.add(
     faKeyboard,
     faInbox,
     faGripVertical,
-    faBars
+    faBars,
+    faEye,
+    faEyeSlash
 );
 
 const app = createApp(App);

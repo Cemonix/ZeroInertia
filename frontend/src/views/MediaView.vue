@@ -84,7 +84,7 @@
                 @click="goHome"
                 aria-label="Return to home"
             >
-                <font-awesome-icon icon="house" />
+                <FontAwesomeIcon icon="house" />
                 <span class="home-nav-label">Home</span>
             </Button>
             <Button
@@ -94,7 +94,7 @@
                 @click="goToNotes"
                 aria-label="Go to notes"
             >
-                <font-awesome-icon icon="pen" />
+                <FontAwesomeIcon icon="pen" />
                 <span class="notes-nav-label">Notes</span>
             </Button>
         </template>

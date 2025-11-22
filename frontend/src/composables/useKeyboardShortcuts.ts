@@ -10,7 +10,8 @@ export interface ShortcutAction {
     description?: string;
 }
 
-const shortcuts: ShortcutAction[] = [];
+const globalShortcuts: ShortcutAction[] = [];
+let listenerCount = 0;
 
 function isInputField(target: EventTarget | null): boolean {
     if (!target) return false;
@@ -39,10 +40,9 @@ function matchesShortcut(event: KeyboardEvent, shortcut: ShortcutAction): boolea
 }
 
 function handleGlobalKeyDown(event: KeyboardEvent) {
-    // Skip if user is typing in an input field
     if (isInputField(event.target)) return;
 
-    for (const shortcut of shortcuts) {
+    for (const shortcut of globalShortcuts) {
         if (matchesShortcut(event, shortcut)) {
             event.preventDefault();
             shortcut.handler(event);
@@ -52,23 +52,43 @@ function handleGlobalKeyDown(event: KeyboardEvent) {
 }
 
 export function useKeyboardShortcuts() {
+    const localShortcuts: ShortcutAction[] = [];
+
     function register(shortcut: ShortcutAction) {
-        shortcuts.push(shortcut);
+        globalShortcuts.push(shortcut);
+        localShortcuts.push(shortcut);
     }
 
     function unregister(key: string) {
-        const index = shortcuts.findIndex(s => s.key === key);
+        const index = globalShortcuts.findIndex(s => s.key === key);
         if (index !== -1) {
-            shortcuts.splice(index, 1);
+            globalShortcuts.splice(index, 1);
+        }
+        const localIndex = localShortcuts.findIndex(s => s.key === key);
+        if (localIndex !== -1) {
+            localShortcuts.splice(localIndex, 1);
         }
     }
 
     onMounted(() => {
-        window.addEventListener('keydown', handleGlobalKeyDown);
+        if (listenerCount === 0) {
+            window.addEventListener('keydown', handleGlobalKeyDown);
+        }
+        listenerCount++;
     });
 
     onUnmounted(() => {
-        window.removeEventListener('keydown', handleGlobalKeyDown);
+        for (const shortcut of localShortcuts) {
+            const index = globalShortcuts.findIndex(s => s === shortcut);
+            if (index !== -1) {
+                globalShortcuts.splice(index, 1);
+            }
+        }
+
+        listenerCount--;
+        if (listenerCount === 0) {
+            window.removeEventListener('keydown', handleGlobalKeyDown);
+        }
     });
 
     return {

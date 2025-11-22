@@ -23,6 +23,7 @@
                     />
                 </div>
                 <Button
+                    class="save-button"
                     label="Save"
                     :disabled="!isDirty"
                     @click="saveChanges"
@@ -48,6 +49,7 @@
                 <div
                     class="markdown-preview"
                     v-html="renderedMarkdown"
+                    @click="handlePreviewClick"
                 />
             </div>
         </div>
@@ -64,8 +66,7 @@ import Button from "primevue/button";
 import InputText from "primevue/inputtext";
 import Textarea from "primevue/textarea";
 import { useToast } from "primevue";
-import { marked } from "marked";
-import DOMPurify from "dompurify";
+import { parseMarkdown } from "@/core/markdown";
 import { useNoteStore } from "@/stores/note";
 
 type ViewMode = "edit" | "preview" | "split";
@@ -97,9 +98,7 @@ const isDirty = computed(() => {
 });
 
 const renderedMarkdown = computed(() => {
-    const source = localContent.value || "";
-    const rawHtml = marked.parse(source, { breaks: true, async: false }) as string;
-    return DOMPurify.sanitize(rawHtml);
+    return parseMarkdown(localContent.value || "");
 });
 
 const saveChanges = async () => {
@@ -133,6 +132,28 @@ const formatTimestamp = (isoString: string) => {
     }
     return date.toLocaleString();
 };
+
+const handlePreviewClick = (event: MouseEvent) => {
+    const target = event.target as HTMLElement;
+    if (target.classList.contains("wikilink")) {
+        const noteTitle = target.getAttribute("data-note-title");
+        if (noteTitle) {
+            const linkedNote = noteStore.notes.find(
+                (note) => note.title.toLowerCase() === noteTitle.toLowerCase()
+            );
+            if (linkedNote) {
+                noteStore.selectNote(linkedNote.id);
+            } else {
+                toast.add({
+                    severity: "warn",
+                    summary: "Note not found",
+                    detail: `No note with title "${noteTitle}" exists`,
+                    life: 3000,
+                });
+            }
+        }
+    }
+};
 </script>
 
 <style scoped>
@@ -147,18 +168,20 @@ const formatTimestamp = (isoString: string) => {
 
 .editor-header {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
     padding: 1rem 1.25rem;
     border-bottom: 1px solid var(--p-content-border-color);
-    gap: 1rem;
+    gap: 0.75rem;
 }
 
 .title-group {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
-    flex: 1;
+    flex: 1 1 auto;
+    min-width: 0;
 }
 
 .title-input {
@@ -174,7 +197,12 @@ const formatTimestamp = (isoString: string) => {
 .header-actions {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 0.5rem 0.75rem;
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    min-width: 0;
+    width: 100%;
 }
 
 .view-toggle {
@@ -183,17 +211,34 @@ const formatTimestamp = (isoString: string) => {
     background: var(--p-content-hover-background);
     border-radius: 999px;
     padding: 0.25rem;
+    gap: 0.25rem;
+    flex: 0 1 auto;
+    flex-wrap: nowrap;
+    min-width: max-content;
+    overflow-x: auto;
+    max-width: 100%;
+    margin-right: 0.5rem;
+}
+
+.view-toggle::-webkit-scrollbar {
+    display: none;
 }
 
 .view-toggle :deep(.p-button) {
     padding: 0.25rem 0.75rem;
     border-radius: 999px;
     font-size: 0.875rem;
+    min-width: 80px;
 }
 
 .view-toggle--active {
     background: var(--p-primary-100);
     color: var(--p-primary-color);
+}
+
+.save-button {
+    margin-left: auto;
+    flex-shrink: 0;
 }
 
 .editor-body {
@@ -301,6 +346,19 @@ const formatTimestamp = (isoString: string) => {
     padding: 0;
 }
 
+.markdown-preview :deep(.wikilink) {
+    color: var(--p-primary-color);
+    font-weight: 500;
+    cursor: pointer;
+    border-bottom: 1px dashed var(--p-primary-color);
+    transition: all 0.2s ease;
+}
+
+.markdown-preview :deep(.wikilink:hover) {
+    background-color: var(--p-primary-100);
+    border-bottom-style: solid;
+}
+
 .note-placeholder {
     display: flex;
     flex-direction: column;
@@ -320,44 +378,13 @@ const formatTimestamp = (isoString: string) => {
     color: var(--p-text-color);
 }
 
-/* Mobile responsive styles */
 @media (max-width: 768px) {
     .editor-header {
-        flex-direction: column;
-        align-items: flex-start;
         padding: 0.75rem 1rem;
-        gap: 0.75rem;
-    }
-
-    .title-group {
-        width: 100%;
     }
 
     .title-input {
-        font-size: 1.25rem;
-    }
-
-    .header-actions {
-        width: 100%;
-        justify-content: space-between;
-    }
-
-    .view-toggle {
-        flex: 1;
-    }
-
-    .view-toggle :deep(.p-button) {
-        flex: 1;
-        padding: 0.375rem 0.5rem;
-        font-size: 0.8125rem;
-    }
-
-    .editor-pane {
-        padding: 0.75rem;
-    }
-
-    .timestamp {
-        font-size: 0.8125rem;
+        font-size: 1.3rem;
     }
 }
 
@@ -393,6 +420,10 @@ const formatTimestamp = (isoString: string) => {
     .view-toggle :deep(.p-button) {
         padding: 0.3rem 0.4rem;
         font-size: 0.75rem;
+    }
+
+    .header-actions {
+        gap: 0.4rem;
     }
 
     .markdown-preview {
