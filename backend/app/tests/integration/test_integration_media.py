@@ -2,8 +2,8 @@
 Integration tests for media endpoints.
 
 Tests cover:
-- Media CRUD operations (books, games, movies, shows)
-- Duplicate title checking
+- Media CRUD operations (books, games, movies, shows, manga, anime)
+- Duplicate title checking (scoped to media type)
 - Status filtering
 - Yearly statistics
 - User isolation
@@ -14,50 +14,41 @@ from datetime import datetime
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio.session import AsyncSession
 
-from app.models.media import Book, Game, Movie, Show
+from app.models.media import Anime, Book, Game, Manga, Movie, Show
 from app.models.user import User
 
 # pyright: reportAny=false
 
 
 class TestMediaDuplicateCheck:
-    """Test duplicate title checking functionality."""
+    """Test duplicate title checking functionality (scoped to media type)."""
 
     async def test_duplicate_check_with_no_matches(
         self, authenticated_client: AsyncClient
     ) -> None:
-        """Test duplicate check when no matching titles exist."""
+        """Test duplicate check when no matching titles exist for the media type."""
         response = await authenticated_client.get(
             "/api/v1/media/duplicate-check",
-            params={"title": "Nonexistent Title"},
+            params={"title": "Nonexistent Title", "media_type": "book"},
         )
 
         assert response.status_code == 200
         data = response.json()
-        assert data["books"] == []
-        assert data["games"] == []
-        assert data["movies"] == []
-        assert data["shows"] == []
+        assert isinstance(data, list)
+        assert len(data) == 0
 
-    async def test_duplicate_check_returns_all_keys(
+    async def test_duplicate_check_returns_list(
         self, authenticated_client: AsyncClient
     ) -> None:
-        """Test that duplicate check always returns all media type keys."""
+        """Test that duplicate check returns a list."""
         response = await authenticated_client.get(
             "/api/v1/media/duplicate-check",
-            params={"title": "Test"},
+            params={"title": "Test", "media_type": "game"},
         )
 
         assert response.status_code == 200
         data = response.json()
-        assert "books" in data
-        assert "games" in data
-        assert "movies" in data
-        assert "shows" in data
-        assert isinstance(data["books"], list)
-        assert isinstance(data["games"], list)
-        assert isinstance(data["movies"], list)
-        assert isinstance(data["shows"], list)
+        assert isinstance(data, list)
 
     async def test_duplicate_check_finds_exact_match_book(
         self, authenticated_client: AsyncClient, db_session: AsyncSession, test_user: User
@@ -75,18 +66,15 @@ class TestMediaDuplicateCheck:
 
         response = await authenticated_client.get(
             "/api/v1/media/duplicate-check",
-            params={"title": "The Great Gatsby"},
+            params={"title": "The Great Gatsby", "media_type": "book"},
         )
 
         assert response.status_code == 200
         data = response.json()
-        assert len(data["books"]) == 1
-        assert data["books"][0]["title"] == "The Great Gatsby"
-        assert data["books"][0]["status"] == "completed"
-        assert data["books"][0]["id"] == str(book.id)
-        assert len(data["games"]) == 0
-        assert len(data["movies"]) == 0
-        assert len(data["shows"]) == 0
+        assert len(data) == 1
+        assert data[0]["title"] == "The Great Gatsby"
+        assert data[0]["status"] == "completed"
+        assert data[0]["id"] == str(book.id)
 
     async def test_duplicate_check_finds_partial_match(
         self, authenticated_client: AsyncClient, db_session: AsyncSession, test_user: User
@@ -103,13 +91,13 @@ class TestMediaDuplicateCheck:
 
         response = await authenticated_client.get(
             "/api/v1/media/duplicate-check",
-            params={"title": "Harry Potter"},
+            params={"title": "Harry Potter", "media_type": "book"},
         )
 
         assert response.status_code == 200
         data = response.json()
-        assert len(data["books"]) == 1
-        assert "Harry Potter" in data["books"][0]["title"]
+        assert len(data) == 1
+        assert "Harry Potter" in data[0]["title"]
 
     async def test_duplicate_check_case_insensitive(
         self, authenticated_client: AsyncClient, db_session: AsyncSession, test_user: User
@@ -126,18 +114,18 @@ class TestMediaDuplicateCheck:
 
         response = await authenticated_client.get(
             "/api/v1/media/duplicate-check",
-            params={"title": "lord of the rings"},
+            params={"title": "lord of the rings", "media_type": "book"},
         )
 
         assert response.status_code == 200
         data = response.json()
-        assert len(data["books"]) == 1
-        assert data["books"][0]["title"] == "The Lord of the Rings"
+        assert len(data) == 1
+        assert data[0]["title"] == "The Lord of the Rings"
 
-    async def test_duplicate_check_finds_multiple_types(
+    async def test_duplicate_check_scoped_to_media_type(
         self, authenticated_client: AsyncClient, db_session: AsyncSession, test_user: User
     ) -> None:
-        """Test duplicate check finds matches across multiple media types."""
+        """Test duplicate check only returns matches for the specified media type."""
         book = Book(
             title="The Witcher",
             creator="Andrzej Sapkowski",
@@ -159,17 +147,38 @@ class TestMediaDuplicateCheck:
         db_session.add_all([book, game, show])
         await db_session.commit()
 
+        # Check books - should only return the book
         response = await authenticated_client.get(
             "/api/v1/media/duplicate-check",
-            params={"title": "Witcher"},
+            params={"title": "Witcher", "media_type": "book"},
         )
 
         assert response.status_code == 200
         data = response.json()
-        assert len(data["books"]) == 1
-        assert len(data["games"]) == 1
-        assert len(data["shows"]) == 1
-        assert len(data["movies"]) == 0
+        assert len(data) == 1
+        assert data[0]["title"] == "The Witcher"
+
+        # Check games - should only return the game
+        response = await authenticated_client.get(
+            "/api/v1/media/duplicate-check",
+            params={"title": "Witcher", "media_type": "game"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 1
+        assert data[0]["title"] == "The Witcher 3"
+
+        # Check shows - should only return the show
+        response = await authenticated_client.get(
+            "/api/v1/media/duplicate-check",
+            params={"title": "Witcher", "media_type": "show"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 1
+        assert data[0]["title"] == "The Witcher"
 
     async def test_duplicate_check_includes_completion_date(
         self, authenticated_client: AsyncClient, db_session: AsyncSession, test_user: User
@@ -188,14 +197,14 @@ class TestMediaDuplicateCheck:
 
         response = await authenticated_client.get(
             "/api/v1/media/duplicate-check",
-            params={"title": "Elden Ring"},
+            params={"title": "Elden Ring", "media_type": "game"},
         )
 
         assert response.status_code == 200
         data = response.json()
-        assert len(data["games"]) == 1
-        assert data["games"][0]["completed_at"] is not None
-        assert "2024-01-15" in data["games"][0]["completed_at"]
+        assert len(data) == 1
+        assert data[0]["completed_at"] is not None
+        assert "2024-01-15" in data[0]["completed_at"]
 
     async def test_duplicate_check_user_isolation(
         self, authenticated_client: AsyncClient, db_session: AsyncSession, test_user: User
@@ -232,14 +241,14 @@ class TestMediaDuplicateCheck:
 
         response = await authenticated_client.get(
             "/api/v1/media/duplicate-check",
-            params={"title": "User Book"},
+            params={"title": "User Book", "media_type": "book"},
         )
 
         assert response.status_code == 200
         data = response.json()
         # Should only return test user's book
-        assert len(data["books"]) == 1
-        assert data["books"][0]["id"] == str(test_book.id)
+        assert len(data) == 1
+        assert data[0]["id"] == str(test_book.id)
 
     async def test_duplicate_check_requires_authentication(
         self, client: AsyncClient
@@ -247,7 +256,7 @@ class TestMediaDuplicateCheck:
         """Test duplicate check requires authentication."""
         response = await client.get(
             "/api/v1/media/duplicate-check",
-            params={"title": "Test"},
+            params={"title": "Test", "media_type": "book"},
         )
 
         assert response.status_code == 401
@@ -256,7 +265,21 @@ class TestMediaDuplicateCheck:
         self, authenticated_client: AsyncClient
     ) -> None:
         """Test duplicate check requires title parameter."""
-        response = await authenticated_client.get("/api/v1/media/duplicate-check")
+        response = await authenticated_client.get(
+            "/api/v1/media/duplicate-check",
+            params={"media_type": "book"},
+        )
+
+        assert response.status_code == 422  # Validation error
+
+    async def test_duplicate_check_requires_media_type_parameter(
+        self, authenticated_client: AsyncClient
+    ) -> None:
+        """Test duplicate check requires media_type parameter."""
+        response = await authenticated_client.get(
+            "/api/v1/media/duplicate-check",
+            params={"title": "Test"},
+        )
 
         assert response.status_code == 422  # Validation error
 
@@ -285,13 +308,13 @@ class TestMediaDuplicateCheck:
 
         response = await authenticated_client.get(
             "/api/v1/media/duplicate-check",
-            params={"title": "Spider-Man"},
+            params={"title": "Spider-Man", "media_type": "movie"},
         )
 
         assert response.status_code == 200
         data = response.json()
-        assert len(data["movies"]) == 3
-        titles = [m["title"] for m in data["movies"]]
+        assert len(data) == 3
+        titles = [m["title"] for m in data]
         assert "Spider-Man" in titles
         assert "Spider-Man: Homecoming" in titles
         assert "The Amazing Spider-Man" in titles
@@ -313,12 +336,69 @@ class TestMediaDuplicateCheck:
         # When editing this book, searching for its own title should return itself
         response = await authenticated_client.get(
             "/api/v1/media/duplicate-check",
-            params={"title": "Existing Book Title"},
+            params={"title": "Existing Book Title", "media_type": "book"},
         )
 
         assert response.status_code == 200
         data = response.json()
-        assert len(data["books"]) == 1
-        assert data["books"][0]["id"] == str(book.id)
-        assert data["books"][0]["title"] == "Existing Book Title"
+        assert len(data) == 1
+        assert data[0]["id"] == str(book.id)
+        assert data[0]["title"] == "Existing Book Title"
         # Frontend is responsible for filtering out the current item when editing
+
+    async def test_duplicate_check_manga_type(
+        self, authenticated_client: AsyncClient, db_session: AsyncSession, test_user: User
+    ) -> None:
+        """Test duplicate check works for manga media type."""
+        manga = Manga(
+            title="One Piece",
+            author="Eiichiro Oda",
+            status="in_progress",
+            user_id=test_user.id,
+        )
+        db_session.add(manga)
+        await db_session.commit()
+
+        response = await authenticated_client.get(
+            "/api/v1/media/duplicate-check",
+            params={"title": "One Piece", "media_type": "manga"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 1
+        assert data[0]["title"] == "One Piece"
+
+    async def test_duplicate_check_anime_type(
+        self, authenticated_client: AsyncClient, db_session: AsyncSession, test_user: User
+    ) -> None:
+        """Test duplicate check works for anime media type."""
+        anime = Anime(
+            title="Attack on Titan",
+            episodes=75,
+            status="completed",
+            user_id=test_user.id,
+        )
+        db_session.add(anime)
+        await db_session.commit()
+
+        response = await authenticated_client.get(
+            "/api/v1/media/duplicate-check",
+            params={"title": "Attack on Titan", "media_type": "anime"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 1
+        assert data[0]["title"] == "Attack on Titan"
+
+    async def test_duplicate_check_invalid_media_type(
+        self, authenticated_client: AsyncClient
+    ) -> None:
+        """Test duplicate check rejects invalid media types."""
+        response = await authenticated_client.get(
+            "/api/v1/media/duplicate-check",
+            params={"title": "Test", "media_type": "invalid_type"},
+        )
+
+        assert response.status_code == 422  # Validation error

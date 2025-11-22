@@ -102,6 +102,25 @@ manga_genres = Table(
     Index("ix_manga_genres_genre_id", "genre_id"),
 )
 
+anime_genres = Table(
+    "anime_genres",
+    Base.metadata,
+    sa.Column(
+        "anime_id",
+        sa.Uuid(as_uuid=True),
+        ForeignKey("anime.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    sa.Column(
+        "genre_id",
+        sa.Uuid(as_uuid=True),
+        ForeignKey("genres.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Index("ix_anime_genres_anime_id", "anime_id"),
+    Index("ix_anime_genres_genre_id", "genre_id"),
+)
+
 
 class Genre(Base):
     """Genre model - user-specific genres shared across media types."""
@@ -119,6 +138,7 @@ class Genre(Base):
     movies: Mapped[list["Movie"]] = relationship(secondary=movie_genres, back_populates="genres")  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
     shows: Mapped[list["Show"]] = relationship(secondary=show_genres, back_populates="genres")  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
     manga: Mapped[list["Manga"]] = relationship(secondary=manga_genres, back_populates="genres")  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
+    anime: Mapped[list["Anime"]] = relationship(secondary=anime_genres, back_populates="genres")  # pyright: ignore[reportUndefinedVariable]  # noqa: F821
 
     __table_args__: tuple[Index, UniqueConstraint] = (
         Index("ix_genres_user_id", "user_id"),
