@@ -1,7 +1,12 @@
 <template>
     <Teleport to="body">
         <Transition name="popover-fade">
-            <div v-if="visible" class="popover-overlay" @click="handleOverlayClick">
+            <div
+                v-if="visible"
+                ref="overlayRef"
+                class="popover-overlay"
+                @click="handleOverlayClick"
+            >
                 <div
                     ref="popoverContent"
                     class="popover-container"
@@ -29,8 +34,9 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, watch, onUnmounted } from 'vue';
-import Button from 'primevue/button';
+import { ref, computed, watch, onUnmounted, nextTick } from 'vue';
+import { usePrimeVue } from 'primevue/config';
+import { ZIndex } from '@primeuix/utils/zindex';
 
 interface Props {
     visible: boolean;
@@ -49,7 +55,9 @@ const emit = defineEmits<{
     (e: 'update:visible', value: boolean): void;
 }>();
 
+const primeVue = usePrimeVue();
 const popoverContent = ref<HTMLElement | null>(null);
+const overlayRef = ref<HTMLElement | null>(null);
 
 const containerStyle = computed(() => ({
     width: props.width
@@ -70,16 +78,33 @@ function handleEscape(event: KeyboardEvent) {
 }
 
 // Add escape key listener
-watch(() => props.visible, (newVal) => {
-    if (newVal) {
-        document.addEventListener('keydown', handleEscape);
-    } else {
-        document.removeEventListener('keydown', handleEscape);
+watch(
+    () => props.visible,
+    async (newVal) => {
+        if (newVal) {
+            document.addEventListener('keydown', handleEscape);
+            await nextTick();
+            if (overlayRef.value) {
+                ZIndex.set(
+                    'modal',
+                    overlayRef.value,
+                    primeVue.config.zIndex?.modal ?? 1100
+                );
+            }
+        } else {
+            document.removeEventListener('keydown', handleEscape);
+            if (overlayRef.value) {
+                ZIndex.clear(overlayRef.value);
+            }
+        }
     }
-});
+);
 
 onUnmounted(() => {
     document.removeEventListener('keydown', handleEscape);
+    if (overlayRef.value) {
+        ZIndex.clear(overlayRef.value);
+    }
 });
 </script>
 
