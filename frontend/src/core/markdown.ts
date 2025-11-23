@@ -1,5 +1,7 @@
 import { marked } from "marked";
 import DOMPurify from "dompurify";
+import hljs from "highlight.js";
+import { markedHighlight } from "marked-highlight";
 
 function escapeHtmlAttribute(text: string): string {
     return text
@@ -37,7 +39,22 @@ const wikiLinkExtension = {
     },
 };
 
-// Configure marked with custom extensions
+// Configure marked with custom extensions and syntax highlighting
+marked.use(
+    markedHighlight({
+        highlight(code, lang) {
+            if (lang && hljs.getLanguage(lang)) {
+                try {
+                    return hljs.highlight(code, { language: lang }).value;
+                } catch (err) {
+                    console.error('Highlight.js error:', err);
+                }
+            }
+            return hljs.highlightAuto(code).value;
+        }
+    })
+);
+
 marked.use({
     extensions: [wikiLinkExtension],
     breaks: true,
