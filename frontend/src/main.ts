@@ -5,6 +5,7 @@ import Aura from "@primeuix/themes/aura";
 import ToastService from "primevue/toastservice";
 import ConfirmationService from "primevue/confirmationservice";
 import "./styles/main.css";
+import "highlight.js/styles/github-dark.css";
 import App from "./App.vue";
 import router from "./router";
 import { useAuthStore } from "@/stores/auth";
@@ -48,7 +49,9 @@ import {
     faGripVertical,
     faBars,
     faEye,
-    faEyeSlash
+    faEyeSlash,
+    faExpand,
+    faCompress
 } from "@fortawesome/free-solid-svg-icons";
 
 // PrimeVue components
@@ -100,7 +103,9 @@ library.add(
     faGripVertical,
     faBars,
     faEye,
-    faEyeSlash
+    faEyeSlash,
+    faExpand,
+    faCompress
 );
 
 const app = createApp(App);

@@ -1,5 +1,5 @@
 <template>
-    <section class="note-editor" v-if="activeNote">
+    <section class="note-editor" v-if="activeNote" :class="{ 'note-editor--fullscreen': isFullscreen }">
         <header class="editor-header">
             <div class="title-group">
                 <InputText
@@ -23,6 +23,14 @@
                     />
                 </div>
                 <Button
+                    text
+                    @click="toggleFullscreen"
+                >
+                    <template #icon>
+                        <FontAwesomeIcon :icon="isFullscreen ? 'fa-compress' : 'fa-expand'" />
+                    </template>
+                </Button>
+                <Button
                     class="save-button"
                     label="Save"
                     :disabled="!isDirty"
@@ -35,11 +43,9 @@
                 v-if="viewMode !== 'preview'"
                 class="editor-pane editor-pane--input"
             >
-                <Textarea
+                <MarkdownEditor
                     v-model="localContent"
                     class="content-area"
-                    placeholder="Start writing in Markdown..."
-                    rows="12"
                 />
             </div>
             <div
@@ -61,13 +67,13 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, ref, watch } from "vue";
+import { computed, ref, watch, onMounted, onUnmounted } from "vue";
 import Button from "primevue/button";
 import InputText from "primevue/inputtext";
-import Textarea from "primevue/textarea";
 import { useToast } from "primevue";
 import { parseMarkdown } from "@/core/markdown";
 import { useNoteStore } from "@/stores/note";
+import MarkdownEditor from "./MarkdownEditor.vue";
 
 type ViewMode = "edit" | "preview" | "split";
 
@@ -79,6 +85,7 @@ const viewMode = ref<ViewMode>("split");
 const viewOptions: ViewMode[] = ["edit", "split", "preview"];
 const localTitle = ref("");
 const localContent = ref("");
+const isFullscreen = ref(false);
 
 watch(
     activeNote,
@@ -154,6 +161,24 @@ const handlePreviewClick = (event: MouseEvent) => {
         }
     }
 };
+
+const toggleFullscreen = () => {
+    isFullscreen.value = !isFullscreen.value;
+};
+
+const handleKeydown = (event: KeyboardEvent) => {
+    if (event.key === 'Escape' && isFullscreen.value) {
+        isFullscreen.value = false;
+    }
+};
+
+onMounted(() => {
+    window.addEventListener('keydown', handleKeydown);
+});
+
+onUnmounted(() => {
+    window.removeEventListener('keydown', handleKeydown);
+});
 </script>
 
 <style scoped>
@@ -164,6 +189,21 @@ const handlePreviewClick = (event: MouseEvent) => {
     background: var(--p-content-background);
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    transition: all 0.3s ease;
+}
+
+.note-editor--fullscreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 9999;
+    border-radius: 0;
+    box-shadow: none;
+    margin: 0;
 }
 
 .editor-header {
@@ -274,12 +314,8 @@ const handlePreviewClick = (event: MouseEvent) => {
 .content-area {
     width: 100%;
     flex: 1;
-    font-family: var(--font-family-monospace, "Fira Code", "SFMono-Regular", monospace);
-    resize: none;
-    height: 100%;
     min-height: 0;
-    overflow-y: auto;
-    background-color: var(--p-input-background);
+    overflow: hidden;
 }
 
 .markdown-preview {
@@ -357,6 +393,46 @@ const handlePreviewClick = (event: MouseEvent) => {
 .markdown-preview :deep(.wikilink:hover) {
     background-color: var(--p-primary-100);
     border-bottom-style: solid;
+}
+
+.markdown-preview :deep(table) {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 1.5rem;
+    background: var(--p-content-background);
+    border: 1px solid var(--p-content-border-color);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.markdown-preview :deep(thead) {
+    background: var(--p-content-hover-background);
+}
+
+.markdown-preview :deep(th) {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    font-weight: 600;
+    border-bottom: 2px solid var(--p-content-border-color);
+    color: var(--p-text-color);
+}
+
+.markdown-preview :deep(td) {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--p-content-border-color);
+}
+
+.markdown-preview :deep(tbody tr:last-child td) {
+    border-bottom: none;
+}
+
+.markdown-preview :deep(tbody tr:hover) {
+    background: var(--p-content-hover-background);
+}
+
+.markdown-preview :deep(th:not(:last-child)),
+.markdown-preview :deep(td:not(:last-child)) {
+    border-right: 1px solid var(--p-content-border-color);
 }
 
 .note-placeholder {
