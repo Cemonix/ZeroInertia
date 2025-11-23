@@ -15,36 +15,35 @@
                     <div class="node-actions">
                         <Button
                             text
-                            size="small"
                             rounded
-                            class="node-action"
-                            aria-label="Add child note"
-                            @click.stop="createChildNote(node.key)"
-                        >
-                            <FontAwesomeIcon icon="plus" />
-                        </Button>
-                        <Button
-                            text
-                            severity="danger"
                             size="small"
-                            rounded
                             class="node-action"
-                            aria-label="Delete note"
-                            @click.stop="confirmDeletion(node)"
+                            aria-haspopup="true"
+                            :aria-controls="`note_menu_${node.key}`"
+                            @click.stop="openNoteMenu(node, $event)"
+                            aria-label="Note options"
                         >
-                            <FontAwesomeIcon icon="trash" />
+                            <FontAwesomeIcon icon="ellipsis" />
                         </Button>
                     </div>
                 </div>
             </template>
         </Tree>
+        <Menu
+            ref="noteMenuRef"
+            :model="noteMenuItems"
+            :popup="true"
+            :pt="{ root: { style: { zIndex: 1200 } } }"
+        />
     </div>
 </template>
 
 <script lang="ts" setup>
-import { ref, watchEffect, type Ref } from "vue";
+import { ref, watchEffect, type Ref, type ComponentPublicInstance } from "vue";
 import Tree from "primevue/tree";
 import Button from "primevue/button";
+import Menu from "primevue/menu";
+import type { MenuItem } from "primevue/menuitem";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import { useConfirm } from "primevue/useconfirm";
 import { useToast } from "primevue";
@@ -60,6 +59,13 @@ const toast = useToast();
 
 const { selectedNoteKeys } = storeToRefs(noteStore);
 const treeNodes: Ref<TreeNode[]> = ref([]);
+
+type NoteMenu = ComponentPublicInstance & {
+    toggle: (event: Event) => void;
+    hide: () => void;
+};
+const noteMenuRef = ref<NoteMenu | null>(null);
+const noteMenuItems = ref<MenuItem[]>([]);
 
 const buildTree = (notes: Note[], parentId: string | null = null): TreeNode[] => {
     return notes
@@ -138,6 +144,27 @@ const confirmDeletion = (node: TreeNode) => {
     confirm.require(props);
 };
 
+function getNoteMenuItems(node: TreeNode): MenuItem[] {
+    return [
+        {
+            label: 'Add note below',
+            command: () => createChildNote(node.key),
+        },
+        {
+            label: 'Delete note',
+            command: () => confirmDeletion(node),
+        },
+    ];
+}
+
+function openNoteMenu(node: TreeNode, event: Event) {
+    if (node.key === undefined || node.key === null) {
+        return;
+    }
+    noteMenuItems.value = getNoteMenuItems(node);
+    noteMenuRef.value?.toggle(event);
+}
+
 const flattenTree = (nodes: TreeNode[], parentId: string | null = null) => {
     const result: { id: string; parent_id: string | null; order_index: number }[] = [];
     nodes.forEach((node, index) => {
@@ -208,16 +235,41 @@ const handleNodeDrop = async (_event: TreeNodeDropEvent) => {
 
 .node-actions {
     display: flex;
-    gap: 0.25rem;
+    align-items: center;
+    position: relative;
+    min-width: 2rem;
+    justify-content: flex-end;
 }
 
 .node-action {
     opacity: 0;
     transition: opacity 0.2s ease;
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    z-index: 2;
+    touch-action: manipulation;
 }
 
 .node-content:hover .node-action,
 .node-content:focus-within .node-action {
     opacity: 1;
+    pointer-events: auto;
+}
+
+@media (hover: none) {
+    .node-actions {
+        position: static;
+        min-width: auto;
+    }
+
+    .node-action {
+        position: static;
+        transform: none;
+        opacity: 1;
+        pointer-events: auto;
+    }
 }
 </style>
