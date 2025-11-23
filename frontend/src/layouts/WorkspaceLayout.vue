@@ -1,6 +1,6 @@
 <template>
     <main class="main-grid">
-        <aside class="sidebar" :class="{ collapsed: isSidebarCollapsed }">
+        <aside class="sidebar" :class="{ collapsed: isSidebarCollapsed, resizing: isResizing }" :style="sidebarStyle">
             <!-- Mobile close button inside full-screen sidebar -->
             <Button
                 v-if="isMobileView && !isSidebarCollapsed"
@@ -14,6 +14,12 @@
             </Button>
             <slot name="sidebar" />
         </aside>
+        <div
+            v-if="!isMobileView && !isSidebarCollapsed"
+            class="resize-handle"
+            :class="{ 'is-resizing': isResizing }"
+            @mousedown="startResize"
+        />
         <div class="content">
             <nav class="navbar">
                 <div class="navbar-left">
@@ -160,6 +166,58 @@ const isMobileView = ref(false);
 const TASK_COMPLETION_SOUND_KEY = "sound.taskCompletion.enabled";
 const isTaskCompletionSoundEnabled = ref(true);
 
+// Sidebar resize state
+const SIDEBAR_WIDTH_KEY = "sidebar.width";
+const MIN_SIDEBAR_WIDTH = 200;
+const MAX_SIDEBAR_WIDTH = 600;
+const DEFAULT_SIDEBAR_WIDTH = 280;
+
+const sidebarWidth = ref(DEFAULT_SIDEBAR_WIDTH);
+const isResizing = ref(false);
+
+const sidebarStyle = computed(() => {
+    if (isMobileView.value || isSidebarCollapsed.value) {
+        return {};
+    }
+    return {
+        minWidth: `${sidebarWidth.value}px`,
+        maxWidth: `${sidebarWidth.value}px`,
+    };
+});
+
+const startResize = (e: MouseEvent) => {
+    if (isMobileView.value) return;
+
+    isResizing.value = true;
+    e.preventDefault();
+
+    document.addEventListener('mousemove', handleResize);
+    document.addEventListener('mouseup', stopResize);
+    document.body.style.cursor = 'ew-resize';
+    document.body.style.userSelect = 'none';
+};
+
+const handleResize = (e: MouseEvent) => {
+    if (!isResizing.value || isMobileView.value) return;
+
+    const newWidth = Math.min(Math.max(e.clientX, MIN_SIDEBAR_WIDTH), MAX_SIDEBAR_WIDTH);
+    sidebarWidth.value = newWidth;
+};
+
+const stopResize = () => {
+    if (!isResizing.value) return;
+
+    isResizing.value = false;
+    document.removeEventListener('mousemove', handleResize);
+    document.removeEventListener('mouseup', stopResize);
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+
+    if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(SIDEBAR_WIDTH_KEY, sidebarWidth.value.toString());
+    }
+};
+
 const getUserInitials = (fullName: string | null, email: string): string => {
     if (fullName && fullName.trim()) {
         const nameParts = fullName.trim().split(/\s+/);
@@ -299,6 +357,14 @@ onMounted(() => {
         if (storedSound !== null) {
             isTaskCompletionSoundEnabled.value = storedSound !== "false";
         }
+
+        const storedWidth = localStorage.getItem(SIDEBAR_WIDTH_KEY);
+        if (storedWidth !== null) {
+            const width = parseInt(storedWidth, 10);
+            if (!isNaN(width) && width >= MIN_SIDEBAR_WIDTH && width <= MAX_SIDEBAR_WIDTH) {
+                sidebarWidth.value = width;
+            }
+        }
     }
     if (authStore.isAuthenticated && props.showStreak && !streakStore.hasLoadedStreak) {
         streakStore.loadStreak();
@@ -361,8 +427,7 @@ watch(
 
 <style scoped>
 .main-grid {
-    display: grid;
-    grid-template-columns: auto 1fr;
+    display: flex;
     height: 100vh;
     position: relative;
 }
@@ -374,8 +439,12 @@ watch(
     border-right: 1px solid var(--p-content-border-color);
     min-width: 280px;
     max-width: 320px;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: min-width 0.3s cubic-bezier(0.4, 0, 0.2, 1), max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     overflow: hidden;
+}
+
+.sidebar.resizing {
+    transition: none;
 }
 
 .sidebar.collapsed {
@@ -384,12 +453,38 @@ watch(
     border-right: none;
 }
 
+.resize-handle {
+    position: relative;
+    width: 4px;
+    background: transparent;
+    cursor: ew-resize;
+    transition: background-color 0.2s ease;
+    flex-shrink: 0;
+}
+
+.resize-handle::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -2px;
+    right: -2px;
+    background: transparent;
+}
+
+.resize-handle:hover,
+.resize-handle.is-resizing {
+    background: var(--p-primary-color);
+}
+
+.resize-handle:hover::before,
+.resize-handle.is-resizing::before {
+    background: var(--p-primary-color);
+    opacity: 0.3;
+}
+
 /* Mobile sidebar - full screen overlay */
 @media (max-width: 768px) {
-    .main-grid {
-        grid-template-columns: 1fr;
-        width: 100%;
-    }
 
     .sidebar-close-btn {
         position: absolute;
@@ -458,6 +553,7 @@ watch(
     display: flex;
     flex-direction: column;
     overflow-y: auto;
+    flex: 1;
 }
 
 .navbar {
