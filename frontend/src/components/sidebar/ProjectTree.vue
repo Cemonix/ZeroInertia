@@ -41,7 +41,14 @@
             :model="projectMenuItems"
             :popup="true"
             :pt="{ root: { style: { zIndex: 1200 } } }"
-        />
+        >
+            <template #item="{ item }">
+                <div class="menu-item-content">
+                    <FontAwesomeIcon v-if="item.icon" :icon="item.icon" class="menu-item-icon" />
+                    <span>{{ item.label }}</span>
+                </div>
+            </template>
+        </Menu>
         <Dialog
             v-model:visible="isRenameDialogVisible"
             header="Rename Project"
@@ -287,10 +294,12 @@ function getProjectMenuItems(node: TreeNode): MenuItem[] {
     const items = [
         {
             label: 'Create project below',
+            icon: 'plus',
             command: () => createProjectBelow(node),
         },
         {
             label: 'Rename Project',
+            icon: 'pen',
             command: () => openRenameDialog(node),
         },
     ];
@@ -298,6 +307,7 @@ function getProjectMenuItems(node: TreeNode): MenuItem[] {
     if (!isInbox) {
         items.push({
             label: 'Delete Project',
+            icon: 'trash',
             command: () => confirmProjectDeletion(node),
         });
     }
@@ -593,5 +603,20 @@ onUnmounted(() => {
         opacity: 1;
         pointer-events: auto;
     }
+}
+
+.menu-item-content {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem;
+    width: 100%;
+    cursor: pointer;
+    user-select: none;
+}
+
+.menu-item-icon {
+    width: 1rem;
+    color: var(--p-text-muted-color);
 }
 </style>

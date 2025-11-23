@@ -7,37 +7,53 @@
                     text
                     rounded
                     class="header-action"
-                    :aria-label="showBacklinks ? 'Hide backlinks' : 'Show backlinks'"
-                    :title="showBacklinks ? 'Hide backlinks' : 'Show backlinks'"
-                    @click="toggleBacklinks"
-                >
-                    <FontAwesomeIcon :icon="showBacklinks ? 'eye-slash' : 'eye'" />
-                </Button>
-                <Button
-                    text
-                    rounded
-                    class="header-action"
                     aria-label="Create note"
                     @click="createRootNote"
                 >
                     <FontAwesomeIcon icon="plus" />
                 </Button>
+                <Button
+                    text
+                    rounded
+                    class="header-action"
+                    aria-label="More options"
+                    aria-haspopup="true"
+                    @click="toggleMenu"
+                >
+                    <FontAwesomeIcon icon="ellipsis" />
+                </Button>
             </div>
         </header>
+        <Menu
+            ref="menuRef"
+            :model="menuItems"
+            :popup="true"
+            :pt="{ root: { style: { zIndex: 1200 } } }"
+        >
+            <template #item="{ item }">
+                <div class="menu-item-content">
+                    <FontAwesomeIcon v-if="item.icon" :icon="item.icon" class="menu-item-icon" />
+                    <span>{{ item.label }}</span>
+                </div>
+            </template>
+        </Menu>
         <div class="panel-body">
-            <NoteTree />
+            <NoteTree ref="noteTreeRef" />
         </div>
     </section>
 </template>
 
 <script lang="ts" setup>
+import { ref, computed, type Ref, type ComponentPublicInstance } from "vue";
 import { useToast } from "primevue";
 import { useNoteStore } from "@/stores/note";
 import NoteTree from "./NoteTree.vue";
 import Button from "primevue/button";
+import Menu from "primevue/menu";
+import type { MenuItem } from "primevue/menuitem";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 
-defineProps<{
+const props = defineProps<{
     showBacklinks: boolean;
 }>();
 
@@ -45,8 +61,40 @@ const emit = defineEmits<{
     toggleBacklinks: [];
 }>();
 
+type MenuRef = ComponentPublicInstance & {
+    toggle: (event: Event) => void;
+};
+
+type NoteTreeRef = ComponentPublicInstance & {
+    expandAll: () => void;
+    collapseAll: () => void;
+};
+
 const noteStore = useNoteStore();
 const toast = useToast();
+const menuRef = ref<MenuRef | null>(null);
+const noteTreeRef: Ref<NoteTreeRef | null> = ref(null);
+
+const menuItems = computed<MenuItem[]>(() => [
+    {
+        label: props.showBacklinks ? 'Hide backlinks' : 'Show backlinks',
+        icon: props.showBacklinks ? 'eye-slash' : 'eye',
+        command: () => emit("toggleBacklinks"),
+    },
+    {
+        separator: true,
+    },
+    {
+        label: 'Expand all',
+        icon: 'angles-down',
+        command: () => noteTreeRef.value?.expandAll(),
+    },
+    {
+        label: 'Collapse all',
+        icon: 'angles-up',
+        command: () => noteTreeRef.value?.collapseAll(),
+    },
+]);
 
 const createRootNote = async () => {
     try {
@@ -64,8 +112,8 @@ const createRootNote = async () => {
     }
 };
 
-const toggleBacklinks = () => {
-    emit("toggleBacklinks");
+const toggleMenu = (event: Event) => {
+    menuRef.value?.toggle(event);
 };
 </script>
 
@@ -110,7 +158,7 @@ const toggleBacklinks = () => {
 .panel-body {
     flex: 1;
     overflow-y: auto;
-    padding: 0.75rem 0.5rem;
+    padding: 0.5rem;
 }
 
 /* Mobile responsive styles */
@@ -136,5 +184,20 @@ const toggleBacklinks = () => {
     .panel-title {
         font-size: 0.9375rem;
     }
+}
+
+.menu-item-content {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem;
+    width: 100%;
+    cursor: pointer;
+    user-select: none;
+}
+
+.menu-item-icon {
+    width: 1rem;
+    color: var(--p-text-muted-color);
 }
 </style>

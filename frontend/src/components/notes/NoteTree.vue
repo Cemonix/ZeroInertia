@@ -3,6 +3,7 @@
         <Tree
             class="note-tree"
             v-model:value="treeNodes"
+            v-model:expandedKeys="expandedKeys"
             selectionMode="single"
             v-model:selectionKeys="selectedNoteKeys"
             draggableNodes
@@ -34,13 +35,21 @@
             :model="noteMenuItems"
             :popup="true"
             :pt="{ root: { style: { zIndex: 1200 } } }"
-        />
+        >
+            <template #item="{ item }">
+                <div class="menu-item-content">
+                    <FontAwesomeIcon v-if="item.icon" :icon="item.icon" class="menu-item-icon" />
+                    <span>{{ item.label }}</span>
+                </div>
+            </template>
+        </Menu>
     </div>
 </template>
 
 <script lang="ts" setup>
-import { ref, watchEffect, type Ref, type ComponentPublicInstance } from "vue";
+import { ref, watchEffect, watch, onMounted, type Ref, type ComponentPublicInstance } from "vue";
 import Tree from "primevue/tree";
+import type { TreeExpandedKeys, TreeNodeDropEvent } from "primevue/tree";
 import Button from "primevue/button";
 import Menu from "primevue/menu";
 import type { MenuItem } from "primevue/menuitem";
@@ -50,15 +59,17 @@ import { useToast } from "primevue";
 import { useNoteStore } from "@/stores/note";
 import { storeToRefs } from "pinia";
 import type { TreeNode } from "primevue/treenode";
-import type { TreeNodeDropEvent } from "primevue/tree";
 import type { Note } from "@/models/note";
 
 const noteStore = useNoteStore();
 const confirm = useConfirm();
 const toast = useToast();
 
+const EXPANDED_KEYS_STORAGE_KEY = 'noteTree.expandedKeys';
+
 const { selectedNoteKeys } = storeToRefs(noteStore);
 const treeNodes: Ref<TreeNode[]> = ref([]);
+const expandedKeys: Ref<TreeExpandedKeys> = ref({});
 
 type NoteMenu = ComponentPublicInstance & {
     toggle: (event: Event) => void;
@@ -88,6 +99,11 @@ watchEffect(() => {
     const currentNotes = noteStore.notes;
     treeNodes.value = buildTree(currentNotes);
 });
+
+// Save expanded state to localStorage whenever it changes
+watch(expandedKeys, (newExpandedKeys) => {
+    localStorage.setItem(EXPANDED_KEYS_STORAGE_KEY, JSON.stringify(newExpandedKeys));
+}, { deep: true });
 
 const createChildNote = async (parentId?: TreeNode["key"]) => {
     if (typeof parentId !== "string") {
@@ -148,10 +164,12 @@ function getNoteMenuItems(node: TreeNode): MenuItem[] {
     return [
         {
             label: 'Add note below',
+            icon: 'plus',
             command: () => createChildNote(node.key),
         },
         {
             label: 'Delete note',
+            icon: 'trash',
             command: () => confirmDeletion(node),
         },
     ];
@@ -202,6 +220,52 @@ const handleNodeDrop = async (_event: TreeNodeDropEvent) => {
         await noteStore.loadNotes();
     }
 };
+
+const collectAllNodeKeys = (nodes: TreeNode[]): string[] => {
+    const keys: string[] = [];
+    const traverse = (nodeList: TreeNode[]) => {
+        for (const node of nodeList) {
+            if (typeof node.key === 'string') {
+                keys.push(node.key);
+            }
+            if (node.children && node.children.length > 0) {
+                traverse(node.children);
+            }
+        }
+    };
+    traverse(nodes);
+    return keys;
+};
+
+const expandAll = () => {
+    const allKeys = collectAllNodeKeys(treeNodes.value);
+    const newExpandedKeys: TreeExpandedKeys = {};
+    allKeys.forEach(key => {
+        newExpandedKeys[key] = true;
+    });
+    expandedKeys.value = newExpandedKeys;
+};
+
+const collapseAll = () => {
+    expandedKeys.value = {};
+};
+
+onMounted(() => {
+    // Load expanded state from localStorage
+    const savedExpandedKeys = localStorage.getItem(EXPANDED_KEYS_STORAGE_KEY);
+    if (savedExpandedKeys) {
+        try {
+            expandedKeys.value = JSON.parse(savedExpandedKeys);
+        } catch (e) {
+            console.error('Failed to parse saved expanded keys:', e);
+        }
+    }
+});
+
+defineExpose({
+    expandAll,
+    collapseAll,
+});
 </script>
 
 <style scoped>
@@ -271,5 +335,20 @@ const handleNodeDrop = async (_event: TreeNodeDropEvent) => {
         opacity: 1;
         pointer-events: auto;
     }
+}
+
+.menu-item-content {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem;
+    width: 100%;
+    cursor: pointer;
+    user-select: none;
+}
+
+.menu-item-icon {
+    width: 1rem;
+    color: var(--p-text-muted-color);
 }
 </style>

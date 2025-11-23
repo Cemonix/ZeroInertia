@@ -51,7 +51,9 @@ import {
     faEye,
     faEyeSlash,
     faExpand,
-    faCompress
+    faCompress,
+    faAnglesDown,
+    faAnglesUp
 } from "@fortawesome/free-solid-svg-icons";
 
 // PrimeVue components
@@ -105,7 +107,9 @@ library.add(
     faEye,
     faEyeSlash,
     faExpand,
-    faCompress
+    faCompress,
+    faAnglesDown,
+    faAnglesUp
 );
 
 const app = createApp(App);

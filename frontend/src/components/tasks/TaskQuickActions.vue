@@ -19,7 +19,14 @@
             ref="menuRef"
             :model="menuItems"
             :popup="true"
-        />
+        >
+            <template #item="{ item }">
+                <div class="menu-item-content">
+                    <FontAwesomeIcon v-if="item.icon" :icon="item.icon" class="menu-item-icon" />
+                    <span>{{ item.label }}</span>
+                </div>
+            </template>
+        </Menu>
 
         <TaskMoveModal
             v-model:visible="showMoveModal"
@@ -157,12 +164,14 @@ const menuItems = computed<MenuItem[]>(() => {
     if (props.task.due_datetime && !props.task.completed) {
         items.push({
             label: "Snooze Task",
+            icon: "calendar-day",
             command: () => handleSnooze(),
         });
     }
 
     items.push({
         label: "Move to project",
+        icon: "inbox",
         command: () => {
             closeMenu();
             showMoveModal.value = true;
@@ -172,10 +181,12 @@ const menuItems = computed<MenuItem[]>(() => {
     items.push(
         {
             label: "Duplicate Task",
+            icon: "plus",
             command: () => handleDuplicate(),
         },
         {
             label: "Delete Task",
+            icon: "trash",
             command: () => handleDelete(),
         },
     );
@@ -189,6 +200,21 @@ const menuItems = computed<MenuItem[]>(() => {
     display: flex;
     align-items: center;
     justify-content: center;
+}
+
+.menu-item-content {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem;
+    width: 100%;
+    cursor: pointer;
+    user-select: none;
+}
+
+.menu-item-icon {
+    width: 1rem;
+    color: var(--p-text-muted-color);
 }
 </style>
 
