@@ -140,7 +140,7 @@
                 </div>
 
                 <div class="form-row">
-                    <div class="form-field">
+                    <div v-if="form.media_type !== 'movie'" class="form-field">
                         <label for="started_at">Started</label>
                         <DatePicker
                             id="started_at"
@@ -392,11 +392,11 @@ const populateFormFromItem = (item: MediaItem | null) => {
     form.status = item.status;
     form.is_audiobook = "is_audiobook" in item ? item.is_audiobook : false;
     form.genres = item.genres.map((genre) => genre.id);
-    form.started_at = normalizeDate(item.started_at);
+    form.started_at = "started_at" in item ? normalizeDate(item.started_at) : null;
     form.completed_at = normalizeDate(item.completed_at);
     form.notes = item.notes ?? null;
 
-    startedDate.value = stringToDate(item.started_at);
+    startedDate.value = "started_at" in item ? stringToDate(item.started_at) : null;
     completedDate.value = stringToDate(item.completed_at);
 
     if (item.media_type === "book") {
@@ -600,7 +600,6 @@ const handleSave = async () => {
                 title: form.title,
                 status: form.status,
                 genre_ids: genreIds,
-                started_at: normalizeDate(form.started_at),
                 completed_at: normalizeDate(form.completed_at),
                 notes: normalizeOptionalString(form.notes),
             };

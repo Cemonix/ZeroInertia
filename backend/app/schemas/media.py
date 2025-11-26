@@ -96,7 +96,6 @@ class MovieCreate(BaseModel):
     title: str = Field(..., min_length=1, max_length=500)
     status: MediaStatus = MediaStatus.PLANNED
     genre_ids: list[UUID] = Field(default_factory=list)
-    started_at: date | None = None
     completed_at: date | None = None
     notes: str | None = None
 
@@ -107,7 +106,6 @@ class MovieUpdate(BaseModel):
     title: str | None = Field(None, min_length=1, max_length=500)
     status: MediaStatus | None = None
     genre_ids: list[UUID] | None = None
-    started_at: date | None = None
     completed_at: date | None = None
     notes: str | None = None
 
@@ -119,7 +117,6 @@ class MovieResponse(BaseModel):
     title: str
     status: str
     genres: list[GenreResponse]
-    started_at: date | None
     completed_at: date | None
     notes: str | None
     created_at: datetime
