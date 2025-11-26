@@ -107,7 +107,13 @@
                     </span>
                 </template>
             </Column>
-            <Column field="started_at" header="Started" sortable style="width: 140px">
+            <Column
+                v-if="type !== 'movie'"
+                field="started_at"
+                header="Started"
+                sortable
+                style="width: 140px"
+            >
                 <template #body="slotProps">
                     <span v-if="slotProps.data.started_at">
                         {{ formatDate(slotProps.data.started_at) }}

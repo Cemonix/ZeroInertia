@@ -31,7 +31,7 @@ export interface GameMediaItem extends BaseMediaItem {
     platform: string | null;
 }
 
-export interface MovieMediaItem extends BaseMediaItem {
+export interface MovieMediaItem extends Omit<BaseMediaItem, "started_at"> {
     media_type: "movie";
 }
 
@@ -78,7 +78,7 @@ interface GameFormValues extends BaseMediaFormValues {
     platform: string | null;
 }
 
-interface MovieFormValues extends BaseMediaFormValues {
+interface MovieFormValues extends Omit<BaseMediaFormValues, "started_at"> {
     media_type: "movie";
 }
 

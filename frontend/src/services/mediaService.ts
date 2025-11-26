@@ -145,7 +145,6 @@ export const mediaService = {
                     title: values.title,
                     status: values.status,
                     genre_ids: values.genre_ids ?? [],
-                    started_at: values.started_at,
                     completed_at: values.completed_at,
                     notes: values.notes,
                 };
@@ -218,7 +217,7 @@ export const mediaService = {
                 if ("is_audiobook" in values && values.is_audiobook !== undefined) {
                     payload.is_audiobook = values.is_audiobook;
                 }
-                if (values.started_at !== undefined) payload.started_at = values.started_at;
+                if ("started_at" in values && values.started_at !== undefined) payload.started_at = values.started_at;
                 if (values.completed_at !== undefined) payload.completed_at = values.completed_at;
                 if (values.notes !== undefined) payload.notes = values.notes;
                 if ("creator" in values && values.creator !== undefined) {
@@ -237,7 +236,7 @@ export const mediaService = {
                 if (values.title !== undefined) payload.title = values.title;
                 if (values.status !== undefined) payload.status = values.status;
                 if (values.genre_ids !== undefined) payload.genre_ids = values.genre_ids;
-                if (values.started_at !== undefined) payload.started_at = values.started_at;
+                if ("started_at" in values && values.started_at !== undefined) payload.started_at = values.started_at;
                 if (values.completed_at !== undefined) payload.completed_at = values.completed_at;
                 if (values.notes !== undefined) payload.notes = values.notes;
                 if ("platform" in values && values.platform !== undefined) {
@@ -256,7 +255,6 @@ export const mediaService = {
                 if (values.title !== undefined) payload.title = values.title;
                 if (values.status !== undefined) payload.status = values.status;
                 if (values.genre_ids !== undefined) payload.genre_ids = values.genre_ids;
-                if (values.started_at !== undefined) payload.started_at = values.started_at;
                 if (values.completed_at !== undefined) payload.completed_at = values.completed_at;
                 if (values.notes !== undefined) payload.notes = values.notes;
                 const res = await apiClient.patch<MovieResponse>(
@@ -272,7 +270,7 @@ export const mediaService = {
                 if (values.title !== undefined) payload.title = values.title;
                 if (values.status !== undefined) payload.status = values.status;
                 if (values.genre_ids !== undefined) payload.genre_ids = values.genre_ids;
-                if (values.started_at !== undefined) payload.started_at = values.started_at;
+                if ("started_at" in values && values.started_at !== undefined) payload.started_at = values.started_at;
                 if (values.completed_at !== undefined) payload.completed_at = values.completed_at;
                 if (values.notes !== undefined) payload.notes = values.notes;
                 if ("season_number" in values && values.season_number !== undefined) {
@@ -291,7 +289,7 @@ export const mediaService = {
                 if (values.title !== undefined) payload.title = values.title;
                 if (values.status !== undefined) payload.status = values.status;
                 if (values.genre_ids !== undefined) payload.genre_ids = values.genre_ids;
-                if (values.started_at !== undefined) payload.started_at = values.started_at;
+                if ("started_at" in values && values.started_at !== undefined) payload.started_at = values.started_at;
                 if (values.completed_at !== undefined) payload.completed_at = values.completed_at;
                 if (values.notes !== undefined) payload.notes = values.notes;
                 if ("episodes" in values && values.episodes !== undefined) {
@@ -310,7 +308,7 @@ export const mediaService = {
                 if (values.title !== undefined) payload.title = values.title;
                 if (values.status !== undefined) payload.status = values.status;
                 if (values.genre_ids !== undefined) payload.genre_ids = values.genre_ids;
-                if (values.started_at !== undefined) payload.started_at = values.started_at;
+                if ("started_at" in values && values.started_at !== undefined) payload.started_at = values.started_at;
                 if (values.completed_at !== undefined) payload.completed_at = values.completed_at;
                 if (values.notes !== undefined) payload.notes = values.notes;
                 if ("author" in values && values.author !== undefined) {
