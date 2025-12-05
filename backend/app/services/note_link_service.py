@@ -4,7 +4,6 @@ from uuid import UUID
 
 from sqlalchemy import delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 from sqlalchemy.sql import select
 
 from app.models.note import Note
@@ -23,8 +22,8 @@ def extract_wikilinks(content: str) -> list[str]:
         List of note titles referenced in the content
     """
     pattern = r'\[\[([^\]]+)\]\]'
-    matches = re.findall(pattern, content)
-    return [match.strip() for match in matches if match.strip()]
+    matches: list[str] = re.findall(pattern, content)
+    return [str(match).strip() for match in matches if str(match).strip()]
 
 
 async def sync_note_links(
@@ -51,7 +50,7 @@ async def sync_note_links(
     wikilink_titles = extract_wikilinks(content)
 
     if not wikilink_titles:
-        await db.execute(
+        _ = await db.execute(
             delete(NoteLink).where(NoteLink.source_note_id == source_note_id)
         )
         return
@@ -64,18 +63,18 @@ async def sync_note_links(
             Note.id != source_note_id,
         )
     )
-    target_notes = result.all()
-    target_note_ids = {note_id for note_id, _ in target_notes}
+    target_notes: list[tuple[UUID, str]] = result.all()  # pyright: ignore[reportAssignmentType]
+    target_note_ids: set[UUID] = {note_id for note_id, _ in target_notes}
 
     existing_links_result = await db.execute(
         select(NoteLink.target_note_id)
         .where(NoteLink.source_note_id == source_note_id)
     )
-    existing_target_ids = {row[0] for row in existing_links_result.all()}
+    existing_target_ids: set[UUID] = {UUID(str(row[0])) for row in existing_links_result.all()}  # pyright: ignore[reportAny]
 
     links_to_delete = existing_target_ids - target_note_ids
     if links_to_delete:
-        await db.execute(
+        _ = await db.execute(
             delete(NoteLink).where(
                 NoteLink.source_note_id == source_note_id,
                 NoteLink.target_note_id.in_(list(links_to_delete)),
@@ -117,8 +116,9 @@ async def get_backlinks(
         .order_by(NoteLink.created_at.desc())
     )
 
-    backlinks = []
-    for link, note in result.all():
+    backlinks: list[BacklinkInfo] = []
+    rows: list[tuple[NoteLink, Note]] = result.all()  # pyright: ignore[reportAssignmentType]
+    for link, note in rows:
         backlinks.append(
             BacklinkInfo(
                 note_id=note.id,

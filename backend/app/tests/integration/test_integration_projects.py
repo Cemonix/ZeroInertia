@@ -61,8 +61,8 @@ class TestProjectEndpoints:
         assert isinstance(data, dict)
         assert "items" in data
         assert isinstance(data["items"], list)
-        assert len(data["items"]) >= 1  # pyright: ignore[reportUnknownArgumentType]
-        assert any(proj["id"] == str(test_project.id) for proj in data["items"])  # pyright: ignore[reportUnknownArgumentType, reportUnknownVariableType]
+        assert len(data["items"]) >= 1
+        assert any(proj["id"] == str(test_project.id) for proj in data["items"])  # pyright: ignore[reportUnknownVariableType]
 
     async def test_get_single_project(self, authenticated_client: AsyncClient, test_project: Project) -> None:
         """Test retrieving a specific project by ID."""
