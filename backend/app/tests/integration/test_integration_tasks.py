@@ -116,8 +116,8 @@ class TestTaskEndpoints:
         assert isinstance(data, dict)
         assert "items" in data
         assert isinstance(data["items"], list)
-        assert len(data["items"]) >= 1  # pyright: ignore[reportUnknownArgumentType]
-        assert any(task["id"] == str(test_task.id) for task in data["items"])  # pyright: ignore[reportUnknownArgumentType, reportUnknownVariableType]
+        assert len(data["items"]) >= 1
+        assert any(task["id"] == str(test_task.id) for task in data["items"])  # pyright: ignore[reportUnknownVariableType]
 
     async def test_get_tasks_filtered_by_project(
         self, authenticated_client: AsyncClient, test_project: Project
@@ -204,7 +204,7 @@ class TestTaskEndpoints:
         assert isinstance(data, dict)
         assert "items" in data
         assert isinstance(data["items"], list)
-        assert any(task["id"] == str(test_task.id) for task in data["items"])  # pyright: ignore[reportUnknownArgumentType, reportUnknownVariableType]
+        assert any(task["id"] == str(test_task.id) for task in data["items"])  # pyright: ignore[reportUnknownVariableType]
 
     async def test_delete_task(self, authenticated_client: AsyncClient, test_task: Task) -> None:
         """Test deleting a task."""

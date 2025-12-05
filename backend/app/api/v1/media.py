@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio.session import AsyncSession
 from app.api.v1.auth_deps import get_current_user
 from app.core.database import get_db
 from app.core.exceptions import MediaNotFoundException
+from app.models.media import Anime, Book, Game, Manga, Movie, Show
 from app.models.user import User
 from app.schemas.media import (
     AnimeCreate,
@@ -17,7 +18,6 @@ from app.schemas.media import (
     BookCreate,
     BookResponse,
     BookUpdate,
-    DuplicateCheckResponse,
     GameCreate,
     GameResponse,
     GameUpdate,
@@ -51,7 +51,7 @@ async def list_books(
         books = await media_service.get_by_status(
             db=db,
             user_id=current_user.id,
-            model=media_service.Book,
+            model=Book,
             status=status_filter,
         )
     else:
@@ -129,7 +129,7 @@ async def list_movies(
         movies = await media_service.get_by_status(
             db=db,
             user_id=current_user.id,
-            model=media_service.Movie,
+            model=Movie,
             status=status_filter,
         )
     else:
@@ -207,7 +207,7 @@ async def list_games(
         games = await media_service.get_by_status(
             db=db,
             user_id=current_user.id,
-            model=media_service.Game,
+            model=Game,
             status=status_filter,
         )
     else:
@@ -285,7 +285,7 @@ async def list_shows(
         shows = await media_service.get_by_status(
             db=db,
             user_id=current_user.id,
-            model=media_service.Show,
+            model=Show,
             status=status_filter,
         )
     else:
@@ -363,7 +363,7 @@ async def list_manga(
         manga = await media_service.get_by_status(
             db=db,
             user_id=current_user.id,
-            model=media_service.Manga,
+            model=Manga,
             status=status_filter,
         )
     else:
@@ -441,7 +441,7 @@ async def list_anime(
         anime = await media_service.get_by_status(
             db=db,
             user_id=current_user.id,
-            model=media_service.Anime,
+            model=Anime,
             status=status_filter,
         )
     else:

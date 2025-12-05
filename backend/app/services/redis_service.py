@@ -49,7 +49,7 @@ class RedisService:
         """Check Redis connection."""
         try:
             client = await cls.get_client()
-            return await client.ping()  # pyright: ignore[reportAny, reportUnknownMemberType]
+            return await client.ping()  # pyright: ignore[reportAny]
         except (ConnectionError, RedisError):
             return False
 
@@ -103,7 +103,7 @@ class OAuthStateService:
             pattern = f"{cls.STATE_PREFIX}*"
 
             # Get all OAuth state keys
-            keys = cast(list[str], await client.keys(pattern))  # pyright: ignore[reportUnknownMemberType]
+            keys = cast(list[str], await client.keys(pattern))
 
             # Redis TTL handles expiration automatically, but we can
             # manually check for any orphaned keys

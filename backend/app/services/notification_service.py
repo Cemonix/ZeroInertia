@@ -306,7 +306,7 @@ def _initialize_firebase() -> firebase_admin.App:
         )
 
     cred = credentials.Certificate(str(service_account_path))
-    _firebase_app = firebase_admin.initialize_app(cred)  # pyright: ignore[reportUnknownMemberType]
+    _firebase_app = firebase_admin.initialize_app(cred)
     logger.info(f"Firebase Admin SDK initialized with service account: {service_account_path}")
 
     return _firebase_app

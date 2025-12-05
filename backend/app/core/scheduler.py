@@ -141,7 +141,7 @@ def setup_scheduler() -> AsyncIOScheduler:
     scheduler = AsyncIOScheduler()
 
     # Run streak reset every day at 02:00
-    _ = scheduler.add_job(  # pyright: ignore[reportUnknownMemberType]
+    _ = scheduler.add_job(
         reset_streaks_job,
         trigger=CronTrigger(hour=2, minute=0),
         id="reset_streaks",
@@ -150,7 +150,7 @@ def setup_scheduler() -> AsyncIOScheduler:
     )
 
     # Run task archiving every day at 03:00
-    _ = scheduler.add_job(  # pyright: ignore[reportUnknownMemberType]
+    _ = scheduler.add_job(
         archive_old_completed_tasks_job,
         trigger=CronTrigger(hour=3, minute=0),
         id="archive_completed_tasks",
@@ -159,7 +159,7 @@ def setup_scheduler() -> AsyncIOScheduler:
     )
 
     # Run task reminders every 5 minutes
-    _ = scheduler.add_job(  # pyright: ignore[reportUnknownMemberType]
+    _ = scheduler.add_job(
         send_task_reminders_job,
         trigger=IntervalTrigger(minutes=5),
         id="send_task_reminders",
@@ -168,8 +168,8 @@ def setup_scheduler() -> AsyncIOScheduler:
     )
 
     logger.info("Scheduler configured with jobs:")
-    jobs = cast(list[Job], scheduler.get_jobs())  # pyright: ignore[reportUnknownMemberType]
+    jobs = cast(list[Job], scheduler.get_jobs())
     for job in jobs:
-        logger.info(f"  - {job.name} (ID: {job.id})")  # pyright: ignore[reportUnknownMemberType]
+        logger.info(f"  - {job.name} (ID: {job.id})")
 
     return scheduler
