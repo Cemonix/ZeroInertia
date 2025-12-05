@@ -126,7 +126,7 @@ services:
       - ./grafana/dashboards:/etc/grafana/dashboards:ro
     environment:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_SERVER_DOMAIN=${GRAFANA_DOMAIN:-zeroinertia.cemonix.dev}
       - GF_SERVER_ROOT_URL=%(protocol)s://%(domain)s/grafana/
