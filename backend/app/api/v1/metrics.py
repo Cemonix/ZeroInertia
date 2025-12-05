@@ -3,13 +3,14 @@
 import shutil
 from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Header, HTTPException, status
 from prometheus_client import CollectorRegistry, Gauge, generate_latest
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import Response
 
 from ...core.database import get_db
+from ...core.settings.app_settings import get_app_settings
 from ...models.media import Anime, Book, Game, Manga, Movie, Show
 from ...models.note import Note
 from ...models.project import Project
@@ -17,6 +18,8 @@ from ...models.task import Task
 from ...models.user import User
 
 router = APIRouter()
+
+app_settings = get_app_settings()
 
 # Custom Prometheus metrics registry
 registry = CollectorRegistry()
@@ -108,7 +111,7 @@ async def collect_business_metrics(db: AsyncSession) -> None:
 
     # Total tasks (not archived)
     result = await db.execute(
-        select(func.count(Task.id)).where(Task.archived == False)  # noqa: E712
+        select(func.count(Task.id)).where(Task.archived.is_(False))
     )
     total_tasks = result.scalar() or 0
     total_tasks_gauge.set(total_tasks)
@@ -116,8 +119,8 @@ async def collect_business_metrics(db: AsyncSession) -> None:
     # Completed tasks
     result = await db.execute(
         select(func.count(Task.id)).where(
-            Task.completed == True,  # noqa: E712
-            Task.archived == False  # noqa: E712
+            Task.completed.is_(True),
+            Task.archived.is_(False)
         )
     )
     completed_tasks = result.scalar() or 0
@@ -153,14 +156,19 @@ async def collect_business_metrics(db: AsyncSession) -> None:
 
 
 @router.get("/business-metrics")
-async def get_business_metrics(db: AsyncSession = Depends(get_db)):
+async def get_business_metrics(
+    db: AsyncSession = Depends(get_db),
+    api_key: str | None = Header(default=None, alias="X-Metrics-API-Key"),
+):
     """
     Expose custom business metrics in Prometheus format.
 
     This endpoint is scraped by Prometheus to collect application-specific metrics.
     """
-    await collect_business_metrics(db)
+    if app_settings.metrics_api_key and api_key != app_settings.metrics_api_key:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid metrics API key")
 
+    await collect_business_metrics(db)
     return Response(
         content=generate_latest(registry),
         media_type="text/plain; version=0.0.4"
