@@ -287,7 +287,6 @@ watch(title, (newTitle) => {
     parseTimeout = setTimeout(() => {
         if (!newTitle || newTitle.trim() === '') {
             detectedDateText.value = '';
-            dueDateTimeString.value = null;
             cleanedTitleBeforeSave.value = '';
             return;
         }
