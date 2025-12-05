@@ -3,7 +3,7 @@ from uuid import UUID
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.seed import create_inbox_project
+from app.core.seed import create_inbox_project, create_tutorial_project
 from app.models.user import User
 from app.schemas.user import UserUpdate
 from app.services.base_service import apply_updates_async
@@ -67,8 +67,13 @@ class UserService:
         """Update an existing user."""
         _ = await apply_updates_async(model=user, update_schema=update_data)
 
+        is_first_login = user.last_login_at is None
         user.last_login_at = func.now()
 
         await session.commit()
         await session.refresh(user)
+
+        if is_first_login:
+            _ = await create_tutorial_project(session, user.id)
+
         return user
