@@ -413,7 +413,7 @@ async def create_show(
     user_id: UUID,
     show_data: ShowCreate,
 ) -> Show:
-    """Create a new TV show season for the given user."""
+    """Create a new TV show for the given user."""
     data = show_data.model_dump(exclude={"genre_ids"})
     data["user_id"] = user_id
     if "status" in data and hasattr(data["status"], "value"):

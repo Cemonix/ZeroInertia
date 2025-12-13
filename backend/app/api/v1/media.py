@@ -300,7 +300,7 @@ async def create_show(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> ShowResponse:
-    """Create a new TV show season for the authenticated user."""
+    """Create a new TV show for the authenticated user."""
     show = await media_service.create_show(
         db=db,
         user_id=current_user.id,

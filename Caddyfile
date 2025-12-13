@@ -1,28 +1,3 @@
 zeroinertia.cemonix.dev {
-    # Main application
     reverse_proxy frontend:80
-
-    # Grafana with basic auth
-    handle /grafana* {
-        basicauth {
-            # Set your desired username and password here
-        }
-        reverse_proxy grafana:3000
-    }
-
-    # Prometheus with basic auth
-    handle /prometheus* {
-        basicauth {
-            # Set your desired username and password here
-        }
-        reverse_proxy prometheus:9090
-    }
-
-    # Umami with basic auth
-    handle /umami* {
-        basicauth {
-            # Set your desired username and password here
-        }
-        reverse_proxy umami:3000
-    }
 }

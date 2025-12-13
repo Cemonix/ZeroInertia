@@ -37,7 +37,6 @@ export interface MovieMediaItem extends Omit<BaseMediaItem, "started_at"> {
 
 export interface ShowMediaItem extends BaseMediaItem {
     media_type: "show";
-    season_number: number | null;
 }
 
 export interface MangaMediaItem extends BaseMediaItem {
@@ -84,7 +83,6 @@ interface MovieFormValues extends Omit<BaseMediaFormValues, "started_at"> {
 
 interface ShowFormValues extends BaseMediaFormValues {
     media_type: "show";
-    season_number: number | null;
 }
 
 interface MangaFormValues extends BaseMediaFormValues {

@@ -263,7 +263,6 @@ export const createMockMedia = (): MediaItem[] => {
             media_type: 'show',
             title: 'Breaking Bad',
             status: 'completed',
-            season_number: 5,
             genres: [findGenre('Drama')],
             started_at: '2024-11-01T00:00:00Z',
             completed_at: '2025-01-10T00:00:00Z',
@@ -276,7 +275,6 @@ export const createMockMedia = (): MediaItem[] => {
             media_type: 'show',
             title: 'Stranger Things',
             status: 'in_progress',
-            season_number: 4,
             genres: [findGenre('Sci-Fi')],
             started_at: '2025-01-05T00:00:00Z',
             completed_at: null,
@@ -1069,9 +1067,6 @@ export const handlers = [
             }),
             ...(singularType === 'game' && {
                 platform: body.platform || null,
-            }),
-            ...(singularType === 'show' && {
-                season_number: body.season_number || null,
             }),
             ...(singularType === 'anime' && {
                 episodes: body.episodes ?? null,

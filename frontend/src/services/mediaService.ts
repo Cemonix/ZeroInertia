@@ -157,7 +157,6 @@ export const mediaService = {
             case "show": {
                 const payload = {
                     title: values.title,
-                    season_number: values.season_number,
                     status: values.status,
                     genre_ids: values.genre_ids ?? [],
                     started_at: values.started_at,
@@ -273,9 +272,6 @@ export const mediaService = {
                 if ("started_at" in values && values.started_at !== undefined) payload.started_at = values.started_at;
                 if (values.completed_at !== undefined) payload.completed_at = values.completed_at;
                 if (values.notes !== undefined) payload.notes = values.notes;
-                if ("season_number" in values && values.season_number !== undefined) {
-                    payload.season_number = values.season_number;
-                }
                 const res = await apiClient.patch<ShowResponse>(
                     `${API_URL}/shows/${id}`,
                     payload,

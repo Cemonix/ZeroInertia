@@ -23,9 +23,6 @@ class AppSettings(BaseSettings):
     # AI Service Configuration
     ai_api_key: str = Field(default="", alias="AI_API_KEY")
 
-    # Monitoring / metrics
-    metrics_api_key: str | None = Field(default=None, alias="METRICS_API_KEY")
-
     # OAuth Configuration
     google_client_id: str = Field(default="", alias="GOOGLE_CLIENT_ID")
     google_client_secret: str = Field(default="", alias="GOOGLE_CLIENT_SECRET")
