@@ -173,10 +173,9 @@ class GameResponse(BaseModel):
 
 
 class ShowCreate(BaseModel):
-    """Schema for creating a TV show season"""
+    """Schema for creating a TV show"""
 
     title: str = Field(..., min_length=1, max_length=500)
-    season_number: int | None = Field(None, gt=0)
     status: MediaStatus = MediaStatus.PLANNED
     genre_ids: list[UUID] = Field(default_factory=list)
     started_at: date | None = None
@@ -185,10 +184,9 @@ class ShowCreate(BaseModel):
 
 
 class ShowUpdate(BaseModel):
-    """Schema for updating a TV show season"""
+    """Schema for updating a TV show"""
 
     title: str | None = Field(None, min_length=1, max_length=500)
-    season_number: int | None = Field(None, gt=0)
     status: MediaStatus | None = None
     genre_ids: list[UUID] | None = None
     started_at: date | None = None
@@ -201,7 +199,6 @@ class ShowResponse(BaseModel):
 
     id: UUID
     title: str
-    season_number: int | None
     status: str
     genres: list[GenreResponse]
     started_at: date | None

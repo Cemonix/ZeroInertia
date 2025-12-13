@@ -102,14 +102,13 @@ class Movie(Base):
 
 
 class Show(Base):
-    """TV Show model - independent table for show season tracking."""
+    """TV Show model - independent table for show tracking."""
 
     __tablename__: str = "shows"
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     title: Mapped[str] = mapped_column(String(500), nullable=False)
-    season_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False, server_default="planned")
     started_at: Mapped[date | None] = mapped_column(Date, nullable=True)
     completed_at: Mapped[date | None] = mapped_column(Date, nullable=True)

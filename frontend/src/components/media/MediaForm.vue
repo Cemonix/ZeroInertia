@@ -108,21 +108,6 @@
                         />
                     </div>
                     <div
-                        v-else-if="form.media_type === 'show'"
-                        class="form-field"
-                    >
-                        <label for="season">Season</label>
-                        <InputNumber
-                            inputId="season"
-                            v-model="form.season_number"
-                            :min="1"
-                            :useGrouping="false"
-                            :minFractionDigits="0"
-                            :maxFractionDigits="0"
-                            placeholder="Season #"
-                        />
-                    </div>
-                    <div
                         v-else-if="form.media_type === 'anime'"
                         class="form-field"
                     >
@@ -282,7 +267,6 @@ interface InternalFormState {
     is_audiobook: boolean;
     genres: string[]; // genre IDs
     platform: string | null;
-    season_number: number | null;
     episodes: number | null;
     started_at: string | null;
     completed_at: string | null;
@@ -298,7 +282,6 @@ const form = reactive<InternalFormState>({
     is_audiobook: false,
     genres: [],
     platform: null,
-    season_number: null,
     episodes: null,
     started_at: null,
     completed_at: null,
@@ -376,7 +359,6 @@ const populateFormFromItem = (item: MediaItem | null) => {
         form.is_audiobook = false;
         form.genres = [];
         form.platform = null;
-        form.season_number = null;
         form.episodes = null;
         form.started_at = null;
         form.completed_at = null;
@@ -403,37 +385,31 @@ const populateFormFromItem = (item: MediaItem | null) => {
         form.creator = item.creator;
         form.author = null;
         form.platform = null;
-        form.season_number = null;
         form.episodes = null;
     } else if (item.media_type === "game") {
         form.creator = "";
         form.author = null;
         form.platform = item.platform ?? null;
-        form.season_number = null;
         form.episodes = null;
     } else if (item.media_type === "show") {
         form.creator = "";
         form.author = null;
         form.platform = null;
-        form.season_number = item.season_number ?? null;
         form.episodes = null;
     } else if (item.media_type === "anime") {
         form.creator = "";
         form.author = null;
         form.platform = null;
-        form.season_number = null;
         form.episodes = item.episodes ?? null;
     } else if (item.media_type === "manga") {
         form.creator = "";
         form.author = item.author ?? null;
         form.platform = null;
-        form.season_number = null;
         form.episodes = null;
     } else {
         form.creator = "";
         form.author = null;
         form.platform = null;
-        form.season_number = null;
         form.episodes = null;
     }
 
@@ -609,7 +585,6 @@ const handleSave = async () => {
                 media_type: "show",
                 title: form.title,
                 status: form.status,
-                season_number: form.season_number,
                 genre_ids: genreIds,
                 started_at: normalizeDate(form.started_at),
                 completed_at: normalizeDate(form.completed_at),
