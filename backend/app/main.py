@@ -4,7 +4,6 @@ import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from prometheus_fastapi_instrumentator import Instrumentator
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIASGIMiddleware
 from starlette.middleware.sessions import SessionMiddleware
@@ -16,7 +15,6 @@ from app.api.v1 import (
     genre,
     label,
     media,
-    metrics,
     note,
     notification,
     priority,
@@ -77,10 +75,6 @@ app = FastAPI(
 limiter = get_rate_limiter()
 app.state.limiter = limiter
 
-# Prometheus metrics instrumentation
-if app_settings.environment == "production":
-    _ = Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
-
 # Register custom exception handlers
 app.add_exception_handler(AppException, app_exception_handler)
 
@@ -108,7 +102,6 @@ app.add_middleware(
     CSRFMiddleware,
     exempt_paths={
         "/health",
-        "/metrics",  # Prometheus metrics endpoint
         "/csrf",  # CSRF token endpoint
         "/api/v1/auth/google/login",
         "/api/v1/auth/google/callback",
@@ -139,10 +132,6 @@ app.include_router(note.router, prefix="/api/v1/notes", tags=["notes"])
 app.include_router(notification.router, prefix="/api/v1/notifications", tags=["notifications"])
 app.include_router(media.router, prefix="/api/v1/media", tags=["media"])
 app.include_router(genre.router, prefix="/api/v1/media", tags=["genres"])
-
-# Metrics endpoint (production only)
-if app_settings.environment == "production":
-    app.include_router(metrics.router, prefix="/api/v1/metrics", tags=["metrics"])
 
 
 @app.get("/csrf")
