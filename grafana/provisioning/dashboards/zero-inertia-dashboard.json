@@ -497,7 +497,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "zero_inertia_completed_tasks_total",
+          "expr": "zero_inertia_completed_tasks_24h",
           "refId": "A"
         }
       ],
