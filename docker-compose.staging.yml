@@ -9,7 +9,7 @@ services:
       dockerfile: Dockerfile
     container_name: zero_inertia_backend_staging
     env_file:
-      - backend/.env
+      - backend/.env.staging
     environment:
       POSTGRES_HOST: ${DB_HOST:-postgres}
       POSTGRES_PORT: ${DB_PORT:-5432}
@@ -42,9 +42,15 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        NGINX_CONFIG: nginx.staging.conf
+        VITE_API_BASE_URL: http://localhost:8082
+        VITE_NODE_ENV: staging
+        VITE_APP_NAME: ZeroInertia
+        VITE_APP_VERSION: 0.0.1
     container_name: zero_inertia_frontend_staging
     env_file:
-      - frontend/.env
+      - frontend/.env.staging
     ports:
       - "8080:80"
     networks:
@@ -58,7 +64,7 @@ services:
     image: postgres:18-alpine
     container_name: zero_inertia_db_staging
     env_file:
-      - backend/.env
+      - backend/.env.staging
     environment:
       POSTGRES_DB: ${DB_NAME:-zeroinertia_staging}
       POSTGRES_USER: ${DB_USER:-postgres}
@@ -81,7 +87,7 @@ services:
     image: redis:8-alpine
     container_name: zero_inertia_redis_staging
     env_file:
-      - backend/.env
+      - backend/.env.staging
     ports:
       - "6380:6379"
     volumes:
@@ -101,7 +107,7 @@ services:
     image: caddy:2.10-alpine
     container_name: zero_inertia_caddy_staging
     ports:
-      - "8082:8082"  # HTTP only for staging
+      - "8082:8082"
     volumes:
       - ./Caddyfile.staging:/etc/caddy/Caddyfile
       - caddy_data_staging:/data
@@ -144,6 +150,7 @@ services:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
       - GF_SERVER_ROOT_URL=http://localhost:8082/grafana/
+      - GF_SERVER_SERVE_FROM_SUB_PATH=true
       - GF_INSTALL_PLUGINS=
     volumes:
       - grafana_data_staging:/var/lib/grafana
