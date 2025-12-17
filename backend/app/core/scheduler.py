@@ -13,6 +13,7 @@ from sqlalchemy import and_, select
 
 from app.core.database import get_db
 from app.core.logging import logger
+from app.core.metrics import update_business_metrics
 from app.models.task import Task
 from app.services import notification_service, streak_service, task_service
 
@@ -45,6 +46,20 @@ async def archive_old_completed_tasks_job() -> None:
             logger.info(f"Archived {count} completed tasks older than {DAYS_ARCHIVE_THRESHOLD} days")
         except Exception as e:
             logger.error(f"Error archiving completed tasks: {e}")
+        finally:
+            await db.close()
+
+
+async def update_metrics_job() -> None:
+    """
+    Background job that updates Prometheus business metrics.
+    Runs every 30 seconds to keep metrics current.
+    """
+    async for db in get_db():
+        try:
+            await update_business_metrics(db)
+        except Exception as e:
+            logger.error(f"Failed to update metrics: {e}")
         finally:
             await db.close()
 
@@ -164,6 +179,15 @@ def setup_scheduler() -> AsyncIOScheduler:
         trigger=IntervalTrigger(minutes=5),
         id="send_task_reminders",
         name="Send task reminder notifications",
+        replace_existing=True
+    )
+
+    # Update Prometheus metrics every 30 seconds
+    _ = scheduler.add_job(
+        update_metrics_job,
+        trigger=IntervalTrigger(seconds=30),
+        id="update_business_metrics",
+        name="Update Prometheus business metrics",
         replace_existing=True
     )
 

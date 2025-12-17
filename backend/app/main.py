@@ -1,7 +1,6 @@
 from contextlib import asynccontextmanager
 
 import uvicorn
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -26,10 +25,9 @@ from app.api.v1 import (
     streak,
     task,
 )
-from app.core.database import engine, get_db
+from app.core.database import engine
 from app.core.exceptions import AppException
 from app.core.logging import logger, setup_logging
-from app.core.metrics import update_business_metrics
 from app.core.rate_limit import get_rate_limiter, rate_limit_exceeded_handler
 from app.core.scheduler import setup_scheduler
 from app.core.seed import seed_database
@@ -51,43 +49,19 @@ async def lifespan(_: FastAPI):
     # Seed database with default data
     await seed_database()
 
-    # Start background scheduler
+    # Start background scheduler (includes metrics job)
     scheduler = setup_scheduler()
     scheduler.start()
     logger.info("Background scheduler started")
 
-    # Schedule periodic metrics updates
-    metrics_scheduler = AsyncIOScheduler()
-    metrics_scheduler.add_job(
-        update_metrics_job,
-        "interval",
-        seconds=30,
-        id="update_business_metrics",
-    )
-    metrics_scheduler.start()
-    logger.info("Metrics update scheduler started")
-
     yield
 
-    # Shutdown schedulers
-    metrics_scheduler.shutdown()
-    logger.info("Metrics scheduler stopped")
+    # Shutdown scheduler
     scheduler.shutdown()
     logger.info("Background scheduler stopped")
 
     logger.info("Shutting down Zero Inertia API...")
     await engine.dispose()
-
-
-async def update_metrics_job():
-    """Background job to update business metrics."""
-    async for db in get_db():
-        try:
-            await update_business_metrics(db)
-        except Exception as e:
-            logger.error(f"Failed to update metrics: {e}")
-        finally:
-            break
 
 
 app = FastAPI(
@@ -110,7 +84,7 @@ instrumentator = Instrumentator(
     inprogress_name="http_requests_inprogress",
     inprogress_labels=True,
 )
-instrumentator.instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
+_ = instrumentator.instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
 
 # Rate limiting initialization
 limiter = get_rate_limiter()
@@ -143,7 +117,7 @@ app.add_middleware(
     CSRFMiddleware,
     exempt_paths={
         "/health",
-        "/metrics",  # Prometheus metrics endpoint
+        "/metrics",  # Prometheus metrics endpoint (not publicly exposed - internal Docker network only)
         "/csrf",  # CSRF token endpoint
         "/api/v1/auth/google/login",
         "/api/v1/auth/google/callback",

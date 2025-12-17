@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta
+
 from prometheus_client import Gauge
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,7 +18,7 @@ total_projects_gauge = Gauge("zero_inertia_total_projects", "Total number of pro
 
 # Additional gauges for task metrics
 completed_tasks_24h_gauge = Gauge(
-    "zero_inertia_completed_tasks_total", "Number of tasks completed in the last 24 hours"
+    "zero_inertia_completed_tasks_24h", "Number of tasks completed in the last 24 hours"
 )
 
 
@@ -31,8 +33,6 @@ async def update_business_metrics(db: AsyncSession) -> None:
     total_users_gauge.set(total_users)
 
     # Active users (logged in within last 24 hours)
-    from datetime import datetime, timedelta
-
     twenty_four_hours_ago = datetime.now() - timedelta(hours=24)
     result = await db.execute(
         select(func.count(User.id)).where(User.last_login_at >= twenty_four_hours_ago)
