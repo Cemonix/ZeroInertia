@@ -689,7 +689,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "100 * (1 - ((node_memory_MemAvailable_bytes or node_memory_Buffers_bytes + node_memory_Cached_bytes + node_memory_MemFree_bytes) / node_memory_MemTotal_bytes))",
+          "expr": "100 * (1 - ((node_memory_MemAvailable_bytes or (node_memory_Buffers_bytes + node_memory_Cached_bytes + node_memory_MemFree_bytes)) / node_memory_MemTotal_bytes))",
           "refId": "A"
         }
       ],
