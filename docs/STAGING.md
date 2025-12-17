@@ -19,7 +19,7 @@ This staging environment mirrors the production setup but runs locally with expo
 ### 1. Build and start all services
 
 ```bash
-docker compose --env-file backend/.env -f docker-compose.staging.yml up -d
+docker compose --env-file backend/.env.staging -f docker-compose.staging.yml up -d
 ```
 
 ### 2. Run database migrations
@@ -31,7 +31,8 @@ docker exec zero_inertia_backend_staging alembic upgrade head
 ### 3. Access the services
 
 - **Main App** (via Caddy): http://localhost:8082
-- **Grafana** (via Caddy): http://localhost:8082/grafana/
+- **Grafana** (via Caddy): http://localhost:8082/grafana/ (auto-redirects to /grafana/login)
+  - Default credentials: admin / admin (from GRAFANA_ADMIN_PASSWORD in .env.staging)
 - **Backend API** (direct): http://localhost:8001/api/v1
 - **Frontend** (direct): http://localhost:8080
 - **Grafana** (direct): http://localhost:3002
@@ -74,7 +75,7 @@ Before deploying to production, verify:
 
 ### View logs for all services
 ```bash
-docker compose --env-file backend/.env -f docker-compose.staging.yml logs -f
+docker compose --env-file backend/.env.staging -f docker-compose.staging.yml logs -f
 ```
 
 ### View logs for specific service
@@ -86,22 +87,22 @@ docker logs zero_inertia_grafana_staging -f
 
 ### Restart a service
 ```bash
-docker compose --env-file backend/.env -f docker-compose.staging.yml restart backend
+docker compose --env-file backend/.env.staging -f docker-compose.staging.yml restart backend
 ```
 
 ### Stop all services
 ```bash
-docker compose --env-file backend/.env -f docker-compose.staging.yml down
+docker compose --env-file backend/.env.staging -f docker-compose.staging.yml down
 ```
 
 ### Stop and remove volumes (clean slate)
 ```bash
-docker compose --env-file backend/.env -f docker-compose.staging.yml down -v
+docker compose --env-file backend/.env.staging -f docker-compose.staging.yml down -v
 ```
 
 ### Rebuild after code changes
 ```bash
-docker compose --env-file backend/.env -f docker-compose.staging.yml up -d --build backend frontend
+docker compose --env-file backend/.env.staging -f docker-compose.staging.yml up -d --build backend frontend
 ```
 
 ### Check Prometheus targets health
@@ -122,7 +123,7 @@ docker exec -it zero_inertia_db_staging psql -U postgres -d zeroinertia_staging
 ## Environment Variables
 
 Staging uses the same `.env` files as production:
-- `backend/.env` - Backend configuration
+- `backend/.env.staging` - Backend configuration
 - `frontend/.env` - Frontend configuration
 
 Make sure these are properly configured before starting staging.
@@ -130,13 +131,13 @@ Make sure these are properly configured before starting staging.
 ## Troubleshooting
 
 ### Backend fails to start
-- Check environment variables in `backend/.env`
-- Ensure database is healthy: `docker compose --env-file backend/.env -f docker-compose.staging.yml ps postgres`
+- Check environment variables in `backend/.env.staging`
+- Ensure database is healthy: `docker compose --env-file backend/.env.staging -f docker-compose.staging.yml ps postgres`
 - View logs: `docker logs zero_inertia_backend_staging`
 
 ### Prometheus shows targets as "down"
 - Wait 15-30 seconds after startup for first scrape
-- Check if services are healthy: `docker compose --env-file backend/.env -f docker-compose.staging.yml ps`
+- Check if services are healthy: `docker compose --env-file backend/.env.staging -f docker-compose.staging.yml ps`
 - Verify network connectivity from Prometheus container
 
 ### Grafana shows "NaN" in dashboard
