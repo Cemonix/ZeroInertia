@@ -1,12 +1,23 @@
 # Staging Caddyfile - mirrors production setup but uses localhost
 # All services accessible on localhost:8082
+# http:// prefix forces HTTP-only (no auto-HTTPS)
 
-localhost:8082 {
-    # Main application
-    reverse_proxy frontend:80
+http://localhost:8082 {
+    # Backend API routes - proxy to backend container
+    handle /api/* {
+        reverse_proxy backend:8000
+    }
+
+    # Health check endpoint
+    handle /health {
+        reverse_proxy backend:8000
+    }
 
     # Grafana monitoring dashboard at /grafana/
     handle /grafana/* {
         reverse_proxy grafana:3000
     }
+
+    # Frontend SPA - serve all other routes
+    reverse_proxy frontend:80
 }

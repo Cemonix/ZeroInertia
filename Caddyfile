@@ -1,5 +1,15 @@
 zeroinertia.cemonix.dev {
-    # Main application (Vue.js SPA + API proxying)
+    # Backend API routes - proxy to backend container
+    handle /api/* {
+        reverse_proxy backend:8000
+    }
+
+    # Health check endpoint
+    handle /health {
+        reverse_proxy backend:8000
+    }
+
+    # Frontend SPA - serve all other routes (nginx inside will also proxy /api/ to backend)
     reverse_proxy frontend:80
 }
 
