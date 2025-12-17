@@ -1,9 +1,11 @@
 from contextlib import asynccontextmanager
 
 import uvicorn
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from prometheus_fastapi_instrumentator import Instrumentator
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIASGIMiddleware
 from starlette.middleware.sessions import SessionMiddleware
@@ -24,9 +26,10 @@ from app.api.v1 import (
     streak,
     task,
 )
-from app.core.database import engine
+from app.core.database import engine, get_db
 from app.core.exceptions import AppException
 from app.core.logging import logger, setup_logging
+from app.core.metrics import update_business_metrics
 from app.core.rate_limit import get_rate_limiter, rate_limit_exceeded_handler
 from app.core.scheduler import setup_scheduler
 from app.core.seed import seed_database
@@ -53,14 +56,38 @@ async def lifespan(_: FastAPI):
     scheduler.start()
     logger.info("Background scheduler started")
 
+    # Schedule periodic metrics updates
+    metrics_scheduler = AsyncIOScheduler()
+    metrics_scheduler.add_job(
+        update_metrics_job,
+        "interval",
+        seconds=30,
+        id="update_business_metrics",
+    )
+    metrics_scheduler.start()
+    logger.info("Metrics update scheduler started")
+
     yield
 
-    # Shutdown scheduler
+    # Shutdown schedulers
+    metrics_scheduler.shutdown()
+    logger.info("Metrics scheduler stopped")
     scheduler.shutdown()
     logger.info("Background scheduler stopped")
 
     logger.info("Shutting down Zero Inertia API...")
     await engine.dispose()
+
+
+async def update_metrics_job():
+    """Background job to update business metrics."""
+    async for db in get_db():
+        try:
+            await update_business_metrics(db)
+        except Exception as e:
+            logger.error(f"Failed to update metrics: {e}")
+        finally:
+            break
 
 
 app = FastAPI(
@@ -71,6 +98,20 @@ app = FastAPI(
     redoc_url="/redoc" if app_settings.environment == "development" else None,
     lifespan=lifespan,
 )
+
+# Prometheus instrumentation
+instrumentator = Instrumentator(
+    should_group_status_codes=False,
+    should_ignore_untemplated=True,
+    should_respect_env_var=True,
+    should_instrument_requests_inprogress=True,
+    excluded_handlers=["/metrics"],
+    env_var_name="ENABLE_METRICS",
+    inprogress_name="http_requests_inprogress",
+    inprogress_labels=True,
+)
+instrumentator.instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
+
 # Rate limiting initialization
 limiter = get_rate_limiter()
 app.state.limiter = limiter
@@ -102,6 +143,7 @@ app.add_middleware(
     CSRFMiddleware,
     exempt_paths={
         "/health",
+        "/metrics",  # Prometheus metrics endpoint
         "/csrf",  # CSRF token endpoint
         "/api/v1/auth/google/login",
         "/api/v1/auth/google/callback",
