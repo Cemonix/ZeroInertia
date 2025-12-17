@@ -23,6 +23,7 @@ apscheduler = "*"
 httpx = "*"
 firebase-admin = "^7.1.0"
 slowapi = "^0.1.9"
+prometheus-fastapi-instrumentator = "^7.1.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "*"
