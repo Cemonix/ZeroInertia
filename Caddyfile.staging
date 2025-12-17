@@ -1,0 +1,12 @@
+# Staging Caddyfile - mirrors production setup but uses localhost
+# All services accessible on localhost:8082
+
+localhost:8082 {
+    # Main application
+    reverse_proxy frontend:80
+
+    # Grafana monitoring dashboard at /grafana/
+    handle /grafana/* {
+        reverse_proxy grafana:3000
+    }
+}
