@@ -1,7 +1,9 @@
 zeroinertia.cemonix.dev {
+    # Main application (Vue.js SPA + API proxying)
     reverse_proxy frontend:80
 }
 
 grafana.zeroinertia.cemonix.dev {
+    # Grafana monitoring dashboard
     reverse_proxy grafana:3000
 }
