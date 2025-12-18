@@ -33,7 +33,16 @@ export const useAuthStore = defineStore("auth", () => {
                 clearUser();
             }
         } catch (error) {
+            // If getting current user fails (e.g., stale cookie for deleted user),
+            // clear auth state and logout to clean up cookies
             clearUser();
+            clearCsrfCache();
+
+            // Silently call logout to clear server-side cookies
+            // Don't await to avoid blocking initialization
+            AuthService.logout().catch(() => {
+                // Ignore logout errors during initialization
+            });
         } finally {
             isInitialized.value = true;
             isLoading.value = false;

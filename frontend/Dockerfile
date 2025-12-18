@@ -1,12 +1,6 @@
 # Build stage
 FROM node:25-alpine AS builder
 
-# Accept build arguments for environment variables
-ARG VITE_API_BASE_URL=http://localhost:8082
-ARG VITE_NODE_ENV=staging
-ARG VITE_APP_NAME=ZeroInertia
-ARG VITE_APP_VERSION=0.0.1
-
 WORKDIR /app
 
 # Install dependencies

@@ -4,10 +4,20 @@ import HomeView from "@/views/HomeView.vue";
 import NotesView from "@/views/NotesView.vue";
 import MediaView from "@/views/MediaView.vue";
 import StreakView from "@/views/StreakView.vue";
+import LoginView from "@/views/LoginView.vue";
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
     routes: [
+        {
+            path: "/login",
+            name: "login",
+            component: LoginView,
+            meta: {
+                title: "Login | Zero Inertia",
+                requiresGuest: true,
+            },
+        },
         {
             path: "/home",
             name: "home",
@@ -63,7 +73,7 @@ router.beforeEach(async (to, _, next) => {
     }
 
     if (requiresAuth && !authStore.isAuthenticated) {
-        window.location.href = "/api/v1/auth/google/login";
+        next({ name: "login" });
         return;
     }
 
