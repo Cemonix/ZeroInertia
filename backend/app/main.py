@@ -8,6 +8,7 @@ from prometheus_fastapi_instrumentator import Instrumentator
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIASGIMiddleware
 from starlette.middleware.sessions import SessionMiddleware
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from app.api.exception_handlers import app_exception_handler
 from app.api.v1 import (
@@ -95,6 +96,11 @@ app.add_exception_handler(AppException, app_exception_handler)
 
 # Register exception handler with monitoring
 app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
+
+# Proxy headers middleware - must be first to properly handle X-Forwarded-* headers
+# This ensures FastAPI uses HTTPS in redirect URLs when behind Caddy reverse proxy
+# Using "*" is safe because backend port is not exposed externally (only accessible via Docker network)
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")  # pyright: ignore[reportArgumentType]
 
 # Session middleware (for OAuth state)
 app.add_middleware(SessionMiddleware, secret_key=app_settings.jwt_secret_key)
