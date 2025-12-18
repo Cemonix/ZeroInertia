@@ -21,8 +21,6 @@ services:
       REDIS_DB: ${REDIS_DB:-0}
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       ENABLE_METRICS: true
-    ports:
-      - "8001:8000"
     networks:
       - staging-network
     depends_on:
