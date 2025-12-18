@@ -1,8 +1,8 @@
-# Staging Caddyfile - mirrors production setup but uses localhost
-# All services accessible on localhost:8082
-# http:// prefix forces HTTP-only (no auto-HTTPS)
+# Staging Caddyfile - mirrors production setup but uses localhost from host perspective
+# All services accessible on localhost:8082 from your browser
+# :8082 tells Caddy to listen on all interfaces inside the container on port 8082
 
-http://localhost:8082 {
+:8082 {
     # Backend API routes - proxy to backend container
     handle /api/* {
         reverse_proxy backend:8000

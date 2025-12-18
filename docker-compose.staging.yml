@@ -31,7 +31,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8000/health"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -44,10 +44,6 @@ services:
       dockerfile: Dockerfile
       args:
         NGINX_CONFIG: nginx.staging.conf
-        VITE_API_BASE_URL: http://localhost:8082
-        VITE_NODE_ENV: staging
-        VITE_APP_NAME: ZeroInertia
-        VITE_APP_VERSION: 0.0.1
     container_name: zero_inertia_frontend_staging
     env_file:
       - frontend/.env.staging
@@ -115,9 +111,12 @@ services:
     networks:
       - staging-network
     depends_on:
-      - backend
-      - frontend
-      - grafana
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_started
+      grafana:
+        condition: service_started
     restart: unless-stopped
 
   prometheus:
