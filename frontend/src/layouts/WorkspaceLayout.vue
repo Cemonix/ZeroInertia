@@ -305,8 +305,6 @@ const userMenuItems = computed(() => [
         icon: "sign-out-alt",
         command: async () => {
             await authStore.logout();
-            // Force full page redirect to login after logout
-            window.location.href = "/api/v1/auth/google/login";
         },
     },
 ]);

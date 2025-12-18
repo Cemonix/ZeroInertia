@@ -1,9 +1,7 @@
 import axios from "axios";
-import { env } from "@/config/env";
 import { handleApiError } from "../core/errorHandler";
 
 const apiClient = axios.create({
-    baseURL: env.API_BASE_URL,
     timeout: 10000,
     headers: { "Content-Type": "application/json" },
     withCredentials: true,
@@ -56,7 +54,7 @@ async function ensureCsrfToken(): Promise<string | null> {
 
     // Otherwise, fetch from backend endpoint (CORS allowed origin) without axios interceptors
     try {
-        const response = await fetch(`${env.API_BASE_URL}/csrf`, {
+        const response = await fetch('/csrf', {
             method: 'GET',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
