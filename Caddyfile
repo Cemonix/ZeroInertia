@@ -1,15 +1,32 @@
 zeroinertia.cemonix.dev {
     # Backend API routes - proxy to backend container
     handle /api/* {
-        reverse_proxy backend:8000
+        reverse_proxy backend:8000 {
+            header_up X-Forwarded-Proto {scheme}
+            header_up X-Forwarded-Host {host}
+            header_up X-Real-IP {remote_host}
+        }
     }
 
     # Health check endpoint
     handle /health {
-        reverse_proxy backend:8000
+        reverse_proxy backend:8000 {
+            header_up X-Forwarded-Proto {scheme}
+            header_up X-Forwarded-Host {host}
+            header_up X-Real-IP {remote_host}
+        }
     }
 
-    # Frontend SPA - serve all other routes (nginx inside will also proxy /api/ to backend)
+    # CSRF endpoint
+    handle /csrf {
+        reverse_proxy backend:8000 {
+            header_up X-Forwarded-Proto {scheme}
+            header_up X-Forwarded-Host {host}
+            header_up X-Real-IP {remote_host}
+        }
+    }
+
+    # Frontend SPA - serve all other routes
     reverse_proxy frontend:80
 }
 
