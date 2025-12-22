@@ -1,4 +1,4 @@
-{env.DOMAIN} {
+{$DOMAIN} {
     # Backend routes (API, health, CSRF) - proxy to backend container
     @backend path /api/* /health /csrf
     handle @backend {
@@ -14,7 +14,7 @@
     reverse_proxy frontend:80
 }
 
-{env.GRAFANA_DOMAIN} {
+{$GRAFANA_DOMAIN} {
     # Grafana monitoring dashboard
     reverse_proxy grafana:3000
 }

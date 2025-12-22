@@ -12,6 +12,37 @@ from app.services.media_service.base import get_all_by_user
 MediaModel = TypeVar("MediaModel", Anime, Book, Game, Manga, Movie, Show)
 
 
+def sanitize_csv_value(value: str | int | None) -> str:
+    """
+    Sanitize CSV values to prevent formula injection attacks.
+
+    If a value starts with special characters (=, +, -, @, tab, or carriage return)
+    that could be interpreted as formulas by spreadsheet applications, prefix it
+    with a single quote to force text interpretation.
+
+    Args:
+        value: The value to sanitize
+
+    Returns:
+        Sanitized string safe for CSV export
+    """
+    if value is None:
+        return ""
+
+    str_value = str(value)
+
+    if not str_value:
+        return ""
+
+    # Check if value starts with formula injection characters
+    dangerous_chars = ("=", "+", "-", "@", "\t", "\r")
+    if str_value[0] in dangerous_chars:
+        # Prefix with single quote to force text interpretation
+        return f"'{str_value}"
+
+    return str_value
+
+
 def export_books_csv(books: list[Book]) -> str:
     """Export books to CSV format"""
     output = StringIO()
@@ -30,16 +61,16 @@ def export_books_csv(books: list[Book]) -> str:
 
     for book in books:
         book_genres = cast(list[Genre], book.genres)
-        genres_str = ", ".join(genre.name for genre in book_genres) if book_genres else ""
+        genres_str = ", ".join(sanitize_csv_value(genre.name) for genre in book_genres) if book_genres else ""
         writer.writerow([
-            book.title,
-            book.creator,
+            sanitize_csv_value(book.title),
+            sanitize_csv_value(book.creator),
             book.status,
             "true" if book.is_audiobook else "false",
             genres_str,
             book.started_at.isoformat() if book.started_at else "",
             book.completed_at.isoformat() if book.completed_at else "",
-            book.notes or ""
+            sanitize_csv_value(book.notes)
         ])
 
     return output.getvalue()
@@ -60,13 +91,13 @@ def export_movies_csv(movies: list[Movie]) -> str:
 
     for movie in movies:
         movie_genres = cast(list[Genre], movie.genres)
-        genres_str = ", ".join(genre.name for genre in movie_genres) if movie_genres else ""
+        genres_str = ", ".join(sanitize_csv_value(genre.name) for genre in movie_genres) if movie_genres else ""
         writer.writerow([
-            movie.title,
+            sanitize_csv_value(movie.title),
             movie.status,
             genres_str,
             movie.completed_at.isoformat() if movie.completed_at else "",
-            movie.notes or ""
+            sanitize_csv_value(movie.notes)
         ])
 
     return output.getvalue()
@@ -89,15 +120,15 @@ def export_games_csv(games: list[Game]) -> str:
 
     for game in games:
         game_genres = cast(list[Genre], game.genres)
-        genres_str = ", ".join(genre.name for genre in game_genres) if game_genres else ""
+        genres_str = ", ".join(sanitize_csv_value(genre.name) for genre in game_genres) if game_genres else ""
         writer.writerow([
-            game.title,
+            sanitize_csv_value(game.title),
             game.status,
-            game.platform or "",
+            sanitize_csv_value(game.platform),
             genres_str,
             game.started_at.isoformat() if game.started_at else "",
             game.completed_at.isoformat() if game.completed_at else "",
-            game.notes or ""
+            sanitize_csv_value(game.notes)
         ])
 
     return output.getvalue()
@@ -119,14 +150,14 @@ def export_shows_csv(shows: list[Show]) -> str:
 
     for show in shows:
         show_genres = cast(list[Genre], show.genres)
-        genres_str = ", ".join(genre.name for genre in show_genres) if show_genres else ""
+        genres_str = ", ".join(sanitize_csv_value(genre.name) for genre in show_genres) if show_genres else ""
         writer.writerow([
-            show.title,
+            sanitize_csv_value(show.title),
             show.status,
             genres_str,
             show.started_at.isoformat() if show.started_at else "",
             show.completed_at.isoformat() if show.completed_at else "",
-            show.notes or ""
+            sanitize_csv_value(show.notes)
         ])
 
     return output.getvalue()
@@ -149,15 +180,15 @@ def export_manga_csv(manga_list: list[Manga]) -> str:
 
     for manga in manga_list:
         manga_genres = cast(list[Genre], manga.genres)
-        genres_str = ", ".join(genre.name for genre in manga_genres) if manga_genres else ""
+        genres_str = ", ".join(sanitize_csv_value(genre.name) for genre in manga_genres) if manga_genres else ""
         writer.writerow([
-            manga.title,
-            manga.author or "",
+            sanitize_csv_value(manga.title),
+            sanitize_csv_value(manga.author),
             manga.status,
             genres_str,
             manga.started_at.isoformat() if manga.started_at else "",
             manga.completed_at.isoformat() if manga.completed_at else "",
-            manga.notes or ""
+            sanitize_csv_value(manga.notes)
         ])
 
     return output.getvalue()
@@ -180,15 +211,15 @@ def export_anime_csv(anime_list: list[Anime]) -> str:
 
     for anime in anime_list:
         anime_genres = cast(list[Genre], anime.genres)
-        genres_str = ", ".join(genre.name for genre in anime_genres) if anime_genres else ""
+        genres_str = ", ".join(sanitize_csv_value(genre.name) for genre in anime_genres) if anime_genres else ""
         writer.writerow([
-            anime.title,
+            sanitize_csv_value(anime.title),
             anime.episodes if anime.episodes is not None else "",
             anime.status,
             genres_str,
             anime.started_at.isoformat() if anime.started_at else "",
             anime.completed_at.isoformat() if anime.completed_at else "",
-            anime.notes or ""
+            sanitize_csv_value(anime.notes)
         ])
 
     return output.getvalue()

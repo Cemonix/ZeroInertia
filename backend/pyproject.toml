@@ -15,6 +15,7 @@ pyjwt = "*"
 passlib = {extras = ["bcrypt"], version = "*"}
 pydantic = {extras = ["email"], version = "*"}
 pydantic-settings = "*"
+python-multipart = "*"
 loguru = "*"
 authlib = "*"
 itsdangerous = "*"

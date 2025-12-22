@@ -48,6 +48,9 @@ class AppSettings(BaseSettings):
     reload: bool = Field(default=True, alias="RELOAD")
     log_level: str = Field(default="info", alias="LOG_LEVEL")
 
+    # File Upload Configuration
+    max_csv_file_size_mb: int = Field(default=10, alias="MAX_CSV_FILE_SIZE_MB")
+
     # Rate limiting (process-local by default)
     rate_limit_anon_per_min: int = Field(default=60, alias="RATE_LIMIT_ANON_PER_MIN")
     rate_limit_auth_per_min: int = Field(default=120, alias="RATE_LIMIT_AUTH_PER_MIN")
