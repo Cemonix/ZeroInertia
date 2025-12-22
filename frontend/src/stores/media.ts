@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import type {
+    CSVImportResult,
     Genre,
     MediaFormValues,
     MediaItem,
@@ -326,6 +327,43 @@ export const useMediaStore = defineStore("media", () => {
         }
     }
 
+    async function importCSV(file: File, type: MediaType): Promise<CSVImportResult> {
+        try {
+            let result: CSVImportResult;
+            switch (type) {
+                case "book":
+                    result = await mediaService.importBooks(file);
+                    break;
+                case "movie":
+                    result = await mediaService.importMovies(file);
+                    break;
+                case "game":
+                    result = await mediaService.importGames(file);
+                    break;
+                case "show":
+                    result = await mediaService.importShows(file);
+                    break;
+                case "manga":
+                    result = await mediaService.importManga(file);
+                    break;
+                case "anime":
+                    result = await mediaService.importAnime(file);
+                    break;
+            }
+
+            await load();
+
+            return result;
+        } catch (err) {
+            const message =
+                err instanceof Error
+                    ? err.message
+                    : "Failed to import CSV";
+            error.value = message;
+            throw err;
+        }
+    }
+
     return {
         items,
         loading,
@@ -356,5 +394,6 @@ export const useMediaStore = defineStore("media", () => {
         closeForm,
         save,
         remove,
+        importCSV,
     };
 });

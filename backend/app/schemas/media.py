@@ -321,3 +321,16 @@ class YearlyStatsResponse(BaseModel):
     shows: int
     manga: int
     anime: int
+
+
+# ===== CSV Import Schemas =====
+
+
+class CSVImportResult(BaseModel):
+    """Schema for CSV import results"""
+
+    total_rows: int
+    imported: int
+    skipped_duplicates: int
+    imported_items: list[UUID] = Field(default_factory=list)
+    duplicate_titles: list[str] = Field(default_factory=list)

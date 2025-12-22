@@ -135,3 +135,11 @@ export const MEDIA_STATUSES: { label: string; value: MediaStatus }[] = [
     { label: "Completed", value: "completed" },
     { label: "Dropped", value: "dropped" },
 ];
+
+export interface CSVImportResult {
+    total_rows: number;
+    imported: number;
+    skipped_duplicates: number;
+    imported_items: string[];
+    duplicate_titles: string[];
+}
