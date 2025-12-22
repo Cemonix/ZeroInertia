@@ -35,6 +35,7 @@ from app.schemas.media import (
     YearlyStatsResponse,
 )
 from app.services import media_service
+from app.services.media_service.csv_import_service import validate_csv_file_size
 
 router = APIRouter()
 
@@ -87,7 +88,11 @@ async def import_books(
     if not file.filename or not file.filename.endswith('.csv'):
         raise BadRequestException("File must be a CSV")
 
+    if file.size:
+        validate_csv_file_size(file.size)
+
     content = await file.read()
+    validate_csv_file_size(len(content))
     csv_content = content.decode('utf-8')
 
     result = await media_service.import_books_csv(
@@ -203,7 +208,11 @@ async def import_movies(
     if not file.filename or not file.filename.endswith('.csv'):
         raise BadRequestException("File must be a CSV")
 
+    if file.size:
+        validate_csv_file_size(file.size)
+
     content = await file.read()
+    validate_csv_file_size(len(content))
     csv_content = content.decode('utf-8')
 
     result = await media_service.import_movies_csv(
@@ -319,7 +328,11 @@ async def import_games(
     if not file.filename or not file.filename.endswith('.csv'):
         raise BadRequestException("File must be a CSV")
 
+    if file.size:
+        validate_csv_file_size(file.size)
+
     content = await file.read()
+    validate_csv_file_size(len(content))
     csv_content = content.decode('utf-8')
 
     result = await media_service.import_games_csv(
@@ -435,7 +448,11 @@ async def import_shows(
     if not file.filename or not file.filename.endswith('.csv'):
         raise BadRequestException("File must be a CSV")
 
+    if file.size:
+        validate_csv_file_size(file.size)
+
     content = await file.read()
+    validate_csv_file_size(len(content))
     csv_content = content.decode('utf-8')
 
     result = await media_service.import_shows_csv(
@@ -551,7 +568,11 @@ async def import_manga(
     if not file.filename or not file.filename.endswith('.csv'):
         raise BadRequestException("File must be a CSV")
 
+    if file.size:
+        validate_csv_file_size(file.size)
+
     content = await file.read()
+    validate_csv_file_size(len(content))
     csv_content = content.decode('utf-8')
 
     result = await media_service.import_manga_csv(
@@ -667,7 +688,11 @@ async def import_anime(
     if not file.filename or not file.filename.endswith('.csv'):
         raise BadRequestException("File must be a CSV")
 
+    if file.size:
+        validate_csv_file_size(file.size)
+
     content = await file.read()
+    validate_csv_file_size(len(content))
     csv_content = content.decode('utf-8')
 
     result = await media_service.import_anime_csv(

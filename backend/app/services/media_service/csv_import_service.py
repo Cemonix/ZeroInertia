@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import BadRequestException
+from app.core.settings.app_settings import get_app_settings
 from app.models.genre import Genre
 from app.models.media import Anime, Book, Game, Manga, Movie, Show
 from app.schemas.media import CSVImportResult, MediaStatus
@@ -15,6 +16,18 @@ from app.schemas.media import CSVImportResult, MediaStatus
 MediaModel = TypeVar("MediaModel", Anime, Book, Game, Manga, Movie, Show)
 
 # pyright: reportAny=false
+
+
+def validate_csv_file_size(file_size_bytes: int) -> None:
+    """Validate that the CSV file size is within acceptable limits"""
+    settings = get_app_settings()
+    max_size_bytes = settings.max_csv_file_size_mb * 1024 * 1024
+
+    if file_size_bytes > max_size_bytes:
+        raise BadRequestException(
+            f"CSV file size ({file_size_bytes / 1024 / 1024:.2f} MB) exceeds maximum allowed size " +
+            f"of {settings.max_csv_file_size_mb} MB"
+        )
 
 
 async def get_or_create_genre(db: AsyncSession, user_id: UUID, genre_name: str) -> Genre:
