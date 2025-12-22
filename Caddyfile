@@ -1,4 +1,4 @@
-zeroinertia.cemonix.dev {
+{env.DOMAIN} {
     # Backend routes (API, health, CSRF) - proxy to backend container
     @backend path /api/* /health /csrf
     handle @backend {
@@ -14,7 +14,7 @@ zeroinertia.cemonix.dev {
     reverse_proxy frontend:80
 }
 
-grafana.zeroinertia.cemonix.dev {
+{env.GRAFANA_DOMAIN} {
     # Grafana monitoring dashboard
     reverse_proxy grafana:3000
 }

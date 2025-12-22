@@ -18,6 +18,16 @@ ENV_FILE="./backend/.env"
 BACKUP_DIR="./backups"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 
+# Load infrastructure environment variables (domain, etc.)
+if [ -f .env ]; then
+    set -a
+    source .env
+    set +a
+else
+    log_warning "Root .env file not found. Using default values."
+    DOMAIN="${DOMAIN:-yourdomain.com}"
+fi
+
 # Functions
 log_info() {
     echo -e "${BLUE}[INFO]${NC} $1"
@@ -145,5 +155,5 @@ docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" ps
 # Final message
 echo ""
 log_success "🚀 Deployment completed successfully!"
-log_info "Application is running at: https://zeroinertia.cemonix.dev"
+log_info "Application is running at: https://$DOMAIN"
 echo ""
