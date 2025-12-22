@@ -1,6 +1,7 @@
 import apiClient from "./apiClient";
 import type {
     BookMediaItem,
+    CSVImportResult,
     DuplicateMatch,
     GameMediaItem,
     Genre,
@@ -366,5 +367,125 @@ export const mediaService = {
             params: year ? { year } : undefined,
         });
         return { ...res.data, anime: res.data.anime ?? 0 };
+    },
+
+    async importBooks(file: File): Promise<CSVImportResult> {
+        const formData = new FormData();
+        formData.append("file", file);
+        const res = await apiClient.post<CSVImportResult>(
+            `${API_URL}/books/import`,
+            formData,
+            {
+                headers: { "Content-Type": "multipart/form-data" },
+            },
+        );
+        return res.data;
+    },
+
+    async importMovies(file: File): Promise<CSVImportResult> {
+        const formData = new FormData();
+        formData.append("file", file);
+        const res = await apiClient.post<CSVImportResult>(
+            `${API_URL}/movies/import`,
+            formData,
+            {
+                headers: { "Content-Type": "multipart/form-data" },
+            },
+        );
+        return res.data;
+    },
+
+    async importGames(file: File): Promise<CSVImportResult> {
+        const formData = new FormData();
+        formData.append("file", file);
+        const res = await apiClient.post<CSVImportResult>(
+            `${API_URL}/games/import`,
+            formData,
+            {
+                headers: { "Content-Type": "multipart/form-data" },
+            },
+        );
+        return res.data;
+    },
+
+    async importShows(file: File): Promise<CSVImportResult> {
+        const formData = new FormData();
+        formData.append("file", file);
+        const res = await apiClient.post<CSVImportResult>(
+            `${API_URL}/shows/import`,
+            formData,
+            {
+                headers: { "Content-Type": "multipart/form-data" },
+            },
+        );
+        return res.data;
+    },
+
+    async importManga(file: File): Promise<CSVImportResult> {
+        const formData = new FormData();
+        formData.append("file", file);
+        const res = await apiClient.post<CSVImportResult>(
+            `${API_URL}/manga/import`,
+            formData,
+            {
+                headers: { "Content-Type": "multipart/form-data" },
+            },
+        );
+        return res.data;
+    },
+
+    async importAnime(file: File): Promise<CSVImportResult> {
+        const formData = new FormData();
+        formData.append("file", file);
+        const res = await apiClient.post<CSVImportResult>(
+            `${API_URL}/anime/import`,
+            formData,
+            {
+                headers: { "Content-Type": "multipart/form-data" },
+            },
+        );
+        return res.data;
+    },
+
+    async exportBooks(): Promise<Blob> {
+        const res = await apiClient.get(`${API_URL}/books/export`, {
+            responseType: "blob",
+        });
+        return res.data;
+    },
+
+    async exportMovies(): Promise<Blob> {
+        const res = await apiClient.get(`${API_URL}/movies/export`, {
+            responseType: "blob",
+        });
+        return res.data;
+    },
+
+    async exportGames(): Promise<Blob> {
+        const res = await apiClient.get(`${API_URL}/games/export`, {
+            responseType: "blob",
+        });
+        return res.data;
+    },
+
+    async exportShows(): Promise<Blob> {
+        const res = await apiClient.get(`${API_URL}/shows/export`, {
+            responseType: "blob",
+        });
+        return res.data;
+    },
+
+    async exportManga(): Promise<Blob> {
+        const res = await apiClient.get(`${API_URL}/manga/export`, {
+            responseType: "blob",
+        });
+        return res.data;
+    },
+
+    async exportAnime(): Promise<Blob> {
+        const res = await apiClient.get(`${API_URL}/anime/export`, {
+            responseType: "blob",
+        });
+        return res.data;
     },
 };

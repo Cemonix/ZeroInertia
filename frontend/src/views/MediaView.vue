@@ -106,6 +106,25 @@
                     >
                     <Button
                         text
+                        aria-label="Import CSV"
+                        class="import-btn"
+                        @click="openImportDialog"
+                    >
+                        <FontAwesomeIcon icon="file-import" />
+                        Import CSV
+                    </Button>
+                    <Button
+                        text
+                        aria-label="Export CSV"
+                        class="export-btn"
+                        @click="handleExport"
+                        :disabled="filteredItems.length === 0"
+                    >
+                        <FontAwesomeIcon icon="file-export" />
+                        Export CSV
+                    </Button>
+                    <Button
+                        text
                         aria-label="Add genre"
                         class="add-genre-btn"
                         @click="openGenreDialog"
@@ -186,6 +205,48 @@
                 </div>
             </div>
         </Dialog>
+        <Dialog
+            v-model:visible="importDialogVisible"
+            modal
+            :header="`Import ${activeCategory} CSV`"
+            :style="{ width: '520px' }"
+        >
+            <div class="import-dialog">
+                <p class="import-instructions">
+                    Select a CSV file to import {{ activeCategory }} items. The file will be validated before import.
+                </p>
+                <input
+                    ref="fileInput"
+                    type="file"
+                    accept=".csv"
+                    @change="onFileSelected"
+                    class="file-input"
+                />
+                <div v-if="importResult" class="import-result">
+                    <div class="result-section">
+                        <h4>Import Summary</h4>
+                        <p><strong>Total rows:</strong> {{ importResult.total_rows }}</p>
+                        <p><strong>Imported:</strong> {{ importResult.imported }}</p>
+                        <p><strong>Skipped duplicates:</strong> {{ importResult.skipped_duplicates }}</p>
+                    </div>
+                    <div v-if="importResult.duplicate_titles.length > 0" class="result-section">
+                        <h4>Duplicate Titles (Skipped)</h4>
+                        <ul class="duplicate-list">
+                            <li v-for="title in importResult.duplicate_titles" :key="title">{{ title }}</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="import-dialog-actions">
+                    <Button text label="Close" @click="closeImportDialog" />
+                    <Button
+                        label="Import"
+                        :disabled="!selectedFile || importing"
+                        :loading="importing"
+                        @click="handleImport"
+                    />
+                </div>
+            </div>
+        </Dialog>
     </WorkspaceLayout>
 </template>
 
@@ -197,7 +258,7 @@ import MediaTable from "@/components/media/MediaTable.vue";
 import MediaForm from "@/components/media/MediaForm.vue";
 import MultiSelect from "primevue/multiselect";
 import InputText from "primevue/inputtext";
-import { MEDIA_STATUSES, MEDIA_TYPES, type MediaType } from "@/models/media";
+import { MEDIA_STATUSES, MEDIA_TYPES, type CSVImportResult, type MediaType } from "@/models/media";
 import { useMediaStore } from "@/stores/media";
 import { useAuthStore } from "@/stores/auth";
 import { storeToRefs } from "pinia";
@@ -216,6 +277,12 @@ const addingGenre = ref(false);
 const canSaveGenre = computed(
     () => newGenreName.value.trim().length > 0 && !addingGenre.value,
 );
+
+const importDialogVisible = ref(false);
+const importing = ref(false);
+const selectedFile = ref<File | null>(null);
+const fileInput = ref<HTMLInputElement | null>(null);
+const importResult = ref<CSVImportResult | null>(null);
 
 const {
     filteredItems,
@@ -325,6 +392,114 @@ const onDelete = (item: any) => {
             }
         },
     });
+};
+
+const openImportDialog = () => {
+    selectedFile.value = null;
+    importResult.value = null;
+    importDialogVisible.value = true;
+    if (fileInput.value) {
+        fileInput.value.value = "";
+    }
+};
+
+const closeImportDialog = () => {
+    importDialogVisible.value = false;
+    selectedFile.value = null;
+    importResult.value = null;
+    if (fileInput.value) {
+        fileInput.value.value = "";
+    }
+};
+
+const onFileSelected = (event: Event) => {
+    const target = event.target as HTMLInputElement;
+    if (target.files && target.files.length > 0) {
+        selectedFile.value = target.files[0];
+        importResult.value = null;
+    }
+};
+
+const handleImport = async () => {
+    if (!selectedFile.value) return;
+
+    importing.value = true;
+    try {
+        const result = await mediaStore.importCSV(selectedFile.value, activeCategory.value);
+        importResult.value = result;
+
+        toast.add({
+            severity: "success",
+            summary: "Import successful",
+            detail: `Imported ${result.imported} items, skipped ${result.skipped_duplicates} duplicates`,
+            life: 4000,
+        });
+
+        selectedFile.value = null;
+        if (fileInput.value) {
+            fileInput.value.value = "";
+        }
+    } catch (err) {
+        toast.add({
+            severity: "error",
+            summary: "Import failed",
+            detail: err instanceof Error ? err.message : "Failed to import CSV",
+            life: 5000,
+        });
+    } finally {
+        importing.value = false;
+    }
+};
+
+const handleExport = async () => {
+    try {
+        const { mediaService } = await import("@/services/mediaService");
+        let blob: Blob;
+
+        switch (activeCategory.value) {
+            case "book":
+                blob = await mediaService.exportBooks();
+                break;
+            case "movie":
+                blob = await mediaService.exportMovies();
+                break;
+            case "game":
+                blob = await mediaService.exportGames();
+                break;
+            case "show":
+                blob = await mediaService.exportShows();
+                break;
+            case "manga":
+                blob = await mediaService.exportManga();
+                break;
+            case "anime":
+                blob = await mediaService.exportAnime();
+                break;
+        }
+
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `${activeCategory.value}s.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+
+        toast.add({
+            severity: "success",
+            summary: "Export successful",
+            detail: `Exported ${filteredItems.value.length} ${activeCategory.value} items`,
+            life: 3000,
+        });
+    } catch (err) {
+        toast.add({
+            severity: "error",
+            summary: "Export failed",
+            detail: err instanceof Error ? err.message : "Failed to export CSV",
+            life: 5000,
+        });
+    }
 };
 
 onMounted(async () => {
@@ -532,5 +707,80 @@ watch(
     display: flex;
     justify-content: flex-end;
     gap: 0.5rem;
+}
+
+.import-btn {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.export-btn {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.import-dialog {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding-top: 0.5rem;
+}
+
+.import-instructions {
+    margin: 0;
+    color: var(--p-text-muted-color);
+    font-size: 0.95rem;
+}
+
+.file-input {
+    padding: 0.5rem;
+    border: 1px solid var(--p-content-border-color);
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.import-result {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--p-content-background);
+    border-radius: 6px;
+    border: 1px solid var(--p-content-border-color);
+}
+
+.result-section h4 {
+    margin: 0 0 0.5rem 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+
+.result-section p {
+    margin: 0.25rem 0;
+    font-size: 0.9rem;
+}
+
+.duplicate-list {
+    margin: 0.5rem 0 0 0;
+    padding-left: 1.5rem;
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.duplicate-list li {
+    font-size: 0.9rem;
+    margin: 0.25rem 0;
+    color: var(--p-text-muted-color);
+}
+
+.import-dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    padding-top: 0.5rem;
 }
 </style>
