@@ -2,13 +2,14 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from fastapi import Depends, Query, status
+from fastapi import Depends, File, Query, UploadFile, status
+from fastapi.responses import Response
 from fastapi.routing import APIRouter
 from sqlalchemy.ext.asyncio.session import AsyncSession
 
 from app.api.v1.auth_deps import get_current_user
 from app.core.database import get_db
-from app.core.exceptions import MediaNotFoundException
+from app.core.exceptions import BadRequestException, MediaNotFoundException
 from app.models.media import Anime, Book, Game, Manga, Movie, Show
 from app.models.user import User
 from app.schemas.media import (
@@ -18,6 +19,7 @@ from app.schemas.media import (
     BookCreate,
     BookResponse,
     BookUpdate,
+    CSVImportResult,
     GameCreate,
     GameResponse,
     GameUpdate,
@@ -73,6 +75,44 @@ async def create_book(
         book_data=book_data,
     )
     return BookResponse.model_validate(book)
+
+
+@router.post("/books/import", response_model=CSVImportResult, status_code=status.HTTP_201_CREATED)
+async def import_books(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> CSVImportResult:
+    """Import books from CSV file. Expected columns: title, creator, status, is_audiobook, genres, started_at, completed_at, notes"""
+    if not file.filename or not file.filename.endswith('.csv'):
+        raise BadRequestException("File must be a CSV")
+
+    content = await file.read()
+    csv_content = content.decode('utf-8')
+
+    result = await media_service.import_books_csv(
+        db=db,
+        user_id=current_user.id,
+        csv_content=csv_content,
+    )
+    return result
+
+
+@router.get("/books/export", response_class=Response)
+async def export_books(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Export all books for the authenticated user to CSV"""
+    csv_content = await media_service.export_books_for_user(
+        db=db,
+        user_id=current_user.id,
+    )
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=books.csv"}
+    )
 
 
 @router.get("/books/{book_id}", response_model=BookResponse)
@@ -153,6 +193,44 @@ async def create_movie(
     return MovieResponse.model_validate(movie)
 
 
+@router.post("/movies/import", response_model=CSVImportResult, status_code=status.HTTP_201_CREATED)
+async def import_movies(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> CSVImportResult:
+    """Import movies from CSV file. Expected columns: title, status, genres, completed_at, notes"""
+    if not file.filename or not file.filename.endswith('.csv'):
+        raise BadRequestException("File must be a CSV")
+
+    content = await file.read()
+    csv_content = content.decode('utf-8')
+
+    result = await media_service.import_movies_csv(
+        db=db,
+        user_id=current_user.id,
+        csv_content=csv_content,
+    )
+    return result
+
+
+@router.get("/movies/export", response_class=Response)
+async def export_movies(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Export all movies for the authenticated user to CSV"""
+    csv_content = await media_service.export_movies_for_user(
+        db=db,
+        user_id=current_user.id,
+    )
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=movies.csv"}
+    )
+
+
 @router.get("/movies/{movie_id}", response_model=MovieResponse)
 async def get_movie(
     movie_id: UUID,
@@ -229,6 +307,44 @@ async def create_game(
         game_data=game_data,
     )
     return GameResponse.model_validate(game)
+
+
+@router.post("/games/import", response_model=CSVImportResult, status_code=status.HTTP_201_CREATED)
+async def import_games(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> CSVImportResult:
+    """Import games from CSV file. Expected columns: title, status, platform, genres, started_at, completed_at, notes"""
+    if not file.filename or not file.filename.endswith('.csv'):
+        raise BadRequestException("File must be a CSV")
+
+    content = await file.read()
+    csv_content = content.decode('utf-8')
+
+    result = await media_service.import_games_csv(
+        db=db,
+        user_id=current_user.id,
+        csv_content=csv_content,
+    )
+    return result
+
+
+@router.get("/games/export", response_class=Response)
+async def export_games(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Export all games for the authenticated user to CSV"""
+    csv_content = await media_service.export_games_for_user(
+        db=db,
+        user_id=current_user.id,
+    )
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=games.csv"}
+    )
 
 
 @router.get("/games/{game_id}", response_model=GameResponse)
@@ -309,6 +425,44 @@ async def create_show(
     return ShowResponse.model_validate(show)
 
 
+@router.post("/shows/import", response_model=CSVImportResult, status_code=status.HTTP_201_CREATED)
+async def import_shows(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> CSVImportResult:
+    """Import TV shows from CSV file. Expected columns: title, status, genres, started_at, completed_at, notes"""
+    if not file.filename or not file.filename.endswith('.csv'):
+        raise BadRequestException("File must be a CSV")
+
+    content = await file.read()
+    csv_content = content.decode('utf-8')
+
+    result = await media_service.import_shows_csv(
+        db=db,
+        user_id=current_user.id,
+        csv_content=csv_content,
+    )
+    return result
+
+
+@router.get("/shows/export", response_class=Response)
+async def export_shows(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Export all TV shows for the authenticated user to CSV"""
+    csv_content = await media_service.export_shows_for_user(
+        db=db,
+        user_id=current_user.id,
+    )
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=shows.csv"}
+    )
+
+
 @router.get("/shows/{show_id}", response_model=ShowResponse)
 async def get_show(
     show_id: UUID,
@@ -387,6 +541,44 @@ async def create_manga(
     return MangaResponse.model_validate(manga)
 
 
+@router.post("/manga/import", response_model=CSVImportResult, status_code=status.HTTP_201_CREATED)
+async def import_manga(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> CSVImportResult:
+    """Import manga from CSV file. Expected columns: title, author, status, genres, started_at, completed_at, notes"""
+    if not file.filename or not file.filename.endswith('.csv'):
+        raise BadRequestException("File must be a CSV")
+
+    content = await file.read()
+    csv_content = content.decode('utf-8')
+
+    result = await media_service.import_manga_csv(
+        db=db,
+        user_id=current_user.id,
+        csv_content=csv_content,
+    )
+    return result
+
+
+@router.get("/manga/export", response_class=Response)
+async def export_manga(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Export all manga for the authenticated user to CSV"""
+    csv_content = await media_service.export_manga_for_user(
+        db=db,
+        user_id=current_user.id,
+    )
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=manga.csv"}
+    )
+
+
 @router.get("/manga/{manga_id}", response_model=MangaResponse)
 async def get_manga(
     manga_id: UUID,
@@ -463,6 +655,44 @@ async def create_anime(
         anime_data=anime_data,
     )
     return AnimeResponse.model_validate(anime)
+
+
+@router.post("/anime/import", response_model=CSVImportResult, status_code=status.HTTP_201_CREATED)
+async def import_anime(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> CSVImportResult:
+    """Import anime from CSV file. Expected columns: title, episodes, status, genres, started_at, completed_at, notes"""
+    if not file.filename or not file.filename.endswith('.csv'):
+        raise BadRequestException("File must be a CSV")
+
+    content = await file.read()
+    csv_content = content.decode('utf-8')
+
+    result = await media_service.import_anime_csv(
+        db=db,
+        user_id=current_user.id,
+        csv_content=csv_content,
+    )
+    return result
+
+
+@router.get("/anime/export", response_class=Response)
+async def export_anime(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Export all anime for the authenticated user to CSV"""
+    csv_content = await media_service.export_anime_for_user(
+        db=db,
+        user_id=current_user.id,
+    )
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=anime.csv"}
+    )
 
 
 @router.get("/anime/{anime_id}", response_model=AnimeResponse)
