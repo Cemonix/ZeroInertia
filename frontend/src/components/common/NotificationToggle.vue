@@ -8,7 +8,7 @@
     >
         <div class="notification-settings">
             <div v-if="!isSupported" class="not-supported-message">
-                <i class="fa fa-exclamation-triangle"></i>
+                <FontAwesomeIcon icon="fa-solid fa-exclamation-triangle" />
                 <p>Push notifications are not supported in your browser.</p>
             </div>
             <template v-else>
