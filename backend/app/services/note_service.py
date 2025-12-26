@@ -9,8 +9,8 @@ from sqlalchemy.sql import select
 from app.core.exceptions import InvalidOperationException, NoteNotFoundException
 from app.models.note import Note
 from app.schemas.note import NoteReorder, NoteUpdate
-from app.services.base_service import apply_updates_async
 from app.services import note_link_service
+from app.services.base_service import apply_updates_async
 
 
 async def _ensure_parent_belongs_to_user(
