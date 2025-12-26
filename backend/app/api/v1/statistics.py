@@ -13,6 +13,10 @@ from app.schemas.statistics import (
     CalendarHeatmapData,
     CompletionStatistics,
     DailyCompletionData,
+    DistributionResponse,
+    ProductivityPatternsResponse,
+    ProjectStatisticsResponse,
+    TrendsResponse,
 )
 from app.services import statistics_service
 
@@ -164,4 +168,199 @@ async def get_completion_summary(
         average_per_day=stats.average_per_day,
         best_day_count=best_day.best_day_count,
         best_day_date=best_day.best_day_date,
+    )
+
+
+@router.get("/projects", response_model=ProjectStatisticsResponse)
+async def get_project_statistics(
+    start_date: Annotated[
+        date,
+        Query(description="Start date for the range (YYYY-MM-DD)", examples=["2025-01-01"]),
+    ],
+    end_date: Annotated[
+        date,
+        Query(description="End date for the range (YYYY-MM-DD)", examples=["2025-01-31"]),
+    ],
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> ProjectStatisticsResponse:
+    """
+    Get project-level completion statistics for a date range.
+
+    Returns statistics showing which projects had the most task completions
+    in the specified period. Useful for identifying productive projects
+    and projects that need attention.
+
+    Args:
+        start_date: Start date (inclusive)
+        end_date: End date (inclusive)
+        db: Database session
+        current_user: Authenticated user
+
+    Returns:
+        ProjectStatisticsResponse with project completion data
+    """
+    project_stats = await statistics_service.get_project_statistics(
+        db, current_user.id, start_date, end_date
+    )
+
+    total_completed = sum(p.completed_count for p in project_stats)
+
+    return ProjectStatisticsResponse(
+        projects=project_stats,
+        total_completed=total_completed,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+
+@router.get("/patterns", response_model=ProductivityPatternsResponse)
+async def get_productivity_patterns(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> ProductivityPatternsResponse:
+    """
+    Get productivity patterns by day of week.
+
+    Returns statistics showing which days of the week the user is most
+    productive (all-time). Helps identify patterns and optimize scheduling.
+
+    Args:
+        db: Database session
+        current_user: Authenticated user
+
+    Returns:
+        ProductivityPatternsResponse with day-of-week statistics
+    """
+    day_stats = await statistics_service.get_day_of_week_patterns(
+        db, current_user.id
+    )
+
+    most_productive = max(day_stats, key=lambda x: x.completed_count)
+    least_productive = min(day_stats, key=lambda x: x.completed_count)
+
+    return ProductivityPatternsResponse(
+        by_day_of_week=day_stats,
+        most_productive_day=most_productive.day_name,
+        least_productive_day=least_productive.day_name,
+    )
+
+
+@router.get("/trends", response_model=TrendsResponse)
+async def get_completion_trends(
+    period_type: Annotated[
+        str,
+        Query(
+            description="Period type for trends",
+            pattern="^(week|month)$",
+            examples=["week"],
+        ),
+    ] = "week",
+    num_periods: Annotated[
+        int,
+        Query(
+            description="Number of periods to include",
+            ge=1,
+            le=52,
+            examples=[8],
+        ),
+    ] = 8,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> TrendsResponse:
+    """
+    Get completion trends over time.
+
+    Returns completion counts for the last N weeks or months,
+    along with trend direction analysis.
+
+    Args:
+        period_type: "week" or "month"
+        num_periods: Number of periods to include (1-52)
+        db: Database session
+        current_user: Authenticated user
+
+    Returns:
+        TrendsResponse with period data and trend analysis
+    """
+    periods = await statistics_service.get_completion_trends(
+        db, current_user.id, period_type, num_periods
+    )
+
+    if len(periods) < 2:
+        trend_direction = "stable"
+        average_change_percent = 0.0
+    else:
+        changes: list[float] = []
+        for i in range(1, len(periods)):
+            prev_count = periods[i - 1].completed_count
+            curr_count = periods[i].completed_count
+
+            if prev_count == 0:
+                if curr_count > 0:
+                    changes.append(100.0)
+            else:
+                change_percent = ((curr_count - prev_count) / prev_count) * 100
+                changes.append(change_percent)
+
+        average_change_percent = (
+            sum(changes) / len(changes) if changes else 0.0
+        )
+
+        if average_change_percent > 5.0:
+            trend_direction = "up"
+        elif average_change_percent < -5.0:
+            trend_direction = "down"
+        else:
+            trend_direction = "stable"
+
+    return TrendsResponse(
+        periods=periods,
+        trend_direction=trend_direction,
+        average_change_percent=round(average_change_percent, 2),
+    )
+
+
+@router.get("/distribution", response_model=DistributionResponse)
+async def get_distribution_statistics(
+    start_date: Annotated[
+        date,
+        Query(description="Start date for the range (YYYY-MM-DD)", examples=["2025-01-01"]),
+    ],
+    end_date: Annotated[
+        date,
+        Query(description="End date for the range (YYYY-MM-DD)", examples=["2025-01-31"]),
+    ],
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> DistributionResponse:
+    """
+    Get distribution of completions by priority and labels.
+
+    Returns statistics showing how completed tasks are distributed across
+    priority levels and labels. Useful for understanding work patterns.
+
+    Args:
+        start_date: Start date (inclusive)
+        end_date: End date (inclusive)
+        db: Database session
+        current_user: Authenticated user
+
+    Returns:
+        DistributionResponse with priority and label distributions
+    """
+    priority_dist = await statistics_service.get_priority_distribution(
+        db, current_user.id, start_date, end_date
+    )
+
+    label_dist = await statistics_service.get_label_distribution(
+        db, current_user.id, start_date, end_date, limit=10
+    )
+
+    total_completed = sum(p.completed_count for p in priority_dist)
+
+    return DistributionResponse(
+        by_priority=priority_dist,
+        by_labels=label_dist,
+        total_completed=total_completed,
     )

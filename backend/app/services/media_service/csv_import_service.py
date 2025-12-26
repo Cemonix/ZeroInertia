@@ -65,6 +65,9 @@ async def parse_genres(db: AsyncSession, user_id: UUID, genres_str: str | None) 
 
 def parse_csv_content(csv_content: str) -> list[dict[str, str]]:
     """Parse CSV content and return list of dictionaries"""
+    # Strip leading/trailing whitespace and blank lines
+    csv_content = csv_content.strip()
+
     csv_file = StringIO(csv_content)
     reader = csv.DictReader(csv_file)
 

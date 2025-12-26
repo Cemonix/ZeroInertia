@@ -2,7 +2,7 @@
     <Card class="backlinks-panel">
         <template #title>
             <div class="panel-header">
-                <i class="pi pi-link" />
+                <FontAwesomeIcon icon="link" />
                 <span>Backlinks</span>
             </div>
         </template>
@@ -15,11 +15,11 @@
                 <span>Loading backlinks...</span>
             </div>
             <div v-else-if="error" class="error-state">
-                <i class="pi pi-exclamation-triangle" />
+                <FontAwesomeIcon icon="triangle-exclamation" />
                 <span>{{ error }}</span>
             </div>
             <div v-else-if="backlinks.length === 0" class="empty-state">
-                <i class="pi pi-link" />
+                <FontAwesomeIcon icon="link" />
                 <p>No notes link to this page yet</p>
                 <small>Create links by using [[Note Title]] in other notes</small>
             </div>
@@ -31,7 +31,7 @@
                     @click="handleBacklinkClick(backlink.note_id)"
                 >
                     <div class="backlink-content">
-                        <i class="pi pi-file" />
+                        <FontAwesomeIcon icon="file" />
                         <span class="backlink-title">{{ backlink.note_title }}</span>
                     </div>
                     <span class="backlink-date">{{

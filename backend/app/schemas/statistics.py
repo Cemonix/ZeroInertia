@@ -2,6 +2,7 @@
 
 from datetime import date
 from typing import ClassVar
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -93,3 +94,121 @@ class BestDayInfo(BaseModel):
 
     best_day_count: int
     best_day_date: str | None
+
+
+class ProjectStatistics(BaseModel):
+    """Statistics for a single project."""
+
+    project_id: UUID = Field(..., description="Project UUID")
+    project_title: str = Field(..., description="Project name")
+    completed_count: int = Field(
+        ..., description="Number of completed tasks in this project"
+    )
+    completion_percentage: float = Field(
+        ..., description="Percentage of total completions in the period"
+    )
+
+
+class ProjectStatisticsResponse(BaseModel):
+    """Project-level statistics for a date range."""
+
+    projects: list[ProjectStatistics] = Field(
+        ..., description="List of project statistics ordered by completion count"
+    )
+    total_completed: int = Field(
+        ..., description="Total completions across all projects in the period"
+    )
+    start_date: date = Field(..., description="Start of the date range")
+    end_date: date = Field(..., description="End of the date range")
+
+
+class DayOfWeekStatistics(BaseModel):
+    """Completion patterns by day of week."""
+
+    day_of_week: int = Field(
+        ..., description="Day of week (0=Monday, 6=Sunday)", ge=0, le=6
+    )
+    day_name: str = Field(..., description="Name of the day (e.g., 'Monday')")
+    completed_count: int = Field(
+        ..., description="Total completions on this day of week (all-time)"
+    )
+    average_per_week: float = Field(
+        ..., description="Average completions per week on this day"
+    )
+
+
+class ProductivityPatternsResponse(BaseModel):
+    """Weekly productivity patterns."""
+
+    by_day_of_week: list[DayOfWeekStatistics] = Field(
+        ..., description="Statistics for each day of the week"
+    )
+    most_productive_day: str = Field(
+        ..., description="Name of the most productive day"
+    )
+    least_productive_day: str = Field(
+        ..., description="Name of the least productive day"
+    )
+
+
+class TrendPeriod(BaseModel):
+    """Statistics for a single period (week/month)."""
+
+    period_start: date = Field(..., description="Start date of the period")
+    period_end: date = Field(..., description="End date of the period")
+    completed_count: int = Field(..., description="Completions in this period")
+
+
+class TrendsResponse(BaseModel):
+    """Week-over-week or month-over-month trends."""
+
+    periods: list[TrendPeriod] = Field(
+        ..., description="List of periods with their completion counts"
+    )
+    trend_direction: str = Field(
+        ..., description="Overall trend direction: 'up', 'down', or 'stable'"
+    )
+    average_change_percent: float = Field(
+        ..., description="Average percentage change between periods"
+    )
+
+
+class PriorityDistribution(BaseModel):
+    """Task completions by priority level."""
+
+    priority_id: UUID | None = Field(..., description="Priority UUID or null for none")
+    priority_name: str = Field(..., description="Priority name (e.g., 'High', 'None')")
+    completed_count: int = Field(
+        ..., description="Number of completed tasks with this priority"
+    )
+    percentage: float = Field(
+        ..., description="Percentage of total completions"
+    )
+
+
+class LabelDistribution(BaseModel):
+    """Task completions by label."""
+
+    label_id: UUID = Field(..., description="Label UUID")
+    label_name: str = Field(..., description="Label name")
+    label_color: str = Field(..., description="Label color (hex code)")
+    completed_count: int = Field(
+        ..., description="Number of completed tasks with this label"
+    )
+    percentage: float = Field(
+        ..., description="Percentage of total completions"
+    )
+
+
+class DistributionResponse(BaseModel):
+    """Distribution of completions by priority and labels."""
+
+    by_priority: list[PriorityDistribution] = Field(
+        ..., description="Distribution by priority levels"
+    )
+    by_labels: list[LabelDistribution] = Field(
+        ..., description="Distribution by labels (top 10)"
+    )
+    total_completed: int = Field(
+        ..., description="Total completions in the period"
+    )

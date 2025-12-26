@@ -41,6 +41,7 @@
                     />
                     <LabelManager v-else-if="activeWorkspaceView === 'labels'" />
                     <TaskFilters v-else-if="activeWorkspaceView === 'filters'" />
+                    <StatisticsDashboard v-else-if="activeWorkspaceView === 'statistics'" />
                     <div v-else class="workspace-placeholder">
                         <h2>Workspace</h2>
                         <p>Select a view from the control panel.</p>
@@ -63,6 +64,7 @@ import ProjectBoard from '@/components/board/ProjectBoard.vue';
 import LabelManager from '@/components/labels/LabelManager.vue';
 import TaskFilters from '@/components/filters/TaskFilters.vue';
 import TodayBoard from '@/components/today/TodayBoard.vue';
+import StatisticsDashboard from '@/components/statistics/StatisticsDashboard.vue';
 import WorkspaceLayout from '@/layouts/WorkspaceLayout.vue';
 
 const projectStore = useProjectStore();
@@ -70,7 +72,7 @@ const uiStore = useUiStore();
 const router = useRouter();
 
 const { selectedProjectId, inboxProject } = storeToRefs(projectStore);
-const activeWorkspaceView = ref<'today' | 'inbox' | 'labels' | 'filters' | 'project'>('today');
+const activeWorkspaceView = ref<'today' | 'inbox' | 'labels' | 'filters' | 'statistics' | 'project'>('today');
 
 const inboxProjectId = computed(() => inboxProject.value?.id ?? null);
 
