@@ -4,7 +4,7 @@
             <div class="skeleton-circle"></div>
         </div>
         <div v-else-if="!data || data.length === 0" class="chart-empty">
-            <FontAwesomeIcon :icon="['fas', 'chart-pie']" />
+            <FontAwesomeIcon icon="chart-pie" />
             <p>No priority distribution data</p>
         </div>
         <div v-else ref="chartContainer" class="chart-container"></div>
@@ -98,7 +98,7 @@ function renderChart() {
         .attr("stroke", "var(--p-content-background)")
         .attr("stroke-width", 2)
         .style("cursor", "pointer")
-        .on("mouseover", function (event, d) {
+        .on("mouseover", function (_event, d) {
             d3.select(this).transition().duration(200).attr("d", arcHover as any);
 
             tooltip.transition().duration(200).style("opacity", 1);

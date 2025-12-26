@@ -4,7 +4,7 @@
             <div class="skeleton-bar" v-for="i in 5" :key="i"></div>
         </div>
         <div v-else-if="!data || data.length === 0" class="chart-empty">
-            <FontAwesomeIcon :icon="['fas', 'inbox']" />
+            <FontAwesomeIcon icon="inbox" />
             <p>No project data available</p>
         </div>
         <div v-else ref="chartContainer" class="chart-container"></div>
@@ -117,7 +117,7 @@ function renderChart() {
         .attr("fill", (d) => colorScale(d.completion_percentage))
         .attr("rx", 4)
         .style("cursor", "pointer")
-        .on("mouseover", function (event, d) {
+        .on("mouseover", function (_event, d) {
             d3.select(this).style("opacity", 0.8);
             tooltip.transition().duration(200).style("opacity", 1);
 

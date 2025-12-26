@@ -6,7 +6,7 @@
             </div>
         </div>
         <div v-else-if="!dailyData || Object.keys(dailyData).length === 0" class="chart-empty">
-            <FontAwesomeIcon :icon="['fas', 'calendar-week']" />
+            <FontAwesomeIcon icon="calendar-week" />
             <p>No data for this week</p>
         </div>
         <div v-else ref="chartContainer" class="chart-container"></div>
@@ -16,7 +16,7 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted, nextTick, computed } from "vue";
 import * as d3 from "d3";
-import { startOfWeek, endOfWeek, eachDayOfInterval, format, parseISO } from "date-fns";
+import { startOfWeek, endOfWeek, eachDayOfInterval, format } from "date-fns";
 
 interface Props {
     dailyData: Record<string, number>;
@@ -142,7 +142,7 @@ function renderChart() {
         .attr("rx", 5)
         .attr("fill", (d) => d.dateStr === today ? "#10b981" : "#3b82f6")
         .style("cursor", "pointer")
-        .on("mouseover", function (event, d) {
+        .on("mouseover", function (_event, d) {
             d3.select(this).style("opacity", 0.8);
             tooltip.transition().duration(200).style("opacity", 1);
 

@@ -4,7 +4,7 @@
             <div class="skeleton-bar" v-for="i in 5" :key="i"></div>
         </div>
         <div v-else-if="!data || data.length === 0" class="chart-empty">
-            <FontAwesomeIcon :icon="['fas', 'calendar']" />
+            <FontAwesomeIcon icon="tags" />
             <p>No label distribution data</p>
         </div>
         <div v-else ref="chartContainer" class="chart-container"></div>
@@ -120,7 +120,7 @@ function renderChart() {
         .attr("rx", 4)
         .style("cursor", "pointer")
         .style("opacity", 0.9)
-        .on("mouseover", function (_, d) {
+        .on("mouseover", function (_event, d) {
             d3.select(this).style("opacity", 0.7);
             tooltip.transition().duration(200).style("opacity", 1);
 
