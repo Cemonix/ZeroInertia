@@ -55,7 +55,16 @@ import {
     faAnglesDown,
     faAnglesUp,
     faFileImport,
-    faFileExport
+    faFileExport,
+    faChartLine,
+    faTrophy,
+    faInfinity,
+    faArrowUp,
+    faArrowDown,
+    faChartPie,
+    faTags,
+    faCalendarPlus,
+    faMinus
 } from "@fortawesome/free-solid-svg-icons";
 
 // PrimeVue components
@@ -113,7 +122,16 @@ library.add(
     faAnglesDown,
     faAnglesUp,
     faFileImport,
-    faFileExport
+    faFileExport,
+    faChartLine,
+    faTrophy,
+    faInfinity,
+    faArrowUp,
+    faArrowDown,
+    faChartPie,
+    faTags,
+    faCalendarPlus,
+    faMinus
 );
 
 const app = createApp(App);
