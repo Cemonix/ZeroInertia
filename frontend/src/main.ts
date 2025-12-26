@@ -64,6 +64,7 @@ import {
     faChartPie,
     faTags,
     faCalendarPlus,
+    faCalendarWeek,
     faMinus
 } from "@fortawesome/free-solid-svg-icons";
 
@@ -131,6 +132,7 @@ library.add(
     faChartPie,
     faTags,
     faCalendarPlus,
+    faCalendarWeek,
     faMinus
 );
 

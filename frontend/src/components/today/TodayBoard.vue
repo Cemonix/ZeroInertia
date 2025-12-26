@@ -30,12 +30,12 @@
         </div>
 
         <div v-if="isTodayLoading" class="loading-state">
-            <i class="pi pi-spin pi-spinner" style="font-size: 2rem"></i>
+            <FontAwesomeIcon icon="spinner" class="fa-spin" />
             <p>Loading tasks...</p>
         </div>
 
         <div v-else-if="error" class="error-state">
-            <i class="pi pi-exclamation-triangle" style="font-size: 2rem; color: var(--p-red-500)"></i>
+            <FontAwesomeIcon icon="exclamation-triangle" style="font-size: 2rem; color: var(--p-red-500)" />
             <p>{{ error }}</p>
         </div>
 
