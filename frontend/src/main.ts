@@ -65,7 +65,8 @@ import {
     faTags,
     faCalendarPlus,
     faCalendarWeek,
-    faMinus
+    faMinus,
+    faLink
 } from "@fortawesome/free-solid-svg-icons";
 
 // PrimeVue components
@@ -133,7 +134,8 @@ library.add(
     faTags,
     faCalendarPlus,
     faCalendarWeek,
-    faMinus
+    faMinus,
+    faLink
 );
 
 const app = createApp(App);
