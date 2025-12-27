@@ -3,7 +3,6 @@ import { ref, computed, readonly } from "vue";
 import type { User } from "@/models/auth";
 import { AuthService } from "@/services/authService";
 import { clearCsrfCache, prefetchCsrfToken } from "@/services/apiClient";
-import router from "@/router";
 
 export const useAuthStore = defineStore("auth", () => {
     const user = ref<User | null>(null);
@@ -72,9 +71,6 @@ export const useAuthStore = defineStore("auth", () => {
             clearCsrfCache();
             clearUser();
             isLoading.value = false;
-
-            // Redirect to landing page
-            await router.push({ name: 'landing' });
         }
     }
 

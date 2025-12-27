@@ -305,6 +305,7 @@ const userMenuItems = computed(() => [
         icon: "sign-out-alt",
         command: async () => {
             await authStore.logout();
+            await router.push({ name: "landing" });
         },
     },
 ]);
