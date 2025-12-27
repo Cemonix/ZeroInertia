@@ -10,6 +10,46 @@ const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
     routes: [
         {
+            path: "/",
+            name: "landing",
+            component: () => import("@/views/public/LandingView.vue"),
+            meta: {
+                title: "Zero Inertia - Your Personal Productivity Ecosystem",
+            },
+        },
+        {
+            path: "/features",
+            name: "features",
+            component: () => import("@/views/public/FeaturesView.vue"),
+            meta: {
+                title: "Features | Zero Inertia",
+            },
+        },
+        {
+            path: "/about",
+            name: "about",
+            component: () => import("@/views/public/AboutView.vue"),
+            meta: {
+                title: "About | Zero Inertia",
+            },
+        },
+        {
+            path: "/pricing",
+            name: "pricing",
+            component: () => import("@/views/public/PricingView.vue"),
+            meta: {
+                title: "Pricing | Zero Inertia",
+            },
+        },
+        {
+            path: "/contact",
+            name: "contact",
+            component: () => import("@/views/public/ContactView.vue"),
+            meta: {
+                title: "Contact | Zero Inertia",
+            },
+        },
+        {
             path: "/login",
             name: "login",
             component: LoginView,
@@ -19,10 +59,17 @@ const router = createRouter({
             },
         },
         {
+            path: "/auth/error",
+            name: "auth-error",
+            component: () => import("@/views/AuthErrorView.vue"),
+            meta: {
+                title: "Authentication Error | Zero Inertia",
+            },
+        },
+        {
             path: "/home",
             name: "home",
             component: HomeView,
-            alias: "/",
             meta: {
                 title: "Zero Inertia",
                 requiresAuth: true,
@@ -60,15 +107,22 @@ const router = createRouter({
 
 router.beforeEach(async (to, _, next) => {
     document.title = (to.meta.title as string) || "Zero Inertia";
+
     const requiresAuth = to.matched.some((record) => record.meta.requiresAuth);
     const requiresGuest = to.matched.some(
         (record) => record.meta.requiresGuest
     );
 
+    // Public routes (no auth requirements) bypass all auth checks
+    if (!requiresAuth && !requiresGuest) {
+        next();
+        return;
+    }
+
     const authStore = useAuthStore();
 
     // Only initialize auth state if we need to check authentication
-    if ((requiresAuth || requiresGuest) && !authStore.isInitialized) {
+    if (!authStore.isInitialized) {
         await authStore.initialize();
     }
 

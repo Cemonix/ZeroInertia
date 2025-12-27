@@ -16,6 +16,28 @@ export interface PushSubscription {
     updated_at: string;
 }
 
+export type BrowserNotificationCapability = 'fully-supported' | 'brave' | 'unsupported';
+
+export interface NotificationSupportInfo {
+    capability: BrowserNotificationCapability;
+    isSupported: boolean;
+    canAttempt: boolean;
+    warningMessage?: string;
+    helpMessage?: string;
+}
+
+/**
+ * Reliably detect if the browser is Brave
+ * Uses the official Brave detection API which returns a Promise
+ */
+async function detectBraveBrowser(): Promise<boolean> {
+    try {
+        return (navigator as any).brave && await (navigator as any).brave.isBrave?.() === true;
+    } catch {
+        return false;
+    }
+}
+
 /**
  * Request notification permission from the user
  * @returns Permission state: 'granted', 'denied', or 'default'
@@ -64,7 +86,7 @@ export async function subscribeToNotifications(): Promise<void> {
         });
     } catch (error: any) {
         if (error?.name === "AbortError" || error?.message?.includes("Registration failed")) {
-            const isBrave = (navigator as any).brave !== undefined;
+            const isBrave = await detectBraveBrowser();
             if (isBrave) {
                 throw new Error(
                     "Push notifications are blocked. In Brave, go to Settings → Privacy and security → " +
@@ -157,11 +179,8 @@ export async function setupForegroundMessageListener(
  * Check if push notifications are supported in this browser
  */
 export async function isNotificationSupported(): Promise<boolean> {
-    if (!("Notification" in window)) {
-        return false;
-    }
-    const messaging = await getMessagingInstance();
-    return messaging !== null;
+    const info = await getBrowserNotificationCapability();
+    return info.isSupported;
 }
 
 /**
@@ -172,4 +191,59 @@ export function getNotificationPermission(): NotificationPermission {
         return "denied";
     }
     return Notification.permission;
+}
+
+/**
+ * Detect browser notification capability with granular support levels
+ * @returns Detailed information about notification support
+ */
+export async function getBrowserNotificationCapability(): Promise<NotificationSupportInfo> {
+    if (!("Notification" in window)) {
+        return {
+            capability: 'unsupported',
+            isSupported: false,
+            canAttempt: false,
+            warningMessage: 'Your browser does not support push notifications.',
+            helpMessage: 'Please upgrade to a modern browser like Chrome, Firefox, Edge, or Safari to receive task reminders.'
+        };
+    }
+
+    if (!("serviceWorker" in navigator)) {
+        return {
+            capability: 'unsupported',
+            isSupported: false,
+            canAttempt: false,
+            warningMessage: 'Service Workers are not supported in your browser.',
+            helpMessage: 'Please upgrade to a modern browser to enable push notifications.'
+        };
+    }
+
+    const messaging = await getMessagingInstance();
+    if (!messaging) {
+        return {
+            capability: 'unsupported',
+            isSupported: false,
+            canAttempt: false,
+            warningMessage: 'Firebase Cloud Messaging is not supported in your browser.',
+            helpMessage: 'This may be due to browser restrictions or privacy settings.'
+        };
+    }
+
+    const isBrave = await detectBraveBrowser();
+
+    if (isBrave) {
+        return {
+            capability: 'brave',
+            isSupported: true,
+            canAttempt: true,
+            warningMessage: 'Brave browser requires additional configuration for push notifications.',
+            helpMessage: 'To enable notifications in Brave:\n1. Click the Brave icon in your address bar\n2. Go to Settings → Privacy and security\n3. Enable "Use Google services for push messaging"\n4. Refresh this page and try again'
+        };
+    }
+
+    return {
+        capability: 'fully-supported',
+        isSupported: true,
+        canAttempt: true
+    };
 }
