@@ -87,7 +87,6 @@
                     'Rich text editing with markdown syntax',
                     'Syntax highlighting for code blocks',
                     'Live preview as you type',
-                    'Export to PDF or plain text'
                 ]"
                 image-src="/screenshots/feature-notes-editor.png"
                 image-alt="Markdown note editor"
@@ -100,7 +99,7 @@
                     'Hierarchical folder structure for notes',
                     'Drag-and-drop to reorganize',
                     'Search across all notes instantly',
-                    'Tag notes for additional categorization'
+                    'Organize notes with flexible folder categories'
                 ]"
                 image-src="/screenshots/feature-folder-organization.png"
                 image-alt="Notes folder organization"

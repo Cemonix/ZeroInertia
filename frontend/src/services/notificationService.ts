@@ -27,6 +27,18 @@ export interface NotificationSupportInfo {
 }
 
 /**
+ * Reliably detect if the browser is Brave
+ * Uses the official Brave detection API which returns a Promise
+ */
+async function detectBraveBrowser(): Promise<boolean> {
+    try {
+        return (navigator as any).brave && await (navigator as any).brave.isBrave?.() === true;
+    } catch {
+        return false;
+    }
+}
+
+/**
  * Request notification permission from the user
  * @returns Permission state: 'granted', 'denied', or 'default'
  */
@@ -74,7 +86,7 @@ export async function subscribeToNotifications(): Promise<void> {
         });
     } catch (error: any) {
         if (error?.name === "AbortError" || error?.message?.includes("Registration failed")) {
-            const isBrave = (navigator as any).brave !== undefined;
+            const isBrave = await detectBraveBrowser();
             if (isBrave) {
                 throw new Error(
                     "Push notifications are blocked. In Brave, go to Settings → Privacy and security → " +
@@ -217,7 +229,7 @@ export async function getBrowserNotificationCapability(): Promise<NotificationSu
         };
     }
 
-    const isBrave = (navigator as any).brave !== undefined;
+    const isBrave = await detectBraveBrowser();
 
     if (isBrave) {
         return {

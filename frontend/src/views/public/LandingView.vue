@@ -84,7 +84,7 @@
                     'Markdown-powered notes with folder organization',
                     'Search across all your knowledge instantly',
                     'Link notes to tasks for context-rich productivity',
-                    'Version history and note snapshots for peace of mind'
+                    'Flexible note-taking designed for clarity and focus'
                 ]"
                 image-src="/screenshots/feature-notes-editor.png"
                 image-alt="Notes editor with markdown"
