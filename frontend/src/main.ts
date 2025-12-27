@@ -79,6 +79,7 @@ import ConfirmDialog from "primevue/confirmdialog";
 import Menu from "primevue/menu";
 import Avatar from "primevue/avatar";
 import Tag from "primevue/tag";
+import Drawer from "primevue/drawer";
 
 library.add(
     faTrash,
@@ -175,6 +176,7 @@ app.component("ConfirmDialog", ConfirmDialog);
 app.component("Menu", Menu);
 app.component("Avatar", Avatar);
 app.component("Tag", Tag);
+app.component("Drawer", Drawer);
 
 app.mount("#app");
 
