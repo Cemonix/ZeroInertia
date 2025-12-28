@@ -12,7 +12,7 @@
                 Move "<span class="task-title-preview">{{ task.title }}</span>" to project
             </label>
             <Select
-                id="project-select"
+                labelId="project-select"
                 v-model="selectedProjectId"
                 :options="availableProjects"
                 optionLabel="title"

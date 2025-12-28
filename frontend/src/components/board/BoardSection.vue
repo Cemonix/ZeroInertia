@@ -38,7 +38,7 @@
         <!-- Show Completed Toggle -->
         <div v-if="!isCollapsed && tasks.some(t => t.completed)" class="section-controls">
             <label for="show-completed" class="control-label">Show completed</label>
-            <ToggleSwitch v-model="showCompleted" inputId="show-completed" />
+            <ToggleSwitch v-model="showCompleted" labelId="show-completed" />
         </div>
 
         <!-- Task List -->

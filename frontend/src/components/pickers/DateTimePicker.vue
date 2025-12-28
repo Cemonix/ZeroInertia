@@ -9,7 +9,7 @@
         iconDisplay="input"
         :showTime="true"
         hourFormat="24"
-        :inputId="timeInputId + '-picker'"
+        :labelId="timelabelId + '-picker'"
     >
         <template #dropdownicon>
             <FontAwesomeIcon icon="calendar" />
@@ -17,9 +17,9 @@
         <template #footer>
             <div class="dtp-footer">
                 <div class="dtp-time-row">
-                    <label class="dtp-time-label" :for="timeInputId">Time</label>
+                    <label class="dtp-time-label" :for="timelabelId">Time</label>
                     <input
-                        :id="timeInputId"
+                        :id="timelabelId"
                         class="dtp-time-input"
                         type="time"
                         v-model="time"
@@ -81,7 +81,7 @@ const emit = defineEmits<{
 
 const date = ref<Date | null>(null);
 const time = ref<string | null>(null); // HH:mm
-const timeInputId = `dtp-time-${Math.random().toString(36).slice(2, 8)}`;
+const timelabelId = `dtp-time-${Math.random().toString(36).slice(2, 8)}`;
 const syncing = ref(false); // Flag to prevent re-emission during sync
 const datePickerRef = ref<InstanceType<typeof DatePicker> | null>(null);
 const mutationObserver = ref<MutationObserver | null>(null);
@@ -214,7 +214,7 @@ function getFormattedDisplay(): string {
 // Update the input element display to show time range
 function updateInputDisplay() {
     nextTick(() => {
-        const inputElement = document.getElementById(timeInputId + '-picker') as HTMLInputElement;
+        const inputElement = document.getElementById(timelabelId + '-picker') as HTMLInputElement;
         if (!inputElement) return;
 
         const formattedValue = getFormattedDisplay();
@@ -238,7 +238,7 @@ onMounted(() => {
 
     // Watch for changes to the input value and re-apply our format
     nextTick(() => {
-        const inputElement = document.getElementById(timeInputId + '-picker') as HTMLInputElement;
+        const inputElement = document.getElementById(timelabelId + '-picker') as HTMLInputElement;
         if (!inputElement) return;
 
         // Use MutationObserver to detect when PrimeVue changes the input value
@@ -270,7 +270,7 @@ onBeforeUnmount(() => {
     }
 
     if (inputEventHandler.value) {
-        const inputElement = document.getElementById(timeInputId + '-picker') as HTMLInputElement;
+        const inputElement = document.getElementById(timelabelId + '-picker') as HTMLInputElement;
         if (inputElement) {
             inputElement.removeEventListener('input', inputEventHandler.value);
         }
