@@ -11,7 +11,7 @@
                 <div class="form-field">
                     <label for="media-type">Media Type</label>
                     <Select
-                        id="media-type"
+                        labelId="media-type"
                         v-model="form.media_type"
                         :options="MEDIA_TYPES"
                         optionLabel="label"
@@ -21,7 +21,7 @@
                 <div class="form-field">
                     <label for="status">Status</label>
                     <Select
-                        id="status"
+                        labelId="status"
                         v-model="form.status"
                         :options="MEDIA_STATUSES"
                         optionLabel="label"
@@ -70,7 +70,7 @@
                 <div class="form-field">
                     <label for="genres">Genres</label>
                     <MultiSelect
-                        id="genres"
+                        labelId="genres"
                         v-model="form.genres"
                         :options="genreOptions"
                         optionLabel="name"
@@ -84,11 +84,11 @@
                     v-if="form.media_type === 'book'"
                     class="form-field checkbox-field"
                 >
-                    <div class="checkbox-label">
+                    <label for="is_audiobook" class="checkbox-label">
                         <span class="label-title">Audiobook</span>
-                    </div>
-                    <InputSwitch
-                        inputId="is_audiobook"
+                    </label>
+                    <ToggleSwitch
+                        labelId="is_audiobook"
                         v-model="form.is_audiobook"
                     />
                 </div>
@@ -98,7 +98,7 @@
                 >
                     <label for="platform">Platform</label>
                         <AutoComplete
-                            id="platform"
+                            labelId="platform"
                             v-model="form.platform"
                             :suggestions="platformSuggestions"
                             @complete="searchPlatform"
@@ -113,7 +113,7 @@
                     >
                         <label for="episodes">Episodes</label>
                         <InputNumber
-                            inputId="episodes"
+                            labelId="episodes"
                             v-model="form.episodes"
                             :min="1"
                             :useGrouping="false"
@@ -128,7 +128,7 @@
                     <div v-if="form.media_type !== 'movie'" class="form-field">
                         <label for="started_at">Started</label>
                         <DatePicker
-                            id="started_at"
+                            labelId="started_at"
                             v-model="startedDate"
                             placeholder="Start date"
                             dateFormat="yy-mm-dd"
@@ -147,7 +147,7 @@
                     <div class="form-field">
                         <label for="completed_at">Completed</label>
                         <DatePicker
-                            id="completed_at"
+                            labelId="completed_at"
                             v-model="completedDate"
                             placeholder="Completion date"
                             dateFormat="yy-mm-dd"
@@ -168,7 +168,7 @@
                 <div class="form-field">
                     <label for="notes">Notes</label>
                     <Textarea
-                        id="notes"
+                        labelId="notes"
                         v-model="form.notes"
                         rows="3"
                         placeholder="Notes (optional)"
@@ -221,7 +221,7 @@ import AutoComplete from "primevue/autocomplete";
 import MultiSelect from "primevue/multiselect";
 import DatePicker from "primevue/datepicker";
 import InputNumber from "primevue/inputnumber";
-import InputSwitch from "primevue/inputswitch";
+import ToggleSwitch from "primevue/toggleswitch";
 import {
     MEDIA_STATUSES,
     MEDIA_TYPES,

@@ -127,7 +127,7 @@
                     </span>
                 </template>
             </Column>
-            <Column header="Actions" style="width: 140px">
+            <Column header="Actions" style="width: 180px">
                 <template #body="slotProps">
                     <div class="action-buttons">
                         <Button
@@ -145,6 +145,7 @@
                         >
                             Delete
                         </Button>
+                        <MediaActions :item="slotProps.data" />
                     </div>
                 </template>
             </Column>
@@ -159,6 +160,7 @@ import Tag from "primevue/tag";
 import Button from "primevue/button";
 import type { MediaItem, MediaStatus, MediaType } from "@/models/media";
 import { format, parseISO } from "date-fns";
+import MediaActions from "@/components/media/MediaActions.vue";
 
 interface Props {
     items: MediaItem[];

@@ -22,6 +22,7 @@ export const useMediaStore = defineStore("media", () => {
 
     const formVisible = ref(false);
     const editingItem = ref<MediaItem | null>(null);
+    const isTemplateMode = ref(false);
 
     const selectedStatuses = ref<MediaStatus[]>([]);
     const search = ref("");
@@ -239,23 +240,32 @@ export const useMediaStore = defineStore("media", () => {
 
     function openCreateForm(): void {
         editingItem.value = null;
+        isTemplateMode.value = false;
         formVisible.value = true;
     }
 
     function openEditForm(item: MediaItem): void {
         editingItem.value = item;
+        isTemplateMode.value = false;
+        formVisible.value = true;
+    }
+
+    function openCreateFormFromTemplate(item: MediaItem): void {
+        editingItem.value = item;
+        isTemplateMode.value = true;
         formVisible.value = true;
     }
 
     function closeForm(): void {
         formVisible.value = false;
         editingItem.value = null;
+        isTemplateMode.value = false;
     }
 
     async function save(values: MediaFormValues): Promise<void> {
         try {
             let saved: MediaItem;
-            if (editingItem.value) {
+            if (editingItem.value && !isTemplateMode.value) {
                 saved = await mediaService.updateMedia(
                     editingItem.value.id,
                     editingItem.value.media_type,
@@ -391,6 +401,7 @@ export const useMediaStore = defineStore("media", () => {
         setActiveCategory,
         openCreateForm,
         openEditForm,
+        openCreateFormFromTemplate,
         closeForm,
         save,
         remove,

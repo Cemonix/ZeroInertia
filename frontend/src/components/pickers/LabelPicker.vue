@@ -19,7 +19,7 @@
                 :for="`label-${label.id}`"
             >
                 <Checkbox
-                    :inputId="`label-${label.id}`"
+                    :labelId="`label-${label.id}`"
                     v-model="localSelectedIds"
                     :value="label.id"
                 />
