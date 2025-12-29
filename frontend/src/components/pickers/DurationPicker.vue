@@ -49,7 +49,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, useId } from 'vue';
 
 const props = withDefaults(defineProps<{
     modelValue: number | null; // minutes
@@ -64,7 +64,7 @@ const emit = defineEmits<{
     (e: 'update:modelValue', value: number | null): void;
 }>();
 
-const hoursId = `duration-hours-${Math.random().toString(36).slice(2, 8)}`;
+const hoursId = useId();
 
 // Internal state mirrored as hours/minutes
 const hours = ref<number>(0);
