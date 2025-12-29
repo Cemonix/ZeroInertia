@@ -9,7 +9,7 @@
         iconDisplay="input"
         :showTime="true"
         hourFormat="24"
-        :labelId="timelabelId + '-picker'"
+        :inputId="timelabelId + '-picker'"
     >
         <template #dropdownicon>
             <FontAwesomeIcon icon="calendar" />
@@ -52,7 +52,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, nextTick, onMounted, onBeforeUnmount } from 'vue';
+import { computed, ref, watch, nextTick, onMounted, onBeforeUnmount, useId } from 'vue';
 import DatePicker from 'primevue/datepicker';
 import DurationPicker from '@/components/pickers/DurationPicker.vue';
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
@@ -81,9 +81,8 @@ const emit = defineEmits<{
 
 const date = ref<Date | null>(null);
 const time = ref<string | null>(null); // HH:mm
-const timelabelId = `dtp-time-${Math.random().toString(36).slice(2, 8)}`;
+const timelabelId = useId();
 const syncing = ref(false); // Flag to prevent re-emission during sync
-const datePickerRef = ref<InstanceType<typeof DatePicker> | null>(null);
 const mutationObserver = ref<MutationObserver | null>(null);
 const inputEventHandler = ref<(() => void) | null>(null);
 
@@ -225,7 +224,10 @@ function updateInputDisplay() {
 }
 
 // Watch for changes to update the display
-watch([date, time, () => props.duration], updateInputDisplay);
+watch([date, time], updateInputDisplay);
+
+// Watch duration separately to ensure reactivity
+watch(() => props.duration, updateInputDisplay);
 
 // Re-apply custom formatting after DatePicker updates
 watch(dateForPicker, () => {
