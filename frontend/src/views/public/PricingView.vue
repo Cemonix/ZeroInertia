@@ -95,7 +95,7 @@
 
         <!-- FAQ Section -->
         <section class="landing-section">
-            <div class="section-header">
+            <div class="landing-section-header">
                 <h2 class="section-headline">Frequently Asked Questions</h2>
             </div>
             <div class="faq-container">

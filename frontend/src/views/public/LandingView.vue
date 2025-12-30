@@ -27,7 +27,7 @@
 
         <!-- Problem Statement -->
         <section class="landing-section">
-            <div class="section-header">
+            <div class="landing-section-header">
                 <h2 class="section-headline">Too Many Tools. Too Much Friction.</h2>
                 <p class="section-subheadline">
                     Switching between task managers, note apps, and tracking spreadsheets creates friction.
@@ -38,7 +38,7 @@
 
         <!-- Key Features Grid -->
         <section class="landing-section" ref="featuresSection">
-            <div class="section-header">
+            <div class="landing-section-header">
                 <h2 class="section-headline">Everything You Need in One Place</h2>
             </div>
             <div class="features-grid">
