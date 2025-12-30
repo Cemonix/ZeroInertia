@@ -12,7 +12,7 @@
 
         <!-- Mission Statement -->
         <section class="landing-section">
-            <div class="section-header">
+            <div class="landing-section-header">
                 <h2 class="section-headline">Our Mission</h2>
             </div>
             <div class="content-block">
@@ -33,7 +33,7 @@
 
         <!-- Core Values -->
         <section class="landing-section">
-            <div class="section-header">
+            <div class="landing-section-header">
                 <h2 class="section-headline">Core Values</h2>
             </div>
             <div class="features-grid">

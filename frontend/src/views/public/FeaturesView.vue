@@ -12,7 +12,7 @@
 
         <!-- Task Management Features -->
         <section class="landing-section">
-            <div class="section-header">
+            <div class="landing-section-header">
                 <h2 class="section-headline">Task Management</h2>
                 <p class="section-subheadline">
                     Powerful tools to organize your work and stay on track.
@@ -74,7 +74,7 @@
 
         <!-- Knowledge Hub Features -->
         <section class="landing-section">
-            <div class="section-header">
+            <div class="landing-section-header">
                 <h2 class="section-headline">Knowledge Hub</h2>
                 <p class="section-subheadline">
                     Your second brain for capturing and organizing ideas.
@@ -109,7 +109,7 @@
 
         <!-- Tracking & Insights Features -->
         <section class="landing-section">
-            <div class="section-header">
+            <div class="landing-section-header">
                 <h2 class="section-headline">Tracking & Insights</h2>
                 <p class="section-subheadline">
                     Understand your productivity patterns and celebrate achievements.
@@ -158,7 +158,7 @@
 
         <!-- All-in-One Platform Features -->
         <section class="landing-section">
-            <div class="section-header">
+            <div class="landing-section-header">
                 <h2 class="section-headline">All-in-One Platform</h2>
                 <p class="section-subheadline">
                     Everything works together seamlessly.
