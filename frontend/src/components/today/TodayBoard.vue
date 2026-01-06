@@ -3,7 +3,7 @@
         <div class="today-header">
             <div class="today-header-content">
                 <div v-if="viewMode === 'list'">
-                    <h2>Today</h2>
+                    <h2>{{ headerTitle }}</h2>
                     <p class="today-date">{{ formattedDate }}</p>
                 </div>
                 <div class="view-toggle">
@@ -66,11 +66,11 @@
                 </TransitionGroup>
             </div>
 
-            <!-- Today's Tasks Section -->
+            <!-- Selected Date's Tasks Section -->
             <div v-if="todayTasks.length > 0" class="task-group today-group">
                 <div class="task-group-header">
                     <FontAwesomeIcon icon="calendar-day" class="group-icon today-icon" />
-                    <h3>Today</h3>
+                    <h3>{{ headerTitle }}</h3>
                     <span class="task-count">{{ todayTasks.length }}</span>
                 </div>
                 <TransitionGroup name="task-list" tag="div" class="task-list">
@@ -86,7 +86,7 @@
             <!-- Empty State -->
             <div v-if="overdueTasks.length === 0 && todayTasks.length === 0" class="empty-state">
                 <FontAwesomeIcon icon="check-circle" class="empty-icon" />
-                <h3>No tasks for today</h3>
+                <h3>No tasks for {{ headerTitle.toLowerCase() }}</h3>
                 <p>You're all caught up! Enjoy your day.</p>
             </div>
             </div>
@@ -155,9 +155,21 @@ const handleQuickAddClick = () => {
     taskStore.openTaskModal(null);
 };
 
+const headerTitle = computed(() => {
+    const selectedDate = currentViewDate.value;
+    const now = new Date();
+    const isToday = selectedDate.toDateString() === now.toDateString();
+
+    return isToday ? 'Today' : selectedDate.toLocaleDateString('en-US', {
+        weekday: 'long',
+        month: 'short',
+        day: 'numeric'
+    });
+});
+
 const formattedDate = computed(() => {
-    const today = new Date();
-    return today.toLocaleDateString('en-US', {
+    const selectedDate = currentViewDate.value;
+    return selectedDate.toLocaleDateString('en-US', {
         weekday: 'long',
         year: 'numeric',
         month: 'long',
@@ -175,30 +187,30 @@ const getTasksWithDueDate = computed((): Task[] => {
     );
 });
 
-// Filter overdue tasks (due before today, not completed)
+// Filter overdue tasks (due before the selected date, not completed)
 const overdueTasks = computed((): Task[] => {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const selectedDate = currentViewDate.value;
+    const selectedDay = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
 
     return getTasksWithDueDate.value.filter(task => {
         const dueDate = new Date(task.due_datetime!);
         const taskDate = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
-        return taskDate < today;
+        return taskDate < selectedDay;
     }).sort((a, b) => {
         // Sort by due date, earliest first
         return new Date(a.due_datetime!).getTime() - new Date(b.due_datetime!).getTime();
     });
 });
 
-// Filter today's tasks (due today, not completed)
+// Filter tasks for the selected date (not completed)
 const todayTasks = computed((): Task[] => {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const selectedDate = currentViewDate.value;
+    const selectedDay = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
 
     return getTasksWithDueDate.value.filter(task => {
         const dueDate = new Date(task.due_datetime!);
         const taskDate = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
-        return taskDate.getTime() === today.getTime();
+        return taskDate.getTime() === selectedDay.getTime();
     }).sort((a, b) => {
         // Sort by due time, earliest first
         return new Date(a.due_datetime!).getTime() - new Date(b.due_datetime!).getTime();
@@ -210,7 +222,36 @@ watch(viewMode, (newMode) => {
     if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
         localStorage.setItem(STORAGE_KEY, newMode);
     }
+
+    // When switching to calendar, reset to today's date
+    if (newMode === 'calendar') {
+        currentViewDate.value = new Date();
+    }
+
+    // Load tasks when switching to board view to ensure we have tasks for the selected date
+    if (newMode === 'list') {
+        loadTasksForSelectedDate();
+    }
 });
+
+// Load tasks when the selected date changes
+watch(currentViewDate, () => {
+    if (viewMode.value === 'list') {
+        loadTasksForSelectedDate();
+    }
+});
+
+async function loadTasksForSelectedDate() {
+    const selectedDate = currentViewDate.value;
+    const startOfDay = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate(), 0, 0, 0);
+    const endOfDay = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate() + 1, 0, 0, 0);
+
+    try {
+        await taskStore.loadTasksByDateRange(startOfDay, endOfDay);
+    } catch (error) {
+        // Error handling is done in the store
+    }
+}
 
 onMounted(async () => {
     isTodayLoading.value = true;
