@@ -83,6 +83,7 @@ const date = ref<Date | null>(null);
 const time = ref<string | null>(null); // HH:mm
 const timelabelId = useId();
 const syncing = ref(false); // Flag to prevent re-emission during sync
+const datePickerRef = ref<InstanceType<typeof DatePicker> | null>(null);
 const mutationObserver = ref<MutationObserver | null>(null);
 const inputEventHandler = ref<(() => void) | null>(null);
 
@@ -171,11 +172,9 @@ const dateForPicker = computed<Date | null>({
         date.value = new Date(val.getFullYear(), val.getMonth(), val.getDate());
 
         // Ensure time is always set when date is selected
+        // Default to 12:00 (noon) for balanced scrolling and neutral time
         if (!time.value) {
-            const now = new Date();
-            const hh = String(now.getHours()).padStart(2, '0');
-            const mm = String(now.getMinutes()).padStart(2, '0');
-            time.value = `${hh}:${mm}`;
+            time.value = '12:00';
         }
     },
 });
@@ -223,11 +222,7 @@ function updateInputDisplay() {
     });
 }
 
-// Watch for changes to update the display
-watch([date, time], updateInputDisplay);
-
-// Watch duration separately to ensure reactivity
-watch(() => props.duration, updateInputDisplay);
+watch([date, time, () => props.duration], updateInputDisplay);
 
 // Re-apply custom formatting after DatePicker updates
 watch(dateForPicker, () => {
