@@ -33,7 +33,8 @@
                 <Button
                     class="save-button"
                     label="Save"
-                    :disabled="!isDirty"
+                    :disabled="!isDirty || isSaving"
+                    :loading="isSaving"
                     @click="saveChanges"
                 />
             </div>
@@ -86,6 +87,7 @@ const viewOptions: ViewMode[] = ["edit", "split", "preview"];
 const localTitle = ref("");
 const localContent = ref("");
 const isFullscreen = ref(false);
+const isSaving = ref(false);
 
 watch(
     activeNote,
@@ -112,6 +114,7 @@ const saveChanges = async () => {
     if (!activeNote.value || !isDirty.value) {
         return;
     }
+    isSaving.value = true;
     try {
         await noteStore.updateNote(activeNote.value.id, {
             title: localTitle.value,
@@ -129,6 +132,8 @@ const saveChanges = async () => {
             detail: error instanceof Error ? error.message : "Unknown error",
             life: 3000,
         });
+    } finally {
+        isSaving.value = false;
     }
 };
 

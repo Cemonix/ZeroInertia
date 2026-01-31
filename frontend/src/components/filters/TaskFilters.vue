@@ -556,6 +556,7 @@ onMounted(async () => {
     display: flex;
     flex-direction: column;
     min-height: 100%;
+    min-width: 0;
 }
 
 .results-header {
