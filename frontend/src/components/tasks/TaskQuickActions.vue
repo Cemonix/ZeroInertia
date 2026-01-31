@@ -41,6 +41,7 @@ import Button from "primevue/button";
 import Menu from "primevue/menu";
 import type { MenuItem } from "primevue/menuitem";
 import { useToast } from "primevue/usetoast";
+import { useConfirm } from "primevue/useconfirm";
 import type { Task } from "@/models/task";
 import { useTaskStore } from "@/stores/task";
 import TaskMoveModal from "@/components/tasks/TaskMoveModal.vue";
@@ -62,6 +63,7 @@ type TaskMenuInstance = {
 
 const taskStore = useTaskStore();
 const toast = useToast();
+const confirm = useConfirm();
 
 const menuRef = ref<TaskMenuInstance | null>(null);
 const showMoveModal = ref(false);
@@ -76,8 +78,7 @@ const closeMenu = () => {
     menuRef.value?.hide();
 };
 
-const handleDelete = async () => {
-    closeMenu();
+const deleteTask = async () => {
     try {
         await taskStore.deleteTask(props.task.id);
         emit("deleted", props.task.id);
@@ -95,6 +96,19 @@ const handleDelete = async () => {
             life: 3000,
         });
     }
+};
+
+const handleDelete = () => {
+    closeMenu();
+    confirm.require({
+        message: `Delete "${props.task.title}"? This action cannot be undone.`,
+        header: "Confirm Deletion",
+        acceptLabel: "Delete",
+        rejectLabel: "Cancel",
+        acceptClass: "p-button-danger",
+        rejectClass: "p-button-text",
+        accept: () => deleteTask(),
+    });
 };
 
 const handleDuplicate = async () => {
