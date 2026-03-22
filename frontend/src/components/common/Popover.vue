@@ -8,7 +8,6 @@
                 @click="handleOverlayClick"
             >
                 <div
-                    ref="popoverContent"
                     class="popover-container"
                     :style="containerStyle"
                     @click.stop
@@ -56,7 +55,6 @@ const emit = defineEmits<{
 }>();
 
 const primeVue = usePrimeVue();
-const popoverContent = ref<HTMLElement | null>(null);
 const overlayRef = ref<HTMLElement | null>(null);
 
 const containerStyle = computed(() => ({
