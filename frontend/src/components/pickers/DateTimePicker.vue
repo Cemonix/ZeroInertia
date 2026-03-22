@@ -1,6 +1,5 @@
 <template>
     <DatePicker
-        ref="datePickerRef"
         v-model="dateForPicker"
         :placeholder="placeholder"
         :size="size"
@@ -83,7 +82,6 @@ const date = ref<Date | null>(null);
 const time = ref<string | null>(null); // HH:mm
 const timelabelId = useId();
 const syncing = ref(false); // Flag to prevent re-emission during sync
-const datePickerRef = ref<InstanceType<typeof DatePicker> | null>(null);
 const mutationObserver = ref<MutationObserver | null>(null);
 const inputEventHandler = ref<(() => void) | null>(null);
 

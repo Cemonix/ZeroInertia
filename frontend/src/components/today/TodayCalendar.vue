@@ -1,7 +1,6 @@
 <template>
     <div class="today-calendar-container">
         <VueCal
-            ref="vuecalRef"
             :views-bar="false"
             :time="true"
             :time-from="timeFrom"
@@ -10,8 +9,8 @@
             :events="calendarEvents"
             :editable-events="{ create: true, resize: true, drag: true, delete: false }"
             :snap-to-interval="15"
-            :watch-real-time="true"
             :dark="isDarkMode"
+            :view-date="props.currentDate"
             view="day"
             :views="['day']"
             :hide-view-selector="true"
@@ -80,7 +79,6 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue';
-// @ts-expect-error - vue-cal doesn't have proper TypeScript declarations
 import { VueCal } from 'vue-cal';
 import 'vue-cal/style.css';
 import Checkbox from 'primevue/checkbox';
@@ -162,7 +160,6 @@ const priorityStore = usePriorityStore();
 const toast = useToast();
 const { isDarkMode } = useTheme();
 
-const vuecalRef = ref<InstanceType<typeof VueCal> | null>(null);
 const currentLoadedDate = ref<string>('');
 const isResizing = ref(false);
 const isDragging = ref(false);
@@ -225,31 +222,18 @@ const calendarEvents = computed(() => {
 
         const scheduledDurationMinutes = Math.max(actualDurationMinutes, 30);
 
-        let endDate: Date;
-        let start: Date | string;
-        let end: Date | string;
+        let start: Date;
+        let end: Date;
 
         // Calculate end time based on duration
         if (isAllDay) {
-            // For all-day events, use YYYY-MM-DD string format
-            // End date should be the next day for proper rendering
-            const year = startDate.getFullYear();
-            const month = String(startDate.getMonth() + 1).padStart(2, '0');
-            const day = String(startDate.getDate()).padStart(2, '0');
-            start = `${year}-${month}-${day}`;
-
-            // End should be the next day
+            start = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate(), 0, 0, 0);
             const nextDay = new Date(startDate);
             nextDay.setDate(nextDay.getDate() + 1);
-            const endYear = nextDay.getFullYear();
-            const endMonth = String(nextDay.getMonth() + 1).padStart(2, '0');
-            const endDay = String(nextDay.getDate()).padStart(2, '0');
-            end = `${endYear}-${endMonth}-${endDay}`;
+            end = new Date(nextDay.getFullYear(), nextDay.getMonth(), nextDay.getDate(), 0, 0, 0);
         } else {
-            // For timed events, use Date objects
             start = startDate;
-            endDate = new Date(startDate.getTime() + scheduledDurationMinutes * 60000);
-            end = endDate;
+            end = new Date(startDate.getTime() + scheduledDurationMinutes * 60000);
         }
 
         // Get priority and labels for styling
@@ -477,15 +461,6 @@ watch(() => props.currentDate, (newDate: Date | undefined, oldDate: Date | undef
 
         if (newKey !== oldKey) {
             loadTasksForDate(newDate);
-
-            // Update vue-cal's view if we have a reference
-            if (vuecalRef.value && typeof vuecalRef.value.switchToNarrower === 'function') {
-                try {
-                    vuecalRef.value.switchToNarrower(newDate);
-                } catch (e) {
-                    // Silently ignore if method doesn't exist or fails
-                }
-            }
         }
     }
 });
